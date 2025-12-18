@@ -1,0 +1,5 @@
+{
+  "name": "Infographic Agent Pro",
+  "description": "A professional tool for generating batch infographic slides from detailed text prompts using Gemini Nano Banana models. Perfect for transforming complex documentation into visual presentations.",
+  "requestFramePermissions": []
+}
