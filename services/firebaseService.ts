@@ -7,13 +7,28 @@ import {
   signOut as signOutFirebase,
   GoogleAuthProvider,
   User,
+  Auth
 } from 'firebase/auth';
 import { firebaseConfig } from './firebaseConfig';
 import { SlidePrompt } from '../types';
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+// Initialize Firebase safely
+let app;
+let auth: Auth | null = null;
+let initializationError: any = null;
+
+try {
+  // Simple check to see if config is dummy
+  if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+    console.warn("Firebase config is using placeholders. Firebase features will be disabled.");
+  } else {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+  }
+} catch (error) {
+  console.error("Failed to initialize Firebase:", error);
+  initializationError = error;
+}
 
 let currentAccessToken: string | null = null;
 
@@ -38,6 +53,8 @@ function dataURLtoFile(dataurl: string, filename: string): File {
  * Signs in the user with Google and returns the access token.
  */
 export async function signInWithGoogle(): Promise<{ user: User; accessToken: string | null }> {
+  if (!auth) throw new Error("Firebase is not initialized. Check your configuration.");
+  
   const provider = new GoogleAuthProvider();
   provider.addScope('https://www.googleapis.com/auth/presentations');
   provider.addScope('https://www.googleapis.com/auth/drive.file');
@@ -53,6 +70,7 @@ export async function signInWithGoogle(): Promise<{ user: User; accessToken: str
  * Signs out the user.
  */
 export function signOut() {
+  if (!auth) return Promise.resolve();
   currentAccessToken = null;
   return signOutFirebase(auth);
 }
@@ -61,6 +79,11 @@ export function signOut() {
  * Listens for authentication state changes.
  */
 export function onAuthStateChangedHelper(callback: (user: User | null) => void) {
+  if (!auth) {
+    // If not initialized, just call back with null immediately
+    callback(null);
+    return () => {};
+  }
   return onAuthStateChanged(auth, callback);
 }
 

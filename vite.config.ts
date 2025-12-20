@@ -17,6 +17,10 @@ export default defineConfig(({ mode }) => {
         },
       },
       plugins: [react()],
+      optimizeDeps: {
+        entries: ['index.html'], // Only scan index.html for dependencies, avoiding venv
+        exclude: ['venv']
+      },
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
