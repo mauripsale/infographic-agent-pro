@@ -30,6 +30,12 @@ const App: React.FC = () => {
   const [presentationUrl, setPresentationUrl] = useState<string | null>(null);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isPresentationViewOpen, setIsPresentationViewOpen] = useState(false);
+  const [presentationStartIndex, setPresentationStartIndex] = useState(0);
+
+  const handleOpenPresentation = (index: number) => {
+    setPresentationStartIndex(index);
+    setIsPresentationViewOpen(true);
+  };
 
   const [config, setConfig] = useState<GenerationConfig>({
     slideCount: 5,
