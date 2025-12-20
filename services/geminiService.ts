@@ -48,7 +48,7 @@ export const generateScriptFromSource = async (
         slide_count: config.slideCount,
         detail_level: config.detailLevel,
         // Pass model if available in config, otherwise backend defaults to flash
-        model: (config as any).model || 'gemini-2.0-flash' 
+        model: config.model || 'gemini-2.0-flash' 
       }),
     });
 

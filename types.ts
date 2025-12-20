@@ -87,7 +87,15 @@ export interface GenerationConfig {
 
 
 
+
+
+
+
   slideCount: number;
+
+
+
+
 
 
 
@@ -95,7 +103,15 @@ export interface GenerationConfig {
 
 
 
-  style?: string;
+
+
+
+
+  style: string;
+
+
+
+
 
 
 
@@ -103,7 +119,23 @@ export interface GenerationConfig {
 
 
 
+
+
+
+
   language: Language;
+
+
+
+
+
+
+
+  model?: string;
+
+
+
+
 
 
 
