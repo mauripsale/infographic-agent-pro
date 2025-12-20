@@ -1,5 +1,6 @@
 import os
 import asyncio
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Header
@@ -8,6 +9,10 @@ from typing import Optional
 from pydantic import BaseModel
 from google.adk import Agent
 from google.adk.runners import InMemoryRunner
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Load environment variables from .env or .env.local in current or parent directory
 env_path = Path(__file__).resolve().parent / '.env'
@@ -56,11 +61,9 @@ async def generate_script(
     prompt = f"Genera uno script di {request.slide_count} slide con livello di dettaglio {request.detail_level} basato su: {request.source_content}"
     
     # Usiamo un lock per evitare che richieste concorrenti sovrascrivano la chiave globale
-    # Nota: In produzione, l'ADK dovrebbe supportare un client per-request per evitare questo collo di bottiglia.
     async with env_lock:
-        original_key = os.getenv("GEMINI_API_KEY")
-        os.environ["GEMINI_API_KEY"] = api_key
-        os.environ["GOOGLE_API_KEY"] = api_key # ADK potrebbe usare questa
+        original_key = os.getenv("GOOGLE_API_KEY")
+        os.environ["GOOGLE_API_KEY"] = api_key 
         
         try:
             # Istanziamo l'agente con il modello richiesto
@@ -91,21 +94,23 @@ async def generate_script(
             return {"script": full_text}
             
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            raise HTTPException(status_code=500, detail=str(e))
+            logger.exception("Error generating infographic script")
+            raise HTTPException(
+                status_code=500, 
+                detail="An internal error occurred while generating the infographic script. Please try again later."
+            )
         finally:
-            # Ripristina la chiave originale (o rimuovi se non c'era)
+            # Ripristina la chiave originale
             if original_key:
-                os.environ["GEMINI_API_KEY"] = original_key
                 os.environ["GOOGLE_API_KEY"] = original_key
             else:
-                os.unsetenv("GEMINI_API_KEY") if "GEMINI_API_KEY" in os.environ else None
-                os.unsetenv("GOOGLE_API_KEY") if "GOOGLE_API_KEY" in os.environ else None
+                os.environ.pop("GOOGLE_API_KEY", None)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # In Cloud Run, la porta è solitamente passata via variabile d'ambiente PORT
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
 
 # just for adk web ui dev server:
 if __name__ == "__agent__":
