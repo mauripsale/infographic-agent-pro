@@ -76,12 +76,13 @@ export const generateInfographicImage = async (
   prompt: string,
   model: ModelType
 ): Promise<string> => {
-  // Use import.meta.env for Vite, fallback to process.env for other envs, or empty string safely
-  // Note: Vite replaces process.env.API_KEY if configured in define, but accessing 'process' directly can crash.
-  // Using a safe access pattern.
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.API_KEY : '') || '';
+  const apiKey = getApiKey();
+  
+  if (!apiKey) {
+    throw new Error("API_KEY_REQUIRED"); // Or throw error that UI can catch to show modal
+  }
 
-  const ai = new GoogleGenAI({ apiKey: apiKey as string });
+  const ai = new GoogleGenAI({ apiKey: apiKey });
   
   try {
     const response = await ai.models.generateContent({
