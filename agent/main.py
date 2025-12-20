@@ -58,6 +58,10 @@ async def generate_script(
     if not api_key:
         raise HTTPException(status_code=401, detail="Gemini API Key is required. Please provide it in the X-API-Key header.")
 
+    # Debug: Check content length
+    content_length = len(request.source_content)
+    logger.info(f"Received request with source_content length: {content_length} characters")
+
     prompt = f"Genera uno script di {request.slide_count} slide con livello di dettaglio {request.detail_level} basato su: {request.source_content}"
     
     # Usiamo un lock per evitare che richieste concorrenti sovrascrivano la chiave globale
