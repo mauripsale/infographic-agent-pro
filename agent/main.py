@@ -47,7 +47,7 @@ class InfographicRequest(BaseModel):
 # Lock per gestire la concorrenza sulla variabile d'ambiente globale (soluzione temporanea)
 env_lock = asyncio.Lock()
 
-@app.post("/generate-script")
+@app.post("/api/generate-script")
 async def generate_script(
     request: InfographicRequest, 
     x_api_key: Optional[str] = Header(None)
