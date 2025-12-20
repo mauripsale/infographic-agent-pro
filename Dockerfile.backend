@@ -6,7 +6,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY agent/ agent/
-COPY .env .env
 
 # Cloud Run sets PORT env var (default 8080)
 ENV PORT=8080
