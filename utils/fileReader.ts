@@ -1,8 +1,5 @@
 // utils/fileReader.ts
-import * as pdfjsLib from 'pdfjs-dist/build/pdf';
-
-// Set up the worker source for pdf.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Note: import pdfjs dynamically inside `readPdfAsText` to avoid Vite pre-transform resolution issues
 
 export const readFileAsText = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -29,7 +26,15 @@ export const readPdfAsText = async (file: File): Promise<string> => {
       const typedarray = new Uint8Array(event.target.result as ArrayBuffer);
       
       try {
-        const pdf = await pdfjsLib.getDocument(typedarray).promise;
+        // Dynamically import pdfjs so Vite doesn't fail pre-transforming the module path
+        const pdfjsLib = await import('pdfjs-dist/build/pdf.js');
+        // Configure the worker from CDN (uses the installed version if available)
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (pdfjsLib as any).GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${(pdfjsLib as any).version}/pdf.worker.min.js`;
+        } catch {}
+
+        const pdf = await (pdfjsLib as any).getDocument(typedarray).promise;
         let textContent = '';
 
         for (let i = 1; i <= pdf.numPages; i++) {
