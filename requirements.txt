@@ -1,4 +1,4 @@
-git+https://github.com/google/adk-python.git@main
+git+https://github.com/google/adk-python.git@0b1cff2976d1c04acf3863f76107b05d1cec448f
 fastapi
 uvicorn
 python-dotenv
