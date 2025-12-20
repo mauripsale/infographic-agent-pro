@@ -79,7 +79,7 @@ export const generateInfographicImage = async (
   const apiKey = getApiKey();
   
   if (!apiKey) {
-    throw new Error("API_KEY_REQUIRED"); // Or throw error that UI can catch to show modal
+    throw new Error("API_KEY_REQUIRED");
   }
 
   const ai = new GoogleGenAI({ apiKey: apiKey });
@@ -107,20 +107,36 @@ export const generateInfographicImage = async (
       }
     });
 
+    // Check if any candidate was returned
+    if (!response.candidates || response.candidates.length === 0) {
+      throw new Error("GENERATION_BLOCKED_BY_SAFETY");
+    }
+
+    const candidate = response.candidates[0];
+    
+    // Check if generation was blocked by safety filters
+    if (candidate.finishReason === 'SAFETY' || candidate.finishReason === 'BLOCKLIST' || candidate.finishReason === 'RECITATION') {
+      throw new Error("GENERATION_BLOCKED_BY_SAFETY");
+    }
+
     // Correctly extract the image from potentially multiple response parts
-    for (const candidate of response.candidates || []) {
-      for (const part of candidate.content.parts) {
-        if (part.inlineData) {
-          return `data:image/png;base64,${part.inlineData.data}`;
-        }
+    for (const part of candidate.content.parts) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
       }
     }
 
-    throw new Error("No image data found in response");
+    throw new Error("NO_IMAGE_DATA_RETURNED");
   } catch (error: any) {
     if (error.message?.includes("Requested entity was not found")) {
       throw new Error("API_KEY_RESET_REQUIRED");
     }
+    
+    // Pass through our specific errors
+    if (error.message === "GENERATION_BLOCKED_BY_SAFETY" || error.message === "NO_IMAGE_DATA_RETURNED") {
+      throw error;
+    }
+
     throw error;
   }
 };

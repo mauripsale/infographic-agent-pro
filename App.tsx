@@ -170,9 +170,20 @@ const App: React.FC = () => {
           })
           .catch(err => {
             if (!generationRef.current) return;
-            handleApiError(err);
+            
+            let errorMessage = err.message;
+            if (err.message === 'GENERATION_BLOCKED_BY_SAFETY') {
+              errorMessage = "Content blocked by safety filters. Try rephrasing the prompt.";
+            } else if (err.message === 'NO_IMAGE_DATA_RETURNED') {
+              errorMessage = "No image generated. Please try again.";
+            } else if (err.message === 'API_KEY_REQUIRED' || err.message === 'API_KEY_INVALID') {
+               handleApiError(err);
+               // Don't mark as failed, just stop to let user enter key
+               return; 
+            }
+
             setSlides(prev => prev.map((s, idx) => 
-              idx === i ? { ...s, status: 'failed', error: err.message } : s
+              idx === i ? { ...s, status: 'failed', error: errorMessage } : s
             ));
           })
         );
@@ -195,8 +206,24 @@ const App: React.FC = () => {
               idx === i ? { ...s, status: 'completed', imageUrl } : s
             ));
           } catch (err: any) {
-            handleApiError(err);
-            break;
+            let errorMessage = err.message;
+            
+            if (err.message === 'GENERATION_BLOCKED_BY_SAFETY') {
+              errorMessage = "Content blocked by safety filters. Try rephrasing.";
+            } else if (err.message === 'API_KEY_REQUIRED' || err.message === 'API_KEY_INVALID') {
+               handleApiError(err);
+               break; // Stop sequential generation on auth error
+            }
+
+            setSlides(prev => prev.map((s, idx) => 
+              idx === i ? { ...s, status: 'failed', error: errorMessage } : s
+            ));
+            
+            // In sequential mode, we might want to continue to the next slide even if one fails for safety reasons
+            if (err.message !== 'GENERATION_BLOCKED_BY_SAFETY' && err.message !== 'NO_IMAGE_DATA_RETURNED') {
+               // For unknown critical errors, maybe stop? 
+               // For now, let's continue to be robust.
+            }
           }
         }
       }
