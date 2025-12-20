@@ -1,5 +1,5 @@
 // components/PresentationView.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SlidePrompt } from '../types';
 
 interface PresentationViewProps {
@@ -24,6 +24,14 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
     }
   }, [isOpen, initialIndex]);
 
+  const goToPrevious = useCallback(() => {
+    setCurrentIndex(prev => (prev === 0 ? slides.length - 1 : prev - 1));
+  }, [slides.length]);
+
+  const goToNext = useCallback(() => {
+    setCurrentIndex(prev => (prev === slides.length - 1 ? 0 : prev + 1));
+  }, [slides.length]);
+
   // Keyboard navigation
   useEffect(() => {
     if (!isOpen) return;
@@ -36,17 +44,9 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentIndex]); // Re-bind when index changes to keep closure fresh (though logic depends on state setter which is stable)
+  }, [isOpen, goToPrevious, goToNext, onClose]);
 
   if (!isOpen) return null;
-
-  const goToPrevious = () => {
-    setCurrentIndex(prev => (prev === 0 ? slides.length - 1 : prev - 1));
-  };
-
-  const goToNext = () => {
-    setCurrentIndex(prev => (prev === slides.length - 1 ? 0 : prev + 1));
-  };
 
   const currentSlide = slides[currentIndex];
 
