@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
@@ -6,39 +6,92 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }} # Aggiungi anche questo secret
+  REGION: us-central1
+  BACKEND_SERVICE_NAME: infographic-agent-backend
+
 jobs:
-  backend-ci:
+  # 1. TEST & LINT (Sempre in esecuzione)
+  ci:
+    name: Continuous Integration
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python 3.11
+    
+    # Backend CI
+    - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: "3.11"
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-    # Aggiungere qui step di test (es. pytest) quando avremo test unitari
-    - name: Lint with flake8
+    - name: Install Python Dependencies
+      run: pip install -r requirements.txt
+    - name: Lint Backend
       run: |
         pip install flake8
-        # stop the build if there are Python syntax errors or undefined names
         flake8 agent --count --select=E9,F63,F7,F82 --show-source --statistics
 
-  frontend-ci:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
+    # Frontend CI
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
         node-version: "18"
         cache: "npm"
-    - name: Install Dependencies
+    - name: Install NPM Dependencies
       run: npm ci
-    - name: Build
+    - name: Build Frontend (Check)
       run: npm run build
       env:
-        # Dummy value for build time, runtime value will be injected or loaded from env
-        VITE_GEMINI_API_KEY: "dummy_key_for_build"
+        VITE_GEMINI_API_KEY: "dummy"
+
+  # 2. DEPLOY (Solo su push a main)
+  deploy:
+    name: Continuous Deployment
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    # Authenticate with Google Cloud using Workload Identity Federation
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v1'
+      with:
+        workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
+        service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
+
+    # Setup gcloud CLI
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+
+    # --- DEPLOY BACKEND (Cloud Run) ---
+    - name: Build and Push Backend Image
+      run: |
+        gcloud auth configure-docker --quiet
+        docker build -f Dockerfile.backend -t gcr.io/${{ env.PROJECT_ID }}/${{ env.BACKEND_SERVICE_NAME }}:${{ github.sha }} .
+        docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.BACKEND_SERVICE_NAME }}:${{ github.sha }}
+
+    - name: Deploy to Cloud Run
+      uses: google-github-actions/deploy-cloudrun@v1
+      with:
+        service: ${{ env.BACKEND_SERVICE_NAME }}
+        image: gcr.io/${{ env.PROJECT_ID }}/${{ env.BACKEND_SERVICE_NAME }}:${{ github.sha }}
+        region: ${{ env.REGION }}
+        flags: '--allow-unauthenticated --max-instances=1'
+
+    # --- DEPLOY FRONTEND (Firebase Hosting) ---
+    - name: Build and Deploy Frontend
+      run: |
+        npm ci
+        # Recupera l'URL del backend appena deployato (o usa uno statico se lo conosci)
+        # Per ora usiamo il rewrite di firebase.json che è più robusto
+        npm run build
+      env:
+        VITE_GEMINI_API_KEY: "dummy" # Non serve nel build se usiamo il modale UI
+    
+    - name: Firebase Deploy
+      uses: w9jds/firebase-action@master
+      with:
+        args: deploy --only hosting
+      env:
+        FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
