@@ -87,11 +87,8 @@ jobs:
     - name: Build and Deploy Frontend
       run: |
         npm ci
-        # Recupera l'URL del backend appena deployato (o usa uno statico se lo conosci)
-        # Per ora usiamo il rewrite di firebase.json che è più robusto
+        # Build without pre-set API keys to force UI prompt for user key
         npm run build
-      env:
-        VITE_GEMINI_API_KEY: "dummy" # Non serve nel build se usiamo il modale UI
     
     - name: Firebase Deploy
       uses: w9jds/firebase-action@master

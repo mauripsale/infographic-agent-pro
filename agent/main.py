@@ -62,11 +62,23 @@ async def generate_script(
     
     # Usiamo un lock per evitare che richieste concorrenti sovrascrivano la chiave globale
     async with env_lock:
-        original_key = os.getenv("GOOGLE_API_KEY")
-        os.environ["GOOGLE_API_KEY"] = api_key 
+        # Debug log: check key reception (masked)
+        if api_key:
+            masked_key = f"{api_key[:4]}...{api_key[-4:]}" if len(api_key) > 8 else "***"
+            logger.info(f"Received API Key: {masked_key}")
+        else:
+            logger.error("No API Key received!")
+
+        original_google_key = os.getenv("GOOGLE_API_KEY")
+        original_gemini_key = os.getenv("GEMINI_API_KEY")
+        
+        # Set both potential env vars used by ADK/GenAI
+        os.environ["GOOGLE_API_KEY"] = api_key
+        os.environ["GEMINI_API_KEY"] = api_key
         
         try:
             # Istanziamo l'agente con il modello richiesto
+            # Nota: Re-inizializzare l'agente qui è cruciale perché legga le nuove env vars
             agent = Agent(
                 name="InfographicDesigner",
                 model=request.model,
@@ -100,11 +112,17 @@ async def generate_script(
                 detail="An internal error occurred while generating the infographic script. Please try again later."
             )
         finally:
-            # Ripristina la chiave originale
-            if original_key:
-                os.environ["GOOGLE_API_KEY"] = original_key
+            # Ripristina o pulisci GOOGLE_API_KEY
+            if original_google_key:
+                os.environ["GOOGLE_API_KEY"] = original_google_key
             else:
                 os.environ.pop("GOOGLE_API_KEY", None)
+
+            # Ripristina o pulisci GEMINI_API_KEY
+            if original_gemini_key:
+                os.environ["GEMINI_API_KEY"] = original_gemini_key
+            else:
+                os.environ.pop("GEMINI_API_KEY", None)
 
 if __name__ == "__main__":
     import uvicorn
