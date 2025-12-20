@@ -1,0 +1,4 @@
+git+https://github.com/google/adk-python.git@main
+fastapi
+uvicorn
+python-dotenv

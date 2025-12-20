@@ -45,7 +45,55 @@ import { GoogleGenAI } from "@google/genai";
 
 
 
-import { ModelType, DetailLevel, GenerationConfig, AspectRatio } from "../types";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { ModelType, DetailLevel, GenerationConfig } from "../types";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -93,6 +141,22 @@ export interface ScriptGenerationResult {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   text: string;
 
 
@@ -109,7 +173,39 @@ export interface ScriptGenerationResult {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   groundingChunks?: any[];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -157,103 +253,7 @@ export interface ScriptGenerationResult {
 
 
 
-export const getApiKey = (): string | null => {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  return localStorage.getItem('gemini-api-key');
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-export const setApiKey = (key: string) => {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  localStorage.setItem('gemini-api-key', key);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-};
 
 
 
@@ -301,7 +301,6 @@ export const setApiKey = (key: string) => {
 
 
 
- * Generates an infographic script from source content using Gemini Pro.
 
 
 
@@ -317,7 +316,24 @@ export const setApiKey = (key: string) => {
 
 
 
- * Includes Google Search grounding for accurate and up-to-date information.
+
+ * Generates an infographic script from source content using the Python ADK Agent.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -334,6 +350,22 @@ export const setApiKey = (key: string) => {
 
 
  */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -365,7 +397,39 @@ export const generateScriptFromSource = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   source: string,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -397,551 +461,23 @@ export const generateScriptFromSource = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ): Promise<ScriptGenerationResult> => {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  const apiKey = getApiKey();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  if (!apiKey) {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    throw new Error("API_KEY_REQUIRED");
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  const ai = new GoogleGenAI({ apiKey });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  const model = 'gemini-3-pro-preview';
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  const systemInstruction = `You are an expert Infographic Script Designer. 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Your task is to transform provided content (text or URLs) into a structured infographic script.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-FORMATTING RULES:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-For each slide, you MUST use this exact header format:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#### Infographic X/Y: [Title]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Inside each slide block, include:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-- Layout Description: A visual description for an AI image generator.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-- Body Sections: Content to be displayed.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-- Content Details: Specific instructions on colors, icons, and text style.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-DETAIL LEVEL GUIDELINES:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-- ${DetailLevel.SUPER_SIMPLE}: Minimal text, 1 key takeaway, large icons.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-- ${DetailLevel.BASIC}: Summary format, 2-3 bullet points.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-- ${DetailLevel.SEMI_DETAILED}: Balanced layout with 3-4 sections.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-- ${DetailLevel.DETAILED}: Comprehensive breakdown, sub-metrics, and data points.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-- ${DetailLevel.SUPER_DETAILED}: In-depth analysis, complex diagrams, extensive text blocks.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-STYLE: ${config.style || 'Modern, professional, corporate tech style with clean lines and balanced whitespace.'}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-LANGUAGE: Generate the entire script in ${config.language === 'it' ? 'Italian' : 'English'}.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  const prompt = `Generate a ${config.detailLevel} infographic script with ${config.slideCount} slides based on the following source content:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  ${source}`;
 
 
 
@@ -989,7 +525,6 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-    const response = await ai.models.generateContent({
 
 
 
@@ -1005,8 +540,8 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-      model,
 
+    const response = await fetch('/api/generate-script', {
 
 
 
@@ -1021,7 +556,6 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-      contents: prompt,
 
 
 
@@ -1037,9 +571,9 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-      config: {
 
 
+      method: 'POST',
 
 
 
@@ -1053,7 +587,6 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-        systemInstruction,
 
 
 
@@ -1069,10 +602,10 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-        tools: [{ googleSearch: {} }], // Use search to handle URLs or gather context
 
 
 
+      headers: {
 
 
 
@@ -1085,7 +618,234 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-      }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        'Content-Type': 'application/json',
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      body: JSON.stringify({
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        source_content: source,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        slide_count: config.slideCount,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        detail_level: config.detailLevel,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      }),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1133,7 +893,6 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-    // Extract grounding chunks as required by Gemini API guidelines for search grounding
 
 
 
@@ -1149,7 +908,6 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-    return {
 
 
 
@@ -1165,9 +923,9 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-      text: response.text || '',
 
 
+    if (!response.ok) {
 
 
 
@@ -1181,7 +939,6 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-      groundingChunks: response.candidates?.[0]?.groundingMetadata?.groundingChunks
 
 
 
@@ -1197,10 +954,10 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-    };
 
 
 
+      const errorData = await response.json();
 
 
 
@@ -1213,7 +970,6 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-  } catch (error: any) {
 
 
 
@@ -1229,11 +985,11 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-    if (error.message?.includes("API key not valid")) {
 
 
 
 
+      throw new Error(errorData.detail || 'Failed to generate script via ADK Agent');
 
 
 
@@ -1245,7 +1001,11 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
-      throw new Error("API_KEY_INVALID");
+
+
+
+
+
 
 
 
@@ -1277,6 +1037,278 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const data = await response.json();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    return {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      text: data.script,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      groundingChunks: [], // Grounding info handling to be added to backend later
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  } catch (error: any) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    console.error("ADK Agent Error:", error);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     throw new Error(`Failed to generate script: ${error.message}`);
 
 
@@ -1293,7 +1325,39 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1341,7 +1405,55 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /**
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1373,7 +1485,39 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
  * Supports both Gemini Flash and Gemini Pro image models via generateContent.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1405,7 +1549,39 @@ NUMBER OF SLIDES: Generate exactly ${config.slideCount} slides.`;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export const generateInfographicImage = async (
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1437,7 +1613,6 @@ export const generateInfographicImage = async (
 
 
 
-  model: ModelType,
 
 
 
@@ -1453,7 +1628,24 @@ export const generateInfographicImage = async (
 
 
 
-  aspectRatio: AspectRatio
+
+  model: ModelType
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1485,7 +1677,6 @@ export const generateInfographicImage = async (
 
 
 
-  const apiKey = getApiKey();
 
 
 
@@ -1501,8 +1692,8 @@ export const generateInfographicImage = async (
 
 
 
-  if (!apiKey) {
 
+  // Always create a new instance right before making an API call
 
 
 
@@ -1517,7 +1708,6 @@ export const generateInfographicImage = async (
 
 
 
-    throw new Error("API_KEY_REQUIRED");
 
 
 
@@ -1533,9 +1723,9 @@ export const generateInfographicImage = async (
 
 
 
-  }
 
 
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 
 
@@ -1552,20 +1742,6 @@ export const generateInfographicImage = async (
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-  const ai = new GoogleGenAI({ apiKey });
 
 
 
@@ -1597,7 +1773,39 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   try {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1629,7 +1837,39 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       model: model,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1661,7 +1901,39 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         parts: [
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1693,7 +1965,39 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             text: `Create a professional, high-quality infographic image based on this script segment. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1725,7 +2029,39 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             The style should be consistent, aesthetic, and professional.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1757,7 +2093,39 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             Segment:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1789,7 +2157,39 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
           }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1821,7 +2221,39 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1853,6 +2285,22 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         imageConfig: {
 
 
@@ -1869,7 +2317,39 @@ export const generateInfographicImage = async (
 
 
 
-          aspectRatio: aspectRatio,
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          aspectRatio: "16:9",
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1901,7 +2381,39 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1933,7 +2445,55 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1981,7 +2541,39 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     for (const candidate of response.candidates || []) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2013,7 +2605,39 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         if (part.inlineData) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2045,7 +2669,39 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2077,7 +2733,55 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2125,6 +2829,22 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   } catch (error: any) {
 
 
@@ -2141,7 +2861,6 @@ export const generateInfographicImage = async (
 
 
 
-    if (error.message?.includes("API key not valid")) {
 
 
 
@@ -2157,7 +2876,56 @@ export const generateInfographicImage = async (
 
 
 
-      throw new Error("API_KEY_INVALID");
+
+    if (error.message?.includes("Requested entity was not found")) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      throw new Error("API_KEY_RESET_REQUIRED");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2189,7 +2957,39 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     throw error;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2221,7 +3021,55 @@ export const generateInfographicImage = async (
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
