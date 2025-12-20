@@ -46,7 +46,7 @@ export const PresentationView: React.FC<PresentationViewProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, goToPrevious, goToNext, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || slides.length === 0) return null;
 
   const currentSlide = slides[currentIndex];
 
