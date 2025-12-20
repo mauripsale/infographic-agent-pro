@@ -6,15 +6,24 @@ import { ImagePreviewModal } from './ImagePreviewModal';
 interface SlideCardProps {
   slide: SlidePrompt;
   onRegenerate?: (slide: SlidePrompt) => void;
+  onViewFull?: (slide: SlidePrompt) => void;
 }
 
-export const SlideCard: React.FC<SlideCardProps> = ({ slide, onRegenerate }) => {
+export const SlideCard: React.FC<SlideCardProps> = ({ slide, onRegenerate, onViewFull }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleViewFull = () => {
+    if (onViewFull) {
+      onViewFull(slide);
+    } else {
+      setIsModalOpen(true);
+    }
+  };
 
   return (
     <>
       <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl flex flex-col group transition-all hover:border-slate-500 relative">
-        <div className="relative aspect-video bg-slate-900 flex items-center justify-center">
+        <div className="relative aspect-video bg-slate-900 flex items-center justify-center cursor-pointer" onClick={slide.imageUrl ? handleViewFull : undefined}>
           {slide.imageUrl ? (
             <img src={slide.imageUrl} alt={slide.title} className="w-full h-full object-cover" />
           ) : slide.status === 'generating' ? (
@@ -66,7 +75,7 @@ export const SlideCard: React.FC<SlideCardProps> = ({ slide, onRegenerate }) => 
         {slide.imageUrl && (
           <div className="p-4 pt-0">
             <button 
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleViewFull}
               className="w-full py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-2"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
