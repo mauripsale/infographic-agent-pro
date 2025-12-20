@@ -561,7 +561,44 @@ const App: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {slides.map((slide, i) => (
-                <SlideCard key={`${slide.index}-${i}`} slide={slide} />
+                <SlideCard 
+                  key={`${slide.index}-${i}`} 
+                  slide={slide} 
+                  onRegenerate={async (s) => {
+                    if (isGenerating) return;
+                    
+                    // Optimistic update
+                    setSlides(prev => prev.map(item => 
+                      item.index === s.index ? { ...item, status: 'generating', error: undefined } : item
+                    ));
+
+                    try {
+                      const imageUrl = await generateInfographicImage(
+                        `Title: ${s.title}\nContext: ${s.rawContent}`,
+                        selectedModel,
+                        config.aspectRatio // Using current config might be risky if changed, but acceptable UX
+                      );
+                      
+                      setSlides(prev => prev.map(item => 
+                        item.index === s.index ? { ...item, status: 'completed', imageUrl } : item
+                      ));
+                    } catch (err: any) {
+                      let errorMessage = err.message;
+                      if (err.message === 'GENERATION_BLOCKED_BY_SAFETY') {
+                        errorMessage = "Content blocked by safety filters.";
+                      } else if (err.message === 'NO_IMAGE_DATA_RETURNED') {
+                        errorMessage = "No image returned.";
+                      } else if (err.message === 'API_KEY_REQUIRED') {
+                        setIsApiKeyModalOpen(true);
+                        errorMessage = "API Key required.";
+                      }
+
+                      setSlides(prev => prev.map(item => 
+                        item.index === s.index ? { ...item, status: 'failed', error: errorMessage } : item
+                      ));
+                    }
+                  }}
+                />
               ))}
             </div>
           </section>

@@ -5,14 +5,15 @@ import { ImagePreviewModal } from './ImagePreviewModal';
 
 interface SlideCardProps {
   slide: SlidePrompt;
+  onRegenerate?: (slide: SlidePrompt) => void;
 }
 
-export const SlideCard: React.FC<SlideCardProps> = ({ slide }) => {
+export const SlideCard: React.FC<SlideCardProps> = ({ slide, onRegenerate }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
     <>
-      <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl flex flex-col group transition-all hover:border-slate-500">
+      <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl flex flex-col group transition-all hover:border-slate-500 relative">
         <div className="relative aspect-video bg-slate-900 flex items-center justify-center">
           {slide.imageUrl ? (
             <img src={slide.imageUrl} alt={slide.title} className="w-full h-full object-cover" />
@@ -33,8 +34,23 @@ export const SlideCard: React.FC<SlideCardProps> = ({ slide }) => {
             <div className="text-slate-600 italic text-sm">Waiting to start...</div>
           )}
           
-          <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs font-bold text-white border border-white/20">
-            {slide.index} / {slide.total}
+          <div className="absolute top-2 right-2 flex gap-2">
+             {/* Regenerate Button */}
+             {onRegenerate && (slide.status === 'completed' || slide.status === 'failed') && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRegenerate(slide);
+                }}
+                title="Regenerate this slide"
+                className="bg-black/60 hover:bg-blue-600 backdrop-blur-md p-1.5 rounded text-white border border-white/20 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+              </button>
+            )}
+            <div className="bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs font-bold text-white border border-white/20">
+              {slide.index} / {slide.total}
+            </div>
           </div>
         </div>
         
