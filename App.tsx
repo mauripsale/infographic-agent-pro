@@ -1,10 +1,18 @@
 
-import React, { useState, useRef } from 'react';
+
+
+import React, { useState, useRef, useEffect } from 'react';
+import jsPDF from 'jspdf';
 import { Header } from './components/Header';
 import { SlideCard } from './components/SlideCard';
-import { ModelType, SlidePrompt, DetailLevel, GenerationConfig } from './types';
+import { ApiKeyModal } from './components/ApiKeyModal';
+import { PresentationView } from './components/PresentationView';
+import { ModelType, SlidePrompt, DetailLevel, GenerationConfig, AspectRatio, Language } from './types';
 import { parseBatchPrompt } from './utils/promptParser';
-import { generateInfographicImage, generateScriptFromSource } from './services/geminiService';
+import { generateInfographicImage, generateScriptFromSource, getApiKey, setApiKey } from './services/geminiService';
+import { onAuthStateChangedHelper, signInWithGoogle, signOut, createPresentation, uploadImageToDrive, makeFilePublic, addSlide } from './services/firebaseService';
+import { User } from 'firebase/auth';
+import { readFileAsText, readPdfAsText } from './utils/fileReader';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'source' | 'script'>('source');
@@ -16,21 +24,93 @@ const App: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDrafting, setIsDrafting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [parallelGeneration, setParallelGeneration] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [presentationUrl, setPresentationUrl] = useState<string | null>(null);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [isPresentationViewOpen, setIsPresentationViewOpen] = useState(false);
+
   const [config, setConfig] = useState<GenerationConfig>({
     slideCount: 5,
     detailLevel: DetailLevel.BASIC,
-    style: ''
+    style: '',
+    aspectRatio: AspectRatio.SIXTEEN_NINE,
+    language: Language.ENGLISH,
   });
 
   const generationRef = useRef<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const checkAndGetApiKey = async () => {
-    if (window.aistudio) {
-      const hasKey = await window.aistudio.hasSelectedApiKey();
-      if (!hasKey) {
-        await window.aistudio.openSelectKey();
-      }
+  useEffect(() => {
+    const unsubscribe = onAuthStateChangedHelper((user) => {
+      setUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      setError('Error signing in with Google.');
+    }
+  };
+
+  const handleSignOut = () => {
+    signOut();
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    setPresentationUrl(null);
+    setError(null);
+
+    try {
+      const presentation = await createPresentation("My Infographic Presentation");
+      const presentationId = presentation.presentationId;
+
+      const imageUploadPromises = slides.map((slide, index) => {
+        return uploadImageToDrive(slide.imageUrl!, `slide-${index}.png`)
+          .then(file => makeFilePublic(file.id));
+      });
+
+      const uploadedImages = await Promise.all(imageUploadPromises);
+
+      const addSlidePromises = slides.map((slide, index) => {
+        return addSlide(presentationId, slide, uploadedImages[index].webContentLink);
+      });
+
+      await Promise.all(addSlidePromises);
+
+      setPresentationUrl(`https://docs.google.com/presentation/d/${presentationId}`);
+    } catch (err: any) {
+      setError(`Export failed: ${err.message}. Make sure you have entered your Firebase configuration in firebaseConfig.ts.`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const checkAndSetApiKey = async (): Promise<boolean> => {
+    const key = getApiKey();
+    if (!key) {
+      setIsApiKeyModalOpen(true);
+      return false;
+    }
+    return true;
+  };
+
+  const handleSaveApiKey = (apiKey: string) => {
+    setApiKey(apiKey);
+    setIsApiKeyModalOpen(false);
+  };
+
+  const handleApiError = (err: any) => {
+    if (err.message === 'API_KEY_REQUIRED' || err.message === 'API_KEY_INVALID') {
+      setError('Your API Key is missing or invalid. Please enter a valid key.');
+      setIsApiKeyModalOpen(true);
+    } else {
+      setError(err.message);
     }
   };
 
@@ -40,22 +120,18 @@ const App: React.FC = () => {
       return;
     }
     
+    if (!(await checkAndSetApiKey())) return;
+
     setIsDrafting(true);
     setError(null);
     setGroundingChunks([]);
     try {
-      await checkAndGetApiKey();
       const result = await generateScriptFromSource(sourceInput, config);
       setScriptInput(result.text);
       setGroundingChunks(result.groundingChunks || []);
       setActiveTab('script');
     } catch (err: any) {
-      if (err.message === 'API_KEY_RESET_REQUIRED' && window.aistudio) {
-        setError("Session expired. Please re-select your API key.");
-        await window.aistudio.openSelectKey();
-      } else {
-        setError(err.message);
-      }
+      handleApiError(err);
     } finally {
       setIsDrafting(false);
     }
@@ -63,6 +139,7 @@ const App: React.FC = () => {
 
   const handleGenerateImages = async () => {
     if (isGenerating) return;
+    if (!(await checkAndSetApiKey())) return;
     
     setError(null);
     const parsedSlides = parseBatchPrompt(scriptInput);
@@ -76,32 +153,51 @@ const App: React.FC = () => {
     generationRef.current = true;
 
     try {
-      await checkAndGetApiKey();
-      
-      for (let i = 0; i < parsedSlides.length; i++) {
-        if (!generationRef.current) break;
+      if (parallelGeneration) {
+        setSlides(prev => prev.map(s => ({ ...s, status: 'generating' })));
+        
+        const promises = parsedSlides.map((slide, i) => 
+          generateInfographicImage(
+            `Title: ${slide.title}\nContext: ${slide.rawContent}`,
+            selectedModel,
+            config.aspectRatio,
+          )
+          .then(imageUrl => {
+            if (!generationRef.current) return;
+            setSlides(prev => prev.map((s, idx) => 
+              idx === i ? { ...s, status: 'completed', imageUrl } : s
+            ));
+          })
+          .catch(err => {
+            if (!generationRef.current) return;
+            handleApiError(err);
+            setSlides(prev => prev.map((s, idx) => 
+              idx === i ? { ...s, status: 'failed', error: err.message } : s
+            ));
+          })
+        );
+        
+        await Promise.all(promises);
 
-        setSlides(prev => prev.map((s, idx) => 
-          idx === i ? { ...s, status: 'generating' } : s
-        ));
+      } else { // Sequential Generation
+        for (let i = 0; i < parsedSlides.length; i++) {
+          if (!generationRef.current) break;
 
-        try {
-          const slidePrompt = `Title: ${parsedSlides[i].title}\nContext: ${parsedSlides[i].rawContent}`;
-          const imageUrl = await generateInfographicImage(slidePrompt, selectedModel);
-          
           setSlides(prev => prev.map((s, idx) => 
-            idx === i ? { ...s, status: 'completed', imageUrl } : s
+            idx === i ? { ...s, status: 'generating' } : s
           ));
-        } catch (err: any) {
-          if (err.message === 'API_KEY_RESET_REQUIRED' && window.aistudio) {
-            setError("Session expired. Please re-select your API key.");
-            await window.aistudio.openSelectKey();
+
+          try {
+            const slidePrompt = `Title: ${parsedSlides[i].title}\nContext: ${parsedSlides[i].rawContent}`;
+            const imageUrl = await generateInfographicImage(slidePrompt, selectedModel, config.aspectRatio);
+            
+            setSlides(prev => prev.map((s, idx) => 
+              idx === i ? { ...s, status: 'completed', imageUrl } : s
+            ));
+          } catch (err: any) {
+            handleApiError(err);
             break;
           }
-          
-          setSlides(prev => prev.map((s, idx) => 
-            idx === i ? { ...s, status: 'failed', error: err.message } : s
-          ));
         }
       }
     } catch (err: any) {
@@ -117,12 +213,66 @@ const App: React.FC = () => {
     setIsGenerating(false);
   };
 
+  const handleDownloadPdf = () => {
+    const [ratioWidth, ratioHeight] = config.aspectRatio.split(':').map(Number);
+    const orientation = ratioWidth > ratioHeight ? 'landscape' : 'portrait';
+
+    const doc = new jsPDF({
+      orientation,
+      unit: 'px',
+      format: [ratioWidth * 100, ratioHeight * 100] 
+    });
+
+    slides.forEach((slide, index) => {
+      if (slide.imageUrl) {
+        if (index > 0) {
+          doc.addPage([ratioWidth * 100, ratioHeight * 100], orientation);
+        }
+        doc.addImage(slide.imageUrl, 'PNG', 0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight());
+      }
+    });
+
+    doc.save('presentation.pdf');
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      let text = '';
+      if (file.type === 'application/pdf') {
+        text = await readPdfAsText(file);
+      } else {
+        text = await readFileAsText(file);
+      }
+      setSourceInput(text);
+    } catch (error) {
+      setError('Failed to read file.');
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-950">
       <Header 
         selectedModel={selectedModel} 
         setSelectedModel={setSelectedModel} 
         isGenerating={isGenerating || isDrafting}
+        isSignedIn={!!user}
+        onSignIn={handleSignIn}
+        onSignOut={handleSignOut}
+      />
+
+      <ApiKeyModal
+        isOpen={isApiKeyModalOpen}
+        onClose={() => setIsApiKeyModalOpen(false)}
+        onSave={handleSaveApiKey}
+      />
+
+      <PresentationView 
+        slides={slides}
+        isOpen={isPresentationViewOpen}
+        onClose={() => setIsPresentationViewOpen(false)}
       />
 
       <main className="flex-1 max-w-7xl mx-auto w-full p-6 space-y-8">
@@ -136,7 +286,8 @@ const App: React.FC = () => {
                 Generation Settings
               </h2>
               
-              <div className="space-y-4">
+<div className="space-y-4">
+              
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Number of Slides</label>
                   <input 
@@ -168,6 +319,29 @@ const App: React.FC = () => {
                 </div>
 
                 <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Aspect Ratio</label>
+                  <select 
+                    value={config.aspectRatio}
+                    onChange={(e) => setConfig({...config, aspectRatio: e.target.value as AspectRatio})}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={AspectRatio.SIXTEEN_NINE}>16:9 (Widescreen)</option>
+                    <option value={AspectRatio.FOUR_THREE}>4:3 (Standard)</option>
+                    <option value={AspectRatio.SQUARE}>1:1 (Square)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Language</label>
+                  <select
+                    value={config.language}
+                    onChange={(e) => setConfig({ ...config, language: e.target.value as Language })}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={Language.ENGLISH}>English</option>
+                    <option value={Language.ITALIAN}>Italian</option>
+                  </select>
+                </div>
+                <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Visual Style (Optional)</label>
                   <input 
                     type="text"
@@ -176,6 +350,23 @@ const App: React.FC = () => {
                     onChange={(e) => setConfig({...config, style: e.target.value})}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                </div>
+              
+                <div className="flex items-center justify-between pt-2">
+                  <label htmlFor="parallel-toggle" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Parallel Generation</label>
+                  <button
+                    id="parallel-toggle"
+                    onClick={() => setParallelGeneration(!parallelGeneration)}
+                    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${
+                      parallelGeneration ? 'bg-blue-600' : 'bg-slate-700'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${
+                        parallelGeneration ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
                 </div>
               </div>
             </div>
@@ -208,41 +399,42 @@ const App: React.FC = () => {
                       placeholder="Paste your source text here or a list of URLs (one per line)..."
                       className="w-full h-80 bg-slate-950 border border-slate-800 rounded-xl p-4 text-slate-300 font-sans text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                     />
-                    <button 
-                      onClick={handleDraftScript}
-                      disabled={isDrafting || !sourceInput.trim()}
-                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
-                    >
-                      {isDrafting ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          Drafting Presentation...
-                        </>
-                      ) : (
-                        <>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                          Generate Presentation Script
-                        </>
-                      )}
-                    </button>
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex-1 py-3 bg-slate-800 hover:.bg-slate-700 rounded-xl font-bold"
+                      >
+                        Upload Document
+                      </button>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        accept=".txt,.md,.pdf"
+                      />
+                      <button 
+                        onClick={handleDraftScript}
+                        disabled={isDrafting || !sourceInput.trim()}
+                        className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
+                      >
+                        {isDrafting ? 'Drafting...' : 'Generate Presentation Script'}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <textarea
                       value={scriptInput}
                       onChange={(e) => setScriptInput(e.target.value)}
-                      placeholder="Your generated script will appear here. You can manually edit it before generating images."
+                      placeholder="Your generated script will appear here."
                       className="w-full h-80 bg-slate-950 border border-slate-800 rounded-xl p-4 text-slate-300 font-mono text-xs focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                     />
 
-                    {/* Grounding Sources Display as required by Gemini Search rules */}
                     {groundingChunks.length > 0 && (
-                      <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-800/50">
-                        <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                          Grounding Sources
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
+                      <div className="p-4 bg-slate-800/50 rounded-xl">
+                        <h4 className="text-xs font-bold text-slate-500 uppercase">Grounding Sources</h4>
+                        <div className="flex flex-wrap gap-2 mt-2">
                           {groundingChunks.map((chunk, i) => (
                             chunk.web && (
                               <a 
@@ -250,9 +442,8 @@ const App: React.FC = () => {
                                 href={chunk.web.uri} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-full text-[10px] text-blue-400 hover:bg-slate-700 hover:text-blue-300 transition-colors flex items-center gap-1.5"
+                                className="bg-slate-900 px-2 py-1 rounded-full text-xs text-blue-400 hover:bg-slate-700"
                               >
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                                 {chunk.web.title || chunk.web.uri}
                               </a>
                             )
@@ -264,34 +455,23 @@ const App: React.FC = () => {
                     <div className="flex gap-4">
                       <button 
                         onClick={() => setActiveTab('source')}
-                        className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-bold transition-all"
+                        className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold"
                       >
-                        Back to Source
+                        Back
                       </button>
                       <button 
                         onClick={handleGenerateImages}
                         disabled={isGenerating || !scriptInput.trim()}
-                        className="flex-[2] py-3 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-teal-900/20"
+                        className="flex-[2] py-3 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl font-bold"
                       >
-                        {isGenerating ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                            Generating Infographics...
-                          </>
-                        ) : (
-                          <>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            Generate Batch Graphics
-                          </>
-                        )}
+                        {isGenerating ? 'Generating...' : 'Generate Graphics'}
                       </button>
                     </div>
                   </div>
                 )}
                 
                 {error && (
-                  <div className="mt-4 p-4 bg-red-900/20 border border-red-500/50 rounded-xl text-red-400 text-sm flex items-center gap-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <div className="mt-4 p-4 bg-red-900/20 border-red-500/50 rounded-xl text-red-400 text-sm">
                     {error}
                   </div>
                 )}
@@ -300,22 +480,57 @@ const App: React.FC = () => {
           </section>
         </div>
 
-        {/* Gallery Section */}
         {slides.length > 0 && (
           <section className="space-y-6 pt-10 border-t border-slate-900">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
+              <h2 className="text-2xl font-bold text-slate-100">
                 Final Presentation
-                <span className="text-sm font-medium bg-slate-900 px-3 py-1 rounded-full text-slate-400 border border-slate-800">
-                  {slides.filter(s => s.status === 'completed').length} / {slides.length} Ready
-                </span>
               </h2>
-              {isGenerating && (
-                <button onClick={cancelGeneration} className="text-sm text-red-500 hover:text-red-400 font-bold underline">
-                  Stop Generation
-                </button>
-              )}
+              <div className="flex items-center gap-4">
+                {isGenerating && (
+                  <button onClick={cancelGeneration} className="text-sm text-red-500 hover:text-red-400 font-bold">
+                    Stop
+                  </button>
+                )}
+                 <div className="relative group">
+                  <button
+                    onClick={handleExport}
+                    disabled={!user || isExporting || slides.some(s => s.status !== 'completed')}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg disabled:opacity-50"
+                  >
+                    {isExporting ? 'Exporting...' : 'Export to Google Slides'}
+                  </button>
+                  {slides.some(s => s.status !== 'completed') &&
+                    <div className="absolute bottom-full mb-2 w-48 p-2 bg-slate-700 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
+                      Please wait for all slides to be generated before exporting.
+                    </div>
+                  }
+                </div>
+                 <button
+                    onClick={() => setIsPresentationViewOpen(true)}
+                    disabled={slides.some(s => s.status !== 'completed')}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50"
+                  >
+                    Fullscreen
+                  </button>
+                 <button
+                    onClick={handleDownloadPdf}
+                    disabled={slides.some(s => s.status !== 'completed')}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg disabled:opacity-50"
+                  >
+                    Download as PDF
+                  </button>
+              </div>
             </div>
+            <p className="text-sm text-slate-400">
+                Note: To download as a PPT, first export to Google Slides and then use the "File &gt; Download" option in Google Slides.
+            </p>
+
+            {presentationUrl && (
+              <div className="mt-4 p-4 bg-green-900/20 border-green-500/50 rounded-xl text-green-400 text-sm">
+                Presentation created! <a href={presentationUrl} target="_blank" rel="noopener noreferrer" className="underline">View it here</a>.
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {slides.map((slide, i) => (
@@ -327,7 +542,8 @@ const App: React.FC = () => {
       </main>
 
       <footer className="p-12 text-center text-slate-600 text-xs border-t border-slate-900 mt-auto bg-slate-950">
-        Infographic Agent Pro • Transform any content into visual stories • Powered by Gemini 3.0
+        Infographic Agent Pro • Transform any content into visual stories • Powered by Gemini 3.0 <br/>
+        by Maurizio Ipsale, GDE AI/Cloud
       </footer>
     </div>
   );

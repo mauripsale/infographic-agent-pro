@@ -6,9 +6,12 @@ interface HeaderProps {
   selectedModel: ModelType;
   setSelectedModel: (model: ModelType) => void;
   isGenerating: boolean;
+  isSignedIn: boolean;
+  onSignIn: () => void;
+  onSignOut: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ selectedModel, setSelectedModel, isGenerating }) => {
+export const Header: React.FC<HeaderProps> = ({ selectedModel, setSelectedModel, isGenerating, isSignedIn, onSignIn, onSignOut }) => {
   return (
     <header className="sticky top-0 z-50 bg-slate-900/80 backdrop-blur-md border-b border-slate-700 px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -47,6 +50,21 @@ export const Header: React.FC<HeaderProps> = ({ selectedModel, setSelectedModel,
             3 Pro
           </button>
         </div>
+        {isSignedIn ? (
+          <button
+            onClick={onSignOut}
+            className="px-4 py-1.5 rounded-full text-sm font-medium transition-all bg-slate-800 text-slate-400 hover:text-slate-200"
+          >
+            Sign Out
+          </button>
+        ) : (
+          <button
+            onClick={onSignIn}
+            className="px-4 py-1.5 rounded-full text-sm font-medium transition-all bg-blue-600 text-white"
+          >
+            Sign In with Google
+          </button>
+        )}
       </div>
     </header>
   );
