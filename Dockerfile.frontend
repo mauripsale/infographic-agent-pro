@@ -2,10 +2,16 @@ FROM node:18-alpine as build
 
 WORKDIR /app
 
+# Copy package files first to leverage Docker cache for dependencies
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY . .
+# Copy only the necessary source code
+COPY components/ components/
+COPY services/ services/
+COPY utils/ utils/
+COPY App.tsx index.html index.tsx types.ts tsconfig.json vite.config.ts ./
+
 # Build the app
 RUN npm run build
 
