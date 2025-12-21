@@ -137,6 +137,8 @@ async def generate_image(
     logger.info(f"Generating image using model: {request.model} for prompt: {request.prompt[:50]}...")
 
     try:
+        # The genai.Client accepts the API key directly, so there's no need to 
+        # manipulate environment variables or use a lock like in generate_script.
         client = genai.Client(api_key=api_key)
         
         # Structured prompt to mitigate injection
