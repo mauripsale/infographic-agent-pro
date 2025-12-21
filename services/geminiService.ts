@@ -1,5 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
-import { ModelType, DetailLevel, GenerationConfig } from "../types";
+import { ModelType, GenerationConfig } from "../types";
 
 export interface ScriptGenerationResult {
   text: string;
@@ -47,7 +46,6 @@ export const generateScriptFromSource = async (
         source_content: source,
         slide_count: config.slideCount,
         detail_level: config.detailLevel,
-        // Pass model if available in config, otherwise backend defaults to flash
         model: config.model || 'gemini-2.0-flash' 
       }),
     });
@@ -60,7 +58,7 @@ export const generateScriptFromSource = async (
     const data = await response.json();
     return {
       text: data.script,
-      groundingChunks: [], // Grounding info handling to be added to backend later
+      groundingChunks: [], // Grounding handling is now in backend
     };
   } catch (error: any) {
     console.error("ADK Agent Error:", error);
@@ -69,8 +67,7 @@ export const generateScriptFromSource = async (
 };
 
 /**
- * Generates a visual infographic image for a specific slide script.
- * Supports both Gemini Flash and Gemini Pro image models via generateContent.
+ * Generates a visual infographic image via the Python Backend.
  */
 export const generateInfographicImage = async (
   prompt: string,
@@ -82,61 +79,42 @@ export const generateInfographicImage = async (
     throw new Error("API_KEY_REQUIRED");
   }
 
-  const ai = new GoogleGenAI({ apiKey: apiKey });
-  
   try {
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: {
-        parts: [
-          {
-            text: `Create a professional, high-quality infographic image based on this script segment. 
-            Ensure all text described is incorporated visually and clearly. 
-            The style should be consistent, aesthetic, and professional.
-            
-            Segment:
-            ${prompt}`
-          }
-        ]
-      },
-      config: {
-        imageConfig: {
-          aspectRatio: "16:9",
-          ...(model === ModelType.PRO ? { imageSize: "1K" } : {})
-        }
-      }
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (apiKey) {
+      headers['X-API-Key'] = apiKey;
+    }
+
+    const response = await fetch(`${getBackendUrl()}/generate-image`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        prompt: prompt,
+        model: 'gemini-2.0-flash', // Model choice could be dynamic
+        aspect_ratio: "16:9"
+      }),
     });
 
-    // Check if any candidate was returned
-    if (!response.candidates || response.candidates.length === 0) {
-      throw new Error("GENERATION_BLOCKED_BY_SAFETY");
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to generate image via Backend');
     }
 
-    const candidate = response.candidates[0];
+    const data = await response.json();
     
-    // Check if generation was blocked by safety filters
-    if (candidate.finishReason === 'SAFETY' || candidate.finishReason === 'BLOCKLIST' || candidate.finishReason === 'RECITATION') {
-      throw new Error("GENERATION_BLOCKED_BY_SAFETY");
+    if (data.image_data) {
+      return `data:${data.mime_type};base64,${data.image_data}`;
     }
 
-    // Correctly extract the image from potentially multiple response parts
-    for (const part of candidate.content.parts) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
-
-    throw new Error("NO_IMAGE_DATA_RETURNED");
+    throw new Error("No image data found in response");
   } catch (error: any) {
-    if (error.message?.includes("Requested entity was not found")) {
-      throw new Error("API_KEY_RESET_REQUIRED");
+    console.error("Backend Image Error:", error);
+    if (error.message === "GENERATION_BLOCKED_BY_SAFETY") {
+       throw error;
     }
-    
-    // Pass through our specific errors
-    if (error.message === "GENERATION_BLOCKED_BY_SAFETY" || error.message === "NO_IMAGE_DATA_RETURNED") {
-      throw error;
-    }
-
-    throw error;
+    throw new Error(error.message || "Failed to generate image.");
   }
 };
