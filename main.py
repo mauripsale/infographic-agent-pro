@@ -3,6 +3,7 @@ import asyncio
 import logging
 import base64
 import uuid
+from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 import uvicorn
@@ -13,6 +14,7 @@ from google.adk.artifacts import GcsArtifactService, InMemoryArtifactService
 from google import genai
 from typing import Optional
 from pydantic import BaseModel
+from google.cloud import storage
 
 # Import our agents
 from script_agent import root_agent as script_agent
@@ -20,6 +22,9 @@ from script_agent import root_agent as script_agent
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize GCS client globally for reuse (thread-safe)
+storage_client = storage.Client()
 
 # Load environment variables
 env_path = Path(__file__).resolve().parent / '.env'
@@ -162,13 +167,23 @@ async def generate_image(
                         )
                         
                         if ARTIFACT_BUCKET:
-                            url = f"https://storage.googleapis.com/{ARTIFACT_BUCKET}/{artifact_name}"
+                            # Generate Signed URL for secure access (valid 1 hour)
+                            # We use the global storage_client for this operation
+                            bucket = storage_client.bucket(ARTIFACT_BUCKET)
+                            blob = bucket.blob(artifact_name)
+                            
+                            signed_url = blob.generate_signed_url(
+                                version="v4",
+                                expiration=timedelta(hours=1),
+                                method="GET"
+                            )
+                            
                             return {
-                                "image_url": url,
+                                "image_url": signed_url,
                                 "mime_type": mime_type
                             }
                     except Exception as artifact_error:
-                        logger.error(f"ADK Artifact Service failed: {artifact_error}")
+                        logger.error(f"ADK Artifact Service/GCS failed: {artifact_error}")
 
                     # Fallback to base64
                     image_b64 = base64.b64encode(part.inline_data.data).decode('utf-8')
