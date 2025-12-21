@@ -15,6 +15,7 @@ from google import genai
 from typing import Optional
 from pydantic import BaseModel
 from google.cloud import storage
+from google.cloud.exceptions import GoogleCloudError
 
 # Import our agents
 from script_agent import root_agent as script_agent
@@ -168,7 +169,6 @@ async def generate_image(
                         
                         if ARTIFACT_BUCKET:
                             # Generate Signed URL for secure access (valid 1 hour)
-                            # We use the global storage_client for this operation
                             bucket = storage_client.bucket(ARTIFACT_BUCKET)
                             blob = bucket.blob(artifact_name)
                             
@@ -182,8 +182,10 @@ async def generate_image(
                                 "image_url": signed_url,
                                 "mime_type": mime_type
                             }
+                    except GoogleCloudError as cloud_error:
+                        logger.error(f"GCS operation failed: {cloud_error}")
                     except Exception as artifact_error:
-                        logger.error(f"ADK Artifact Service/GCS failed: {artifact_error}")
+                        logger.error(f"Unexpected error in artifact service: {artifact_error}")
 
                     # Fallback to base64
                     image_b64 = base64.b64encode(part.inline_data.data).decode('utf-8')
