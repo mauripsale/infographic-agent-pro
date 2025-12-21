@@ -2,4 +2,4 @@ git+https://github.com/google/adk-python.git@0b1cff2976d1c04acf3863f76107b05d1ce
 fastapi==0.123.10
 uvicorn==0.38.0
 python-dotenv==1.2.1
-google-cloud-storage
+google-cloud-storage==2.14.0
