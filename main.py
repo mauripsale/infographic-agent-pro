@@ -2,6 +2,7 @@ import os
 import asyncio
 import logging
 import base64
+import uuid
 from pathlib import Path
 from dotenv import load_dotenv
 import uvicorn
@@ -11,6 +12,7 @@ from google.adk.runners import InMemoryRunner
 from google import genai
 from typing import Optional
 from pydantic import BaseModel
+from google.cloud import storage
 
 # Import our agents to ensure they are available (though get_fast_api_app does discovery)
 from script_agent import root_agent as script_agent
@@ -29,6 +31,10 @@ load_dotenv(dotenv_path=env_path)
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
 # Use aiosqlite for async database session support
 SESSION_SERVICE_URI = "sqlite+aiosqlite:///./sessions.db"
+# Configure GCS Artifact Service if bucket provided
+ARTIFACT_BUCKET = os.getenv("ARTIFACT_BUCKET")
+ARTIFACT_SERVICE_URI = f"gs://{ARTIFACT_BUCKET}" if ARTIFACT_BUCKET else "memory://"
+
 # Use environment variable for frontend URL, fallback to local
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 ALLOWED_ORIGINS = [FRONTEND_URL, "http://localhost:8080"]
@@ -38,6 +44,7 @@ SERVE_WEB_INTERFACE = False # We have our own React frontend
 app: FastAPI = get_fast_api_app(
     agents_dir=AGENT_DIR,
     session_service_uri=SESSION_SERVICE_URI,
+    artifact_service_uri=ARTIFACT_SERVICE_URI,
     allow_origins=ALLOWED_ORIGINS,
     web=SERVE_WEB_INTERFACE,
 )
@@ -137,6 +144,30 @@ async def generate_image(
         for candidate in response.candidates:
             for part in candidate.content.parts:
                 if part.inline_data:
+                    # If ARTIFACT_BUCKET is set, upload to GCS
+                    if ARTIFACT_BUCKET:
+                        try:
+                            storage_client = storage.Client()
+                            bucket = storage_client.bucket(ARTIFACT_BUCKET)
+                            blob_name = f"images/{uuid.uuid4()}.png"
+                            blob = bucket.blob(blob_name)
+                            
+                            blob.upload_from_string(
+                                part.inline_data.data,
+                                content_type=part.inline_data.mime_type or "image/png"
+                            )
+                            
+                            # Use public URL assumption for simplicity, or signed URL
+                            url = f"https://storage.googleapis.com/{ARTIFACT_BUCKET}/{blob_name}"
+                            
+                            return {
+                                "image_url": url,
+                                "mime_type": part.inline_data.mime_type or "image/png"
+                            }
+                        except Exception as upload_error:
+                            logger.error(f"Failed to upload to GCS: {upload_error}")
+                            # Fallback to base64 if upload fails
+
                     image_b64 = base64.b64encode(part.inline_data.data).decode('utf-8')
                     return {
                         "image_data": image_b64,
