@@ -1,6 +1,7 @@
 import os
 import asyncio
 import logging
+import base64
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Header, Depends
@@ -143,8 +144,10 @@ async def generate_image(
         for candidate in response.candidates:
             for part in candidate.content.parts:
                 if part.inline_data:
+                    # Converti i bytes in base64 string per la serializzazione JSON
+                    image_b64 = base64.b64encode(part.inline_data.data).decode('utf-8')
                     return {
-                        "image_data": part.inline_data.data,
+                        "image_data": image_b64,
                         "mime_type": part.inline_data.mime_type or "image/png"
                     }
         
