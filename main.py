@@ -18,6 +18,7 @@ from typing import Optional
 from pydantic import BaseModel
 from google.cloud import storage
 from google.cloud.exceptions import GoogleCloudError
+from google.auth.exceptions import DefaultCredentialsError
 
 # Import our agents
 from script_agent import root_agent as script_agent
@@ -26,8 +27,8 @@ from script_agent import root_agent as script_agent
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize GCS client globally for reuse (thread-safe)
-storage_client = storage.Client()
+# Initialize GCS client globally variable (will be set if bucket is configured)
+storage_client = None
 
 # Load environment variables
 env_path = Path(__file__).resolve().parent / '.env'
@@ -38,18 +39,34 @@ load_dotenv(dotenv_path=env_path)
 # --- ADK ARTIFACT SERVICE INITIALIZATION ---
 ARTIFACT_BUCKET = os.getenv("ARTIFACT_BUCKET")
 if ARTIFACT_BUCKET:
-    logger.info(f"Using GCS Artifact Service with bucket: {ARTIFACT_BUCKET}")
-    artifact_service = GcsArtifactService(bucket_name=ARTIFACT_BUCKET)
-    ARTIFACT_SERVICE_URI = f"gs://{ARTIFACT_BUCKET}"
+    try:
+        logger.info(f"Configuring GCS Artifact Service with bucket: {ARTIFACT_BUCKET}")
+        # Initialize client here, ensuring credentials are available only when needed
+        storage_client = storage.Client()
+        artifact_service = GcsArtifactService(bucket_name=ARTIFACT_BUCKET)
+        ARTIFACT_SERVICE_URI = f"gs://{ARTIFACT_BUCKET}"
+    except (DefaultCredentialsError, GoogleCloudError) as e:
+        logger.error(f"Failed to initialize GCS client: {e}")
+        # Fallback to memory if GCS fails
+        storage_client = None
+        artifact_service = InMemoryArtifactService()
+        ARTIFACT_SERVICE_URI = "memory://"
+        ARTIFACT_BUCKET = None
+    except Exception as e:
+        logger.exception(f"Unexpected error during GCS initialization: {e}")
+        storage_client = None
+        artifact_service = InMemoryArtifactService()
+        ARTIFACT_SERVICE_URI = "memory://"
+        ARTIFACT_BUCKET = None
 else:
-    logger.info("Using In-Memory Artifact Service")
+    logger.info("Using In-Memory Artifact Service (No ARTIFACT_BUCKET configured)")
     artifact_service = InMemoryArtifactService()
     ARTIFACT_SERVICE_URI = "memory://"
 
 # --- ADK SESSION SERVICE INITIALIZATION ---
 SESSION_DB_URI = os.getenv("SESSION_DB_URI", "sqlite+aiosqlite:///./sessions.db")
 # Initialize DatabaseSessionService for production persistence
-session_service = DatabaseSessionService(uri=SESSION_DB_URI)
+session_service = DatabaseSessionService(db_url=SESSION_DB_URI)
 
 # --- ADK STANDARD CONFIGURATION ---
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
