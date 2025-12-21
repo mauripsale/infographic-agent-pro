@@ -31,7 +31,7 @@ AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
 SESSION_SERVICE_URI = "sqlite+aiosqlite:///./sessions.db"
 # Use environment variable for frontend URL, fallback to local
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
-ALLOWED_ORIGINS = [FRONTEND_URL, "http://localhost:8080", "*"]
+ALLOWED_ORIGINS = [FRONTEND_URL, "http://localhost:8080"]
 SERVE_WEB_INTERFACE = False # We have our own React frontend
 
 # Initialize ADK FastAPI App
