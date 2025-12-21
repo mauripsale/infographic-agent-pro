@@ -3,6 +3,7 @@ import asyncio
 import logging
 import base64
 import uuid
+import mimetypes
 from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
@@ -156,8 +157,9 @@ async def generate_image(
             for part in candidate.content.parts:
                 if part.inline_data:
                     # USE ADK ARTIFACT SERVICE natively
-                    artifact_name = f"images/{uuid.uuid4()}.png"
                     mime_type = part.inline_data.mime_type or "image/png"
+                    extension = mimetypes.guess_extension(mime_type) or ".png"
+                    artifact_name = f"images/{uuid.uuid4()}{extension}"
                     
                     try:
                         # Save using ADK abstraction
