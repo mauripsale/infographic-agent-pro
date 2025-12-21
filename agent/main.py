@@ -3,7 +3,7 @@ import asyncio
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from pydantic import BaseModel
@@ -53,15 +53,18 @@ class ImageRequest(BaseModel):
 # Lock per gestire la concorrenza sulla variabile d'ambiente globale (soluzione temporanea)
 env_lock = asyncio.Lock()
 
+# Reusable dependency for API Key retrieval
+async def get_api_key(x_api_key: Optional[str] = Header(None)) -> str:
+    api_key = x_api_key or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=401, detail="Gemini API Key is required. Please provide it in the X-API-Key header.")
+    return api_key
+
 @app.post("/api/generate-script")
 async def generate_script(
     request: ScriptRequest, 
-    x_api_key: Optional[str] = Header(None)
+    api_key: str = Depends(get_api_key)
 ):
-    api_key = x_api_key or os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=401, detail="Gemini API Key is required.")
-
     logger.info(f"Generating script for input of {len(request.source_content)} chars")
 
     # Usiamo un lock solo per l'inizializzazione dell'agente, assumendo che il client venga configurato subito.
@@ -121,12 +124,8 @@ async def generate_script(
 @app.post("/api/generate-image")
 async def generate_image(
     request: ImageRequest, 
-    x_api_key: Optional[str] = Header(None)
+    api_key: str = Depends(get_api_key)
 ):
-    api_key = x_api_key or os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=401, detail="Gemini API Key is required.")
-
     logger.info(f"Generating image for prompt: {request.prompt[:50]}...")
 
     try:
