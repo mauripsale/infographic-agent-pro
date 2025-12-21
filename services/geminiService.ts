@@ -71,7 +71,8 @@ export const generateScriptFromSource = async (
  */
 export const generateInfographicImage = async (
   prompt: string,
-  model: ModelType
+  model: ModelType,
+  aspectRatio: string // Restored parameter to match App.tsx usage
 ): Promise<string> => {
   const apiKey = getApiKey();
   
@@ -93,8 +94,8 @@ export const generateInfographicImage = async (
       headers: headers,
       body: JSON.stringify({
         prompt: prompt,
-        model: 'gemini-2.0-flash', // Model choice could be dynamic
-        aspect_ratio: "16:9"
+        model: model, // Use dynamic model selection
+        aspect_ratio: aspectRatio // Use dynamic aspect ratio
       }),
     });
 
