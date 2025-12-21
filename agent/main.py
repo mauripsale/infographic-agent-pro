@@ -44,7 +44,6 @@ class ScriptRequest(BaseModel):
     source_content: str
     slide_count: int = 5
     detail_level: str = "balanced"
-    model: str = "gemini-2.0-flash"
 
 class ImageRequest(BaseModel):
     prompt: str
