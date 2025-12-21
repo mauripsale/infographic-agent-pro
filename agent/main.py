@@ -39,7 +39,7 @@ app.add_middleware(
 async def health_check():
     return {"status": "ok"}
 
-# Definizione dei modelli di input
+# Input models definition
 class ScriptRequest(BaseModel):
     source_content: str
     slide_count: int = 5
@@ -51,7 +51,7 @@ class ImageRequest(BaseModel):
     model: str = "gemini-2.0-flash"
     aspect_ratio: str = "16:9"
 
-# Lock per gestire la concorrenza sulla variabile d'ambiente globale (soluzione temporanea)
+# Lock to manage concurrency on global environment variable (temporary solution)
 env_lock = asyncio.Lock()
 
 # Reusable dependency for API Key retrieval
@@ -68,9 +68,7 @@ async def generate_script(
 ):
     logger.info(f"Generating script for input of {len(request.source_content)} chars")
 
-    # Usiamo un lock per l'intera durata della generazione dello script.
-    # Questo è necessario perché google-adk potrebbe leggere le variabili d'ambiente 
-    # in modo lazy durante la chiamata di rete (run_debug).
+    # Use a lock for the entire duration of script generation.
     async with env_lock:
         original_google_key = os.getenv("GOOGLE_API_KEY")
         original_gemini_key = os.getenv("GEMINI_API_KEY")
@@ -79,25 +77,25 @@ async def generate_script(
             os.environ["GOOGLE_API_KEY"] = api_key
             os.environ["GEMINI_API_KEY"] = api_key
             
-            # Istanziamo l'agente mentre le variabili d'ambiente sono settate
+            # Instantiate agent with fixed model gemini-2.5-flash
             agent = Agent(
                 name="InfographicDesigner",
-                model=request.model,
-                instruction="""Sei un esperto Infographic Script Designer. 
-                Trasforma il contenuto in uno script strutturato per infografiche.
-                Formato obbligatorio per ogni slide:
-                #### Infographic X/Y: [Titolo]
-                - Layout: [Descrizione visiva]
-                - Body: [Testo principale]
-                - Details: [Stile, colori]"""
+                model="gemini-2.5-flash", # Fixed for script
+                instruction="""You are an expert Infographic Script Designer. 
+                Transform the provided content into a structured infographic script.
+                Mandatory format for each slide:
+                #### Infographic X/Y: [Title]
+                - Layout: [Visual description]
+                - Body: [Main text]
+                - Details: [Style, colors]"""
             )
             
-            # Eseguiamo la generazione DENTRO il lock per sicurezza
+            # Execute generation INSIDE the lock for safety
             runner = InMemoryRunner(agent=agent)
-            prompt = f"Genera uno script di {request.slide_count} slide con livello di dettaglio {request.detail_level} basato su: {request.source_content}"
+            prompt = f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} based on: {request.source_content}"
             events = await runner.run_debug(prompt)
             
-            # Usiamo la list comprehension ottimizzata per estrarre il testo
+            # Use optimized list comprehension to extract text
             text_parts = [
                 part.text
                 for event in events
@@ -112,7 +110,6 @@ async def generate_script(
             logger.exception("Script generation failed")
             raise HTTPException(status_code=500, detail="Internal script generation error.")
         finally:
-            # Ripristina o pulisci le variabili dopo l'esecuzione completa
             if original_google_key:
                 os.environ["GOOGLE_API_KEY"] = original_google_key
             else:
@@ -128,23 +125,23 @@ async def generate_image(
     request: ImageRequest, 
     api_key: str = Depends(get_api_key)
 ):
-    logger.info(f"Generating image for prompt: {request.prompt[:50]}...")
+    # Log the specific model being used for image generation
+    logger.info(f"Generating image using model: {request.model} for prompt: {request.prompt[:50]}...")
 
     try:
-        # Qui usiamo google-genai direttamente per la generazione immagine
-        # Il client accetta la chiave direttamente, quindi non serve os.environ o lock!
         client = genai.Client(api_key=api_key)
         
+        # request.model will contain 'gemini-2.5-flash-image' or 'gemini-3-pro-image-preview'
         response = client.models.generate_content(
             model=request.model,
             contents=f"Create a high-quality professional infographic image based on this segment: {request.prompt}. Style: professional, clean, aesthetic. Ratio: {request.aspect_ratio}"
         )
 
-        # Estrazione immagine dai candidati
+        # Extract image from candidates
         for candidate in response.candidates:
             for part in candidate.content.parts:
                 if part.inline_data:
-                    # Converti i bytes in base64 string per la serializzazione JSON
+                    # Convert bytes to base64 string for JSON serialization
                     image_b64 = base64.b64encode(part.inline_data.data).decode('utf-8')
                     return {
                         "image_data": image_b64,
