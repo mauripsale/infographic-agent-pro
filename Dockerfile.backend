@@ -9,14 +9,16 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Create a non-root user for security
-RUN adduser --disabled-password --gecos "" appuser && \
-    chown -R appuser:appuser /app
+RUN adduser --disabled-password --gecos "" appuser
 
-COPY agent/ agent/
+# Copy application files with correct ownership
+COPY --chown=appuser:appuser main.py .
+COPY --chown=appuser:appuser script_agent/ script_agent/
+COPY --chown=appuser:appuser visual_agent/ visual_agent/
 
 # Switch to non-root user
 USER appuser
 
 # Cloud Run sets PORT env var (default 8080)
 # Use shell form to expand variables
-CMD ["sh", "-c", "uvicorn agent.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
