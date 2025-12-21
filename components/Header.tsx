@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { ModelType } from '../types';
+import { Separator } from './common/Separator';
 
 interface HeaderProps {
   selectedModel: ModelType;
@@ -35,7 +36,7 @@ export const Header: React.FC<HeaderProps> = ({ selectedModel, setSelectedModel,
           Manage API Key
         </button>
 
-        <div className="h-6 w-px bg-slate-800"></div>
+        <Separator />
 
         <div className="flex bg-slate-800 rounded-full p-1 border border-slate-700">
           <button
@@ -62,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({ selectedModel, setSelectedModel,
           </button>
         </div>
         
-        <div className="h-6 w-px bg-slate-800"></div>
+        <Separator />
 
         {isSignedIn ? (
           <button
