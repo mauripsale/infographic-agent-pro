@@ -144,9 +144,9 @@ async def generate_script(
                 part.text
                 async for event in event_iterator
                 if (content := getattr(event, "content", None))
-                for part in getattr(content, "parts", []):
-                    if getattr(part, "text", None):
-                        text_parts.append(part.text)
+                for part in getattr(content, "parts", [])
+                if getattr(part, "text", None)
+            ]
             
             return {"script": "\n".join(text_parts)}
             
