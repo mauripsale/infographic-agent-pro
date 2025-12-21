@@ -18,6 +18,7 @@ from typing import Optional
 from pydantic import BaseModel
 from google.cloud import storage
 from google.cloud.exceptions import GoogleCloudError
+from google.auth.exceptions import DefaultCredentialsError
 
 # Import our agents
 from script_agent import root_agent as script_agent
@@ -44,9 +45,15 @@ if ARTIFACT_BUCKET:
         storage_client = storage.Client()
         artifact_service = GcsArtifactService(bucket_name=ARTIFACT_BUCKET)
         ARTIFACT_SERVICE_URI = f"gs://{ARTIFACT_BUCKET}"
-    except Exception as e:
+    except (DefaultCredentialsError, GoogleCloudError) as e:
         logger.error(f"Failed to initialize GCS client: {e}")
         # Fallback to memory if GCS fails
+        storage_client = None
+        artifact_service = InMemoryArtifactService()
+        ARTIFACT_SERVICE_URI = "memory://"
+        ARTIFACT_BUCKET = None
+    except Exception as e:
+        logger.exception(f"Unexpected error during GCS initialization: {e}")
         storage_client = None
         artifact_service = InMemoryArtifactService()
         ARTIFACT_SERVICE_URI = "memory://"
@@ -137,9 +144,9 @@ async def generate_script(
                 part.text
                 async for event in event_iterator
                 if (content := getattr(event, "content", None))
-                for part in getattr(content, "parts", [])
-                if getattr(part, "text", None)
-            ]
+                for part in getattr(content, "parts", []):
+                    if getattr(part, "text", None):
+                        text_parts.append(part.text)
             
             return {"script": "\n".join(text_parts)}
             
