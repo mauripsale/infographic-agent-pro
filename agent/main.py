@@ -64,11 +64,18 @@ async def generate_script(
 
     logger.info(f"Generating script for input of {len(request.source_content)} chars")
 
+    # Usiamo un lock solo per l'inizializzazione dell'agente, assumendo che il client venga configurato subito.
+    # Questo evita di bloccare tutte le richieste durante la generazione (long-running).
+    agent = None
     async with env_lock:
-        os.environ["GOOGLE_API_KEY"] = api_key
-        os.environ["GEMINI_API_KEY"] = api_key
+        original_google_key = os.getenv("GOOGLE_API_KEY")
+        original_gemini_key = os.getenv("GEMINI_API_KEY")
         
         try:
+            os.environ["GOOGLE_API_KEY"] = api_key
+            os.environ["GEMINI_API_KEY"] = api_key
+            
+            # Istanziamo l'agente mentre le variabili d'ambiente sono settate
             agent = Agent(
                 name="InfographicDesigner",
                 model=request.model,
@@ -80,26 +87,36 @@ async def generate_script(
                 - Body: [Testo principale]
                 - Details: [Stile, colori]"""
             )
-            
-            runner = InMemoryRunner(agent=agent)
-            prompt = f"Genera uno script di {request.slide_count} slide con livello di dettaglio {request.detail_level} basato su: {request.source_content}"
-            events = await runner.run_debug(prompt)
-            
-            text_parts = []
-            for event in events:
-                if hasattr(event, 'content') and event.content:
-                    if hasattr(event.content, 'parts'):
-                        for part in event.content.parts:
-                            if hasattr(part, 'text') and part.text:
-                                text_parts.append(part.text)
-            
-            return {"script": "\n".join(text_parts)}
-        except Exception as e:
-            logger.exception("Script generation failed")
-            raise HTTPException(status_code=500, detail="Internal script generation error.")
         finally:
-            os.environ.pop("GOOGLE_API_KEY", None)
-            os.environ.pop("GEMINI_API_KEY", None)
+            # Ripristina o pulisci le variabili subito dopo l'init
+            if original_google_key:
+                os.environ["GOOGLE_API_KEY"] = original_google_key
+            else:
+                os.environ.pop("GOOGLE_API_KEY", None)
+
+            if original_gemini_key:
+                os.environ["GEMINI_API_KEY"] = original_gemini_key
+            else:
+                os.environ.pop("GEMINI_API_KEY", None)
+            
+    try:
+        # Eseguiamo la generazione FUORI dal lock
+        runner = InMemoryRunner(agent=agent)
+        prompt = f"Genera uno script di {request.slide_count} slide con livello di dettaglio {request.detail_level} basato su: {request.source_content}"
+        events = await runner.run_debug(prompt)
+        
+        text_parts = []
+        for event in events:
+            if hasattr(event, 'content') and event.content:
+                if hasattr(event.content, 'parts'):
+                    for part in event.content.parts:
+                        if hasattr(part, 'text') and part.text:
+                            text_parts.append(part.text)
+        
+        return {"script": "\n".join(text_parts)}
+    except Exception as e:
+        logger.exception("Script generation failed")
+        raise HTTPException(status_code=500, detail="Internal script generation error.")
 
 @app.post("/api/generate-image")
 async def generate_image(
@@ -112,34 +129,30 @@ async def generate_image(
 
     logger.info(f"Generating image for prompt: {request.prompt[:50]}...")
 
-    async with env_lock:
-        os.environ["GOOGLE_API_KEY"] = api_key
+    try:
+        # Qui usiamo google-genai direttamente per la generazione immagine
+        # Il client accetta la chiave direttamente, quindi non serve os.environ o lock!
+        client = genai.Client(api_key=api_key)
         
-        try:
-            client = genai.Client(api_key=api_key)
-            
-            # Using Gemini's multimodal generation capability
-            response = client.models.generate_content(
-                model=request.model,
-                contents=f"Create a high-quality professional infographic image based on this segment: {request.prompt}. Style: professional, clean, aesthetic. Ratio: {request.aspect_ratio}"
-            )
+        response = client.models.generate_content(
+            model=request.model,
+            contents=f"Create a high-quality professional infographic image based on this segment: {request.prompt}. Style: professional, clean, aesthetic. Ratio: {request.aspect_ratio}"
+        )
 
-            # Extraction logic for inline data (image)
-            for candidate in response.candidates:
-                for part in candidate.content.parts:
-                    if part.inline_data:
-                        return {
-                            "image_data": part.inline_data.data,
-                            "mime_type": part.inline_data.mime_type or "image/png"
-                        }
-            
-            raise Exception("No image data returned from model.")
+        # Estrazione immagine dai candidati
+        for candidate in response.candidates:
+            for part in candidate.content.parts:
+                if part.inline_data:
+                    return {
+                        "image_data": part.inline_data.data,
+                        "mime_type": part.inline_data.mime_type or "image/png"
+                    }
+        
+        raise Exception("No image data returned from model.")
 
-        except Exception as e:
-            logger.exception("Image generation failed")
-            raise HTTPException(status_code=500, detail="Internal image generation error.")
-        finally:
-            os.environ.pop("GOOGLE_API_KEY", None)
+    except Exception as e:
+        logger.exception("Image generation failed")
+        raise HTTPException(status_code=500, detail="Internal image generation error.")
 
 if __name__ == "__main__":
     import uvicorn
