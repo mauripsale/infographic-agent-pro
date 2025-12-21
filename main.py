@@ -123,12 +123,13 @@ async def generate_script(
             # Execute the runner (returns an async generator of events)
             event_iterator = await runner.run(session_id=session_id, input=prompt)
             
-            text_parts = []
-            async for event in event_iterator:
-                if (content := getattr(event, "content", None)):
-                    for part in getattr(content, "parts", []):
-                        if getattr(part, "text", None):
-                            text_parts.append(part.text)
+            text_parts = [
+                part.text
+                async for event in event_iterator
+                if (content := getattr(event, "content", None))
+                for part in getattr(content, "parts", [])
+                if getattr(part, "text", None)
+            ]
             
             return {"script": "\n".join(text_parts)}
             
