@@ -121,15 +121,14 @@ async def generate_script(
             session_id = str(uuid.uuid4())
             
             # Execute the runner (returns an async generator of events)
-            events = await runner.run(session_id=session_id, input=prompt)
+            event_iterator = await runner.run(session_id=session_id, input=prompt)
             
-            text_parts = [
-                part.text
-                for event in events
-                if (content := getattr(event, "content", None))
-                for part in getattr(content, "parts", [])
-                if getattr(part, "text", None)
-            ]
+            text_parts = []
+            async for event in event_iterator:
+                if (content := getattr(event, "content", None)):
+                    for part in getattr(content, "parts", []):
+                        if getattr(part, "text", None):
+                            text_parts.append(part.text)
             
             return {"script": "\n".join(text_parts)}
             
