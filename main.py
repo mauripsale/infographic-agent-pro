@@ -10,8 +10,9 @@ from dotenv import load_dotenv
 import uvicorn
 from fastapi import FastAPI, HTTPException, Header, Depends
 from google.adk.cli.fast_api import get_fast_api_app
-from google.adk.runners import InMemoryRunner
+from google.adk.runners import Runner
 from google.adk.artifacts import GcsArtifactService, InMemoryArtifactService
+from google.adk.sessions import DatabaseSessionService
 from google import genai
 from typing import Optional
 from pydantic import BaseModel
@@ -45,9 +46,13 @@ else:
     artifact_service = InMemoryArtifactService()
     ARTIFACT_SERVICE_URI = "memory://"
 
+# --- ADK SESSION SERVICE INITIALIZATION ---
+SESSION_DB_URI = os.getenv("SESSION_DB_URI", "sqlite+aiosqlite:///./sessions.db")
+# Initialize DatabaseSessionService for production persistence
+session_service = DatabaseSessionService(uri=SESSION_DB_URI)
+
 # --- ADK STANDARD CONFIGURATION ---
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
-SESSION_SERVICE_URI = "sqlite+aiosqlite:///./sessions.db"
 
 # Use environment variable for frontend URL, fallback to local
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
@@ -57,7 +62,7 @@ SERVE_WEB_INTERFACE = False
 # Initialize ADK FastAPI App using the configured services
 app: FastAPI = get_fast_api_app(
     agents_dir=AGENT_DIR,
-    session_service_uri=SESSION_SERVICE_URI,
+    session_service_uri=SESSION_DB_URI,
     artifact_service_uri=ARTIFACT_SERVICE_URI,
     allow_origins=ALLOWED_ORIGINS,
     web=SERVE_WEB_INTERFACE,
@@ -98,8 +103,13 @@ async def generate_script(
             os.environ["GOOGLE_API_KEY"] = api_key
             os.environ["GEMINI_API_KEY"] = api_key
             
-            # Note: We can pass the artifact_service to the runner if needed
-            runner = InMemoryRunner(agent=script_agent, artifact_service=artifact_service)
+            # Configure Production Runner
+            runner = Runner(
+                agent=script_agent,
+                app_name="infographic-agent-pro",
+                session_service=session_service,
+                artifact_service=artifact_service
+            )
             
             prompt = (
                 f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
@@ -107,11 +117,15 @@ async def generate_script(
                 f"USER CONTENT:\n{request.source_content}"
             )
             
-            events = await runner.run_debug(prompt)
+            # Generate a new session ID for this request
+            session_id = str(uuid.uuid4())
+            
+            # Execute the runner (returns an async generator of events)
+            event_iterator = await runner.run(session_id=session_id, input=prompt)
             
             text_parts = [
                 part.text
-                for event in events
+                async for event in event_iterator
                 if (content := getattr(event, "content", None))
                 for part in getattr(content, "parts", [])
                 if getattr(part, "text", None)
