@@ -4,42 +4,46 @@ import logging
 import base64
 from pathlib import Path
 from dotenv import load_dotenv
+import uvicorn
 from fastapi import FastAPI, HTTPException, Header, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional
-from pydantic import BaseModel
-from google.adk import Agent
+from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import InMemoryRunner
 from google import genai
+from typing import Optional
+from pydantic import BaseModel
+
+# Import our agents to ensure they are available (though get_fast_api_app does discovery)
+from script_agent import root_agent as script_agent
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load environment variables from .env or .env.local in current or parent directory
+# Load environment variables
 env_path = Path(__file__).resolve().parent / '.env'
 if not env_path.exists():
-    env_path = Path(__file__).resolve().parent.parent / '.env.local'
-
+    env_path = Path(__file__).resolve().parent / '.env.local'
 load_dotenv(dotenv_path=env_path)
 
-app = FastAPI()
+# --- ADK STANDARD CONFIGURATION ---
+AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Use aiosqlite for async database session support
+SESSION_SERVICE_URI = "sqlite+aiosqlite:///./sessions.db"
+# Use environment variable for frontend URL, fallback to local
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+ALLOWED_ORIGINS = [FRONTEND_URL, "http://localhost:8080"]
+SERVE_WEB_INTERFACE = False # We have our own React frontend
 
-# Configure CORS
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[frontend_url], # Specific frontend URL for security
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+# Initialize ADK FastAPI App
+app: FastAPI = get_fast_api_app(
+    agents_dir=AGENT_DIR,
+    session_service_uri=SESSION_SERVICE_URI,
+    allow_origins=ALLOWED_ORIGINS,
+    web=SERVE_WEB_INTERFACE,
 )
 
-@app.get("/health")
-async def health_check():
-    return {"status": "ok"}
+# --- CUSTOM INFOGRAPHIC LOGIC ---
 
-# Input models definition
 class ScriptRequest(BaseModel):
     source_content: str
     slide_count: int = 5
@@ -50,10 +54,8 @@ class ImageRequest(BaseModel):
     model: str = "gemini-2.0-flash"
     aspect_ratio: str = "16:9"
 
-# Lock to manage concurrency on global environment variable (temporary solution)
 env_lock = asyncio.Lock()
 
-# Reusable dependency for API Key retrieval
 async def get_api_key(x_api_key: Optional[str] = Header(None)) -> str:
     api_key = x_api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -67,9 +69,7 @@ async def generate_script(
 ):
     logger.info(f"Generating script for input of {len(request.source_content)} chars")
 
-    # Use a lock for the entire duration of script generation.
-    # This is necessary because google-adk may read environment variables 
-    # lazily during the network call (run_debug), leading to race conditions.
+    # Lock to prevent race conditions as google-adk may read env vars lazily.
     async with env_lock:
         original_google_key = os.getenv("GOOGLE_API_KEY")
         original_gemini_key = os.getenv("GEMINI_API_KEY")
@@ -78,23 +78,9 @@ async def generate_script(
             os.environ["GOOGLE_API_KEY"] = api_key
             os.environ["GEMINI_API_KEY"] = api_key
             
-            # Instantiate agent with fixed model gemini-2.5-flash
-            agent = Agent(
-                name="InfographicDesigner",
-                model="gemini-2.5-flash", # Fixed for script
-                instruction="""You are an expert Infographic Script Designer. 
-                Transform the provided content into a structured infographic script.
-                Mandatory format for each slide:
-                #### Infographic X/Y: [Title]
-                - Layout: [Visual description]
-                - Body: [Main text]
-                - Details: [Style, colors]"""
-            )
+            # Execute generation using the discovered script_agent
+            runner = InMemoryRunner(agent=script_agent)
             
-            # Execute generation INSIDE the lock for safety
-            runner = InMemoryRunner(agent=agent)
-            
-            # Structured prompt to mitigate injection
             prompt = (
                 f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
                 "based strictly on the USER CONTENT provided below.\n\n"
@@ -103,7 +89,6 @@ async def generate_script(
             
             events = await runner.run_debug(prompt)
             
-            # Use optimized list comprehension to extract text
             text_parts = [
                 part.text
                 for event in events
@@ -122,7 +107,6 @@ async def generate_script(
                 os.environ["GOOGLE_API_KEY"] = original_google_key
             else:
                 os.environ.pop("GOOGLE_API_KEY", None)
-
             if original_gemini_key:
                 os.environ["GEMINI_API_KEY"] = original_gemini_key
             else:
@@ -133,32 +117,26 @@ async def generate_image(
     request: ImageRequest, 
     api_key: str = Depends(get_api_key)
 ):
-    # Log the specific model being used for image generation
-    logger.info(f"Generating image using model: {request.model} for prompt: {request.prompt[:50]}...")
+    logger.info(f"Generating image using model: {request.model}...")
 
     try:
-        # The genai.Client accepts the API key directly, so there's no need to 
-        # manipulate environment variables or use a lock like in generate_script.
+        # The genai.Client accepts the API key directly, no lock needed here.
         client = genai.Client(api_key=api_key)
         
-        # Structured prompt to mitigate injection
         system_instruction = (
             "Create a high-quality professional infographic image based on the user-provided segment below. "
             f"Style: professional, clean, aesthetic. Ratio: {request.aspect_ratio}"
         )
         full_prompt = f"{system_instruction}\n\nUSER SEGMENT: {request.prompt}"
 
-        # request.model will contain 'gemini-2.5-flash-image' or 'gemini-3-pro-image-preview'
         response = client.models.generate_content(
             model=request.model,
             contents=full_prompt
         )
 
-        # Extract image from candidates
         for candidate in response.candidates:
             for part in candidate.content.parts:
                 if part.inline_data:
-                    # Convert bytes to base64 string for JSON serialization
                     image_b64 = base64.b64encode(part.inline_data.data).decode('utf-8')
                     return {
                         "image_data": image_b64,
@@ -172,9 +150,6 @@ async def generate_image(
         raise HTTPException(status_code=500, detail="Internal image generation error.")
 
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
+    # Use the PORT environment variable provided by Cloud Run, defaulting to 8080
+    port = int(os.environ.get("PORT", 8080))
     uvicorn.run(app, host="0.0.0.0", port=port)
-
-if __name__ == "__agent__":
-    root_agent = Agent(name="Designer", model="gemini-2.0-flash", instruction="Infographic creator")
