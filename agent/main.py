@@ -103,20 +103,20 @@ async def generate_script(
                 os.environ.pop("GEMINI_API_KEY", None)
             
     try:
-        # Eseguiamo la generazione FUORI dal lock
-        runner = InMemoryRunner(agent=agent)
-        prompt = f"Genera uno script di {request.slide_count} slide con livello di dettaglio {request.detail_level} basato su: {request.source_content}"
-        events = await runner.run_debug(prompt)
-        
-        text_parts = []
-        for event in events:
-            if hasattr(event, 'content') and event.content:
-                if hasattr(event.content, 'parts'):
-                    for part in event.content.parts:
-                        if hasattr(part, 'text') and part.text:
-                            text_parts.append(part.text)
-        
-        return {"script": "\n".join(text_parts)}
+            # Eseguiamo la generazione DENTRO il lock per sicurezza
+            runner = InMemoryRunner(agent=agent)
+            prompt = f"Genera uno script di {request.slide_count} slide con livello di dettaglio {request.detail_level} basato su: {request.source_content}"
+            events = await runner.run_debug(prompt)
+            
+            text_parts = [
+                part.text
+                for event in events
+                if (content := getattr(event, "content", None))
+                for part in getattr(content, "parts", [])
+                if getattr(part, "text", None)
+            ]
+            
+            return {"script": "\n".join(text_parts)}
     except Exception as e:
         logger.exception("Script generation failed")
         raise HTTPException(status_code=500, detail="Internal script generation error.")
