@@ -9,9 +9,10 @@ interface HeaderProps {
   isSignedIn: boolean;
   onSignIn: () => void;
   onSignOut: () => void;
+  onManageApiKey: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ selectedModel, setSelectedModel, isGenerating, isSignedIn, onSignIn, onSignOut }) => {
+export const Header: React.FC<HeaderProps> = ({ selectedModel, setSelectedModel, isGenerating, isSignedIn, onSignIn, onSignOut, onManageApiKey }) => {
   return (
     <header className="sticky top-0 z-50 bg-slate-900/80 backdrop-blur-md border-b border-slate-700 px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -26,6 +27,16 @@ export const Header: React.FC<HeaderProps> = ({ selectedModel, setSelectedModel,
       </div>
 
       <div className="flex items-center gap-4">
+        <button
+          onClick={onManageApiKey}
+          className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500"
+          title="Change your Gemini API Key"
+        >
+          Manage API Key
+        </button>
+
+        <div className="h-6 w-px bg-slate-800"></div>
+
         <div className="flex bg-slate-800 rounded-full p-1 border border-slate-700">
           <button
             onClick={() => setSelectedModel(ModelType.FLASH)}
@@ -50,6 +61,9 @@ export const Header: React.FC<HeaderProps> = ({ selectedModel, setSelectedModel,
             3 Pro
           </button>
         </div>
+        
+        <div className="h-6 w-px bg-slate-800"></div>
+
         {isSignedIn ? (
           <button
             onClick={onSignOut}

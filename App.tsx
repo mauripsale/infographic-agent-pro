@@ -294,6 +294,7 @@ const App: React.FC = () => {
         isSignedIn={!!user}
         onSignIn={handleSignIn}
         onSignOut={handleSignOut}
+        onManageApiKey={() => setIsApiKeyModalOpen(true)}
       />
 
       <ApiKeyModal
