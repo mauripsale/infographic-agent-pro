@@ -69,6 +69,8 @@ async def generate_script(
     logger.info(f"Generating script for input of {len(request.source_content)} chars")
 
     # Use a lock for the entire duration of script generation.
+    # This is necessary because google-adk may read environment variables 
+    # lazily during the network call (run_debug), leading to race conditions.
     async with env_lock:
         original_google_key = os.getenv("GOOGLE_API_KEY")
         original_gemini_key = os.getenv("GEMINI_API_KEY")
