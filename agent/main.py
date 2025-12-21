@@ -77,10 +77,10 @@ async def generate_script(
             os.environ["GOOGLE_API_KEY"] = api_key
             os.environ["GEMINI_API_KEY"] = api_key
             
-            # Istanziamo l'agente con il modello fissato a gemini-2.0-flash
+            # Istanziamo l'agente con il modello fissato a gemini-2.5-flash
             agent = Agent(
                 name="InfographicDesigner",
-                model="gemini-2.0-flash", # Fissato per lo script
+                model="gemini-2.5-flash", # Fissato per lo script
                 instruction="""Sei un esperto Infographic Script Designer. 
                 Trasforma il contenuto in uno script strutturato per infografiche.
                 Formato obbligatorio per ogni slide:
