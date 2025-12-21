@@ -67,9 +67,9 @@ async def generate_script(
 ):
     logger.info(f"Generating script for input of {len(request.source_content)} chars")
 
-    # Usiamo un lock solo per l'inizializzazione dell'agente, assumendo che il client venga configurato subito.
-    # Questo evita di bloccare tutte le richieste durante la generazione (long-running).
-    agent = None
+    # Usiamo un lock per l'intera durata della generazione dello script.
+    # Questo è necessario perché google-adk potrebbe leggere le variabili d'ambiente 
+    # in modo lazy durante la chiamata di rete (run_debug).
     async with env_lock:
         original_google_key = os.getenv("GOOGLE_API_KEY")
         original_gemini_key = os.getenv("GEMINI_API_KEY")
@@ -90,8 +90,27 @@ async def generate_script(
                 - Body: [Testo principale]
                 - Details: [Stile, colori]"""
             )
+            
+            # Eseguiamo la generazione DENTRO il lock per sicurezza
+            runner = InMemoryRunner(agent=agent)
+            prompt = f"Genera uno script di {request.slide_count} slide con livello di dettaglio {request.detail_level} basato su: {request.source_content}"
+            events = await runner.run_debug(prompt)
+            
+            text_parts = []
+            for event in events:
+                if hasattr(event, 'content') and event.content:
+                    if hasattr(event.content, 'parts'):
+                        for part in event.content.parts:
+                            if hasattr(part, 'text') and part.text:
+                                text_parts.append(part.text)
+            
+            return {"script": "\n".join(text_parts)}
+            
+        except Exception as e:
+            logger.exception("Script generation failed")
+            raise HTTPException(status_code=500, detail="Internal script generation error.")
         finally:
-            # Ripristina o pulisci le variabili subito dopo l'init
+            # Ripristina o pulisci le variabili dopo l'esecuzione completa
             if original_google_key:
                 os.environ["GOOGLE_API_KEY"] = original_google_key
             else:
@@ -101,25 +120,6 @@ async def generate_script(
                 os.environ["GEMINI_API_KEY"] = original_gemini_key
             else:
                 os.environ.pop("GEMINI_API_KEY", None)
-            
-    try:
-        # Eseguiamo la generazione FUORI dal lock
-        runner = InMemoryRunner(agent=agent)
-        prompt = f"Genera uno script di {request.slide_count} slide con livello di dettaglio {request.detail_level} basato su: {request.source_content}"
-        events = await runner.run_debug(prompt)
-        
-        text_parts = []
-        for event in events:
-            if hasattr(event, 'content') and event.content:
-                if hasattr(event.content, 'parts'):
-                    for part in event.content.parts:
-                        if hasattr(part, 'text') and part.text:
-                            text_parts.append(part.text)
-        
-        return {"script": "\n".join(text_parts)}
-    except Exception as e:
-        logger.exception("Script generation failed")
-        raise HTTPException(status_code=500, detail="Internal script generation error.")
 
 @app.post("/api/generate-image")
 async def generate_image(
