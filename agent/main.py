@@ -92,7 +92,14 @@ async def generate_script(
             
             # Execute generation INSIDE the lock for safety
             runner = InMemoryRunner(agent=agent)
-            prompt = f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} based on: {request.source_content}"
+            
+            # Structured prompt to mitigate injection
+            prompt = (
+                f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
+                "based strictly on the USER CONTENT provided below.\n\n"
+                f"USER CONTENT:\n{request.source_content}"
+            )
+            
             events = await runner.run_debug(prompt)
             
             # Use optimized list comprehension to extract text
@@ -131,10 +138,17 @@ async def generate_image(
     try:
         client = genai.Client(api_key=api_key)
         
+        # Structured prompt to mitigate injection
+        system_instruction = (
+            "Create a high-quality professional infographic image based on the user-provided segment below. "
+            f"Style: professional, clean, aesthetic. Ratio: {request.aspect_ratio}"
+        )
+        full_prompt = f"{system_instruction}\n\nUSER SEGMENT: {request.prompt}"
+
         # request.model will contain 'gemini-2.5-flash-image' or 'gemini-3-pro-image-preview'
         response = client.models.generate_content(
             model=request.model,
-            contents=f"Create a high-quality professional infographic image based on this segment: {request.prompt}. Style: professional, clean, aesthetic. Ratio: {request.aspect_ratio}"
+            contents=full_prompt
         )
 
         # Extract image from candidates
