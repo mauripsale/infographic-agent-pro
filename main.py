@@ -21,6 +21,9 @@ from script_agent import root_agent as script_agent
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize GCS client globally for reuse (thread-safe)
+storage_client = storage.Client()
+
 # Load environment variables
 env_path = Path(__file__).resolve().parent / '.env'
 if not env_path.exists():
