@@ -58,7 +58,7 @@ else:
 # --- ADK SESSION SERVICE INITIALIZATION ---
 SESSION_DB_URI = os.getenv("SESSION_DB_URI", "sqlite+aiosqlite:///./sessions.db")
 # Initialize DatabaseSessionService for production persistence
-session_service = DatabaseSessionService(uri=SESSION_DB_URI)
+session_service = DatabaseSessionService(db_url=SESSION_DB_URI)
 
 # --- ADK STANDARD CONFIGURATION ---
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
