@@ -39,19 +39,18 @@ app.add_middleware(
 async def health_check():
     return {"status": "ok"}
 
-# Definizione dei modelli di input
+# Input models definition
 class ScriptRequest(BaseModel):
     source_content: str
     slide_count: int = 5
     detail_level: str = "balanced"
-    model: str = "gemini-2.0-flash"
 
 class ImageRequest(BaseModel):
     prompt: str
     model: str = "gemini-2.0-flash"
     aspect_ratio: str = "16:9"
 
-# Lock per gestire la concorrenza sulla variabile d'ambiente globale (soluzione temporanea)
+# Lock to manage concurrency on global environment variable (temporary solution)
 env_lock = asyncio.Lock()
 
 # Reusable dependency for API Key retrieval
@@ -68,7 +67,9 @@ async def generate_script(
 ):
     logger.info(f"Generating script for input of {len(request.source_content)} chars")
 
-    # Usiamo un lock per l'intera durata della generazione dello script.
+    # Use a lock for the entire duration of script generation.
+    # This is necessary because google-adk may read environment variables 
+    # lazily during the network call (run_debug), leading to race conditions.
     async with env_lock:
         original_google_key = os.getenv("GOOGLE_API_KEY")
         original_gemini_key = os.getenv("GEMINI_API_KEY")
@@ -77,25 +78,32 @@ async def generate_script(
             os.environ["GOOGLE_API_KEY"] = api_key
             os.environ["GEMINI_API_KEY"] = api_key
             
-            # Istanziamo l'agente con il modello fissato a gemini-2.5-flash
+            # Instantiate agent with fixed model gemini-2.5-flash
             agent = Agent(
                 name="InfographicDesigner",
-                model="gemini-2.5-flash", # Fissato per lo script
-                instruction="""Sei un esperto Infographic Script Designer. 
-                Trasforma il contenuto in uno script strutturato per infografiche.
-                Formato obbligatorio per ogni slide:
-                #### Infographic X/Y: [Titolo]
-                - Layout: [Descrizione visiva]
-                - Body: [Testo principale]
-                - Details: [Stile, colori]"""
+                model="gemini-2.5-flash", # Fixed for script
+                instruction="""You are an expert Infographic Script Designer. 
+                Transform the provided content into a structured infographic script.
+                Mandatory format for each slide:
+                #### Infographic X/Y: [Title]
+                - Layout: [Visual description]
+                - Body: [Main text]
+                - Details: [Style, colors]"""
             )
             
-            # Eseguiamo la generazione DENTRO il lock per sicurezza
+            # Execute generation INSIDE the lock for safety
             runner = InMemoryRunner(agent=agent)
-            prompt = f"Genera uno script di {request.slide_count} slide con livello di dettaglio {request.detail_level} basato su: {request.source_content}"
+            
+            # Structured prompt to mitigate injection
+            prompt = (
+                f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
+                "based strictly on the USER CONTENT provided below.\n\n"
+                f"USER CONTENT:\n{request.source_content}"
+            )
+            
             events = await runner.run_debug(prompt)
             
-            # Usiamo la list comprehension ottimizzata per estrarre il testo
+            # Use optimized list comprehension to extract text
             text_parts = [
                 part.text
                 for event in events
@@ -129,19 +137,28 @@ async def generate_image(
     logger.info(f"Generating image using model: {request.model} for prompt: {request.prompt[:50]}...")
 
     try:
+        # The genai.Client accepts the API key directly, so there's no need to 
+        # manipulate environment variables or use a lock like in generate_script.
         client = genai.Client(api_key=api_key)
         
-        # request.model qui conterrà 'gemini-2.5-flash-image' o 'gemini-3-pro-image-preview'
+        # Structured prompt to mitigate injection
+        system_instruction = (
+            "Create a high-quality professional infographic image based on the user-provided segment below. "
+            f"Style: professional, clean, aesthetic. Ratio: {request.aspect_ratio}"
+        )
+        full_prompt = f"{system_instruction}\n\nUSER SEGMENT: {request.prompt}"
+
+        # request.model will contain 'gemini-2.5-flash-image' or 'gemini-3-pro-image-preview'
         response = client.models.generate_content(
             model=request.model,
-            contents=f"Create a high-quality professional infographic image based on this segment: {request.prompt}. Style: professional, clean, aesthetic. Ratio: {request.aspect_ratio}"
+            contents=full_prompt
         )
 
-        # Estrazione immagine dai candidati
+        # Extract image from candidates
         for candidate in response.candidates:
             for part in candidate.content.parts:
                 if part.inline_data:
-                    # Converti i bytes in base64 string per la serializzazione JSON
+                    # Convert bytes to base64 string for JSON serialization
                     image_b64 = base64.b64encode(part.inline_data.data).decode('utf-8')
                     return {
                         "image_data": image_b64,
