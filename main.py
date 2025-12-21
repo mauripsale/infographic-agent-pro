@@ -2,22 +2,31 @@ import os
 import asyncio
 import logging
 import base64
+import uuid
+import mimetypes
+from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 import uvicorn
 from fastapi import FastAPI, HTTPException, Header, Depends
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import InMemoryRunner
+from google.adk.artifacts import GcsArtifactService, InMemoryArtifactService
 from google import genai
 from typing import Optional
 from pydantic import BaseModel
+from google.cloud import storage
+from google.cloud.exceptions import GoogleCloudError
 
-# Import our agents to ensure they are available (though get_fast_api_app does discovery)
+# Import our agents
 from script_agent import root_agent as script_agent
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize GCS client globally for reuse (thread-safe)
+storage_client = storage.Client()
 
 # Load environment variables
 env_path = Path(__file__).resolve().parent / '.env'
@@ -25,19 +34,31 @@ if not env_path.exists():
     env_path = Path(__file__).resolve().parent / '.env.local'
 load_dotenv(dotenv_path=env_path)
 
+# --- ADK ARTIFACT SERVICE INITIALIZATION ---
+ARTIFACT_BUCKET = os.getenv("ARTIFACT_BUCKET")
+if ARTIFACT_BUCKET:
+    logger.info(f"Using GCS Artifact Service with bucket: {ARTIFACT_BUCKET}")
+    artifact_service = GcsArtifactService(bucket_name=ARTIFACT_BUCKET)
+    ARTIFACT_SERVICE_URI = f"gs://{ARTIFACT_BUCKET}"
+else:
+    logger.info("Using In-Memory Artifact Service")
+    artifact_service = InMemoryArtifactService()
+    ARTIFACT_SERVICE_URI = "memory://"
+
 # --- ADK STANDARD CONFIGURATION ---
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Use aiosqlite for async database session support
 SESSION_SERVICE_URI = "sqlite+aiosqlite:///./sessions.db"
+
 # Use environment variable for frontend URL, fallback to local
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 ALLOWED_ORIGINS = [FRONTEND_URL, "http://localhost:8080"]
-SERVE_WEB_INTERFACE = False # We have our own React frontend
+SERVE_WEB_INTERFACE = False
 
-# Initialize ADK FastAPI App
+# Initialize ADK FastAPI App using the configured services
 app: FastAPI = get_fast_api_app(
     agents_dir=AGENT_DIR,
     session_service_uri=SESSION_SERVICE_URI,
+    artifact_service_uri=ARTIFACT_SERVICE_URI,
     allow_origins=ALLOWED_ORIGINS,
     web=SERVE_WEB_INTERFACE,
 )
@@ -69,7 +90,6 @@ async def generate_script(
 ):
     logger.info(f"Generating script for input of {len(request.source_content)} chars")
 
-    # Lock to prevent race conditions as google-adk may read env vars lazily.
     async with env_lock:
         original_google_key = os.getenv("GOOGLE_API_KEY")
         original_gemini_key = os.getenv("GEMINI_API_KEY")
@@ -78,8 +98,8 @@ async def generate_script(
             os.environ["GOOGLE_API_KEY"] = api_key
             os.environ["GEMINI_API_KEY"] = api_key
             
-            # Execute generation using the discovered script_agent
-            runner = InMemoryRunner(agent=script_agent)
+            # Note: We can pass the artifact_service to the runner if needed
+            runner = InMemoryRunner(agent=script_agent, artifact_service=artifact_service)
             
             prompt = (
                 f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
@@ -120,7 +140,6 @@ async def generate_image(
     logger.info(f"Generating image using model: {request.model}...")
 
     try:
-        # The genai.Client accepts the API key directly, no lock needed here.
         client = genai.Client(api_key=api_key)
         
         system_instruction = (
@@ -137,10 +156,44 @@ async def generate_image(
         for candidate in response.candidates:
             for part in candidate.content.parts:
                 if part.inline_data:
+                    # USE ADK ARTIFACT SERVICE natively
+                    mime_type = part.inline_data.mime_type or "image/png"
+                    extension = mimetypes.guess_extension(mime_type) or ".png"
+                    artifact_name = f"images/{uuid.uuid4()}{extension}"
+                    
+                    try:
+                        # Save using ADK abstraction
+                        await artifact_service.save(
+                            name=artifact_name,
+                            data=part.inline_data.data,
+                            mime_type=mime_type
+                        )
+                        
+                        if ARTIFACT_BUCKET:
+                            # Generate Signed URL for secure access (valid 1 hour)
+                            bucket = storage_client.bucket(ARTIFACT_BUCKET)
+                            blob = bucket.blob(artifact_name)
+                            
+                            signed_url = blob.generate_signed_url(
+                                version="v4",
+                                expiration=timedelta(hours=1),
+                                method="GET"
+                            )
+                            
+                            return {
+                                "image_url": signed_url,
+                                "mime_type": mime_type
+                            }
+                    except GoogleCloudError as cloud_error:
+                        logger.error(f"GCS operation failed: {cloud_error}")
+                    except Exception as artifact_error:
+                        logger.error(f"Unexpected error in artifact service: {artifact_error}")
+
+                    # Fallback to base64
                     image_b64 = base64.b64encode(part.inline_data.data).decode('utf-8')
                     return {
                         "image_data": image_b64,
-                        "mime_type": part.inline_data.mime_type or "image/png"
+                        "mime_type": mime_type
                     }
         
         raise Exception("No image data returned from model.")
@@ -150,6 +203,5 @@ async def generate_image(
         raise HTTPException(status_code=500, detail="Internal image generation error.")
 
 if __name__ == "__main__":
-    # Use the PORT environment variable provided by Cloud Run, defaulting to 8080
     port = int(os.environ.get("PORT", 8080))
     uvicorn.run(app, host="0.0.0.0", port=port)
