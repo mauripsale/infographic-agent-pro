@@ -50,6 +50,7 @@ if ARTIFACT_BUCKET:
         storage_client = None
         artifact_service = InMemoryArtifactService()
         ARTIFACT_SERVICE_URI = "memory://"
+        ARTIFACT_BUCKET = None
 else:
     logger.info("Using In-Memory Artifact Service (No ARTIFACT_BUCKET configured)")
     artifact_service = InMemoryArtifactService()
