@@ -8,18 +8,18 @@ from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from pydantic import BaseModel
-from google.adk import Agent
 from google.adk.runners import InMemoryRunner
 from google import genai
+from script_agent import root_agent as script_agent
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load environment variables from .env or .env.local in current or parent directory
+# Load environment variables from .env or .env.local
 env_path = Path(__file__).resolve().parent / '.env'
 if not env_path.exists():
-    env_path = Path(__file__).resolve().parent.parent / '.env.local'
+    env_path = Path(__file__).resolve().parent / '.env.local'
 
 load_dotenv(dotenv_path=env_path)
 
@@ -78,21 +78,8 @@ async def generate_script(
             os.environ["GOOGLE_API_KEY"] = api_key
             os.environ["GEMINI_API_KEY"] = api_key
             
-            # Instantiate agent with fixed model gemini-2.5-flash
-            agent = Agent(
-                name="InfographicDesigner",
-                model="gemini-2.5-flash", # Fixed for script
-                instruction="""You are an expert Infographic Script Designer. 
-                Transform the provided content into a structured infographic script.
-                Mandatory format for each slide:
-                #### Infographic X/Y: [Title]
-                - Layout: [Visual description]
-                - Body: [Main text]
-                - Details: [Style, colors]"""
-            )
-            
             # Execute generation INSIDE the lock for safety
-            runner = InMemoryRunner(agent=agent)
+            runner = InMemoryRunner(agent=script_agent)
             
             # Structured prompt to mitigate injection
             prompt = (
@@ -176,5 +163,6 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
 
-if __name__ == "__agent__":
-    root_agent = Agent(name="Designer", model="gemini-2.0-flash", instruction="Infographic creator")
+# For ADK dev tools (if needed)
+# if __name__ == "__agent__":
+#    root_agent = script_agent
