@@ -96,13 +96,14 @@ async def generate_script(
             prompt = f"Genera uno script di {request.slide_count} slide con livello di dettaglio {request.detail_level} basato su: {request.source_content}"
             events = await runner.run_debug(prompt)
             
-            text_parts = []
-            for event in events:
-                if hasattr(event, 'content') and event.content:
-                    if hasattr(event.content, 'parts'):
-                        for part in event.content.parts:
-                            if hasattr(part, 'text') and part.text:
-                                text_parts.append(part.text)
+            # Usiamo la list comprehension ottimizzata per estrarre il testo
+            text_parts = [
+                part.text
+                for event in events
+                if (content := getattr(event, "content", None))
+                for part in getattr(content, "parts", [])
+                if getattr(part, "text", None)
+            ]
             
             return {"script": "\n".join(text_parts)}
             
