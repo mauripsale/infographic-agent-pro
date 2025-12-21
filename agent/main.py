@@ -69,8 +69,6 @@ async def generate_script(
     logger.info(f"Generating script for input of {len(request.source_content)} chars")
 
     # Usiamo un lock per l'intera durata della generazione dello script.
-    # Questo è necessario perché google-adk potrebbe leggere le variabili d'ambiente 
-    # in modo lazy durante la chiamata di rete (run_debug).
     async with env_lock:
         original_google_key = os.getenv("GOOGLE_API_KEY")
         original_gemini_key = os.getenv("GEMINI_API_KEY")
@@ -79,10 +77,10 @@ async def generate_script(
             os.environ["GOOGLE_API_KEY"] = api_key
             os.environ["GEMINI_API_KEY"] = api_key
             
-            # Istanziamo l'agente mentre le variabili d'ambiente sono settate
+            # Istanziamo l'agente con il modello fissato a gemini-2.5-flash
             agent = Agent(
                 name="InfographicDesigner",
-                model=request.model,
+                model="gemini-2.5-flash", # Fissato per lo script
                 instruction="""Sei un esperto Infographic Script Designer. 
                 Trasforma il contenuto in uno script strutturato per infografiche.
                 Formato obbligatorio per ogni slide:
@@ -112,7 +110,6 @@ async def generate_script(
             logger.exception("Script generation failed")
             raise HTTPException(status_code=500, detail="Internal script generation error.")
         finally:
-            # Ripristina o pulisci le variabili dopo l'esecuzione completa
             if original_google_key:
                 os.environ["GOOGLE_API_KEY"] = original_google_key
             else:
@@ -128,13 +125,13 @@ async def generate_image(
     request: ImageRequest, 
     api_key: str = Depends(get_api_key)
 ):
-    logger.info(f"Generating image for prompt: {request.prompt[:50]}...")
+    # Log the specific model being used for image generation
+    logger.info(f"Generating image using model: {request.model} for prompt: {request.prompt[:50]}...")
 
     try:
-        # Qui usiamo google-genai direttamente per la generazione immagine
-        # Il client accetta la chiave direttamente, quindi non serve os.environ o lock!
         client = genai.Client(api_key=api_key)
         
+        # request.model qui conterrà 'gemini-2.5-flash-image' o 'gemini-3-pro-image-preview'
         response = client.models.generate_content(
             model=request.model,
             contents=f"Create a high-quality professional infographic image based on this segment: {request.prompt}. Style: professional, clean, aesthetic. Ratio: {request.aspect_ratio}"
