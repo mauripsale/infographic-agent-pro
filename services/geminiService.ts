@@ -94,8 +94,8 @@ export const generateInfographicImage = async (
       headers: headers,
       body: JSON.stringify({
         prompt: prompt,
-        model: model, // Use dynamic model selection
-        aspect_ratio: aspectRatio // Use dynamic aspect ratio
+        model: model, // Using the parameter passed from UI
+        aspect_ratio: aspectRatio 
       }),
     });
 
