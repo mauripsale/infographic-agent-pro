@@ -112,42 +112,38 @@ async def generate_script(
     logger.info(f"Generating script for input of {len(request.source_content)} chars")
 
     runner = None
-    
-    # We use a lock to ensure thread safety during the critical section where
-    # environment variables are modified for Agent/Client initialization.
-    async with env_lock:
-        original_google_key = os.getenv("GOOGLE_API_KEY")
-        original_gemini_key = os.getenv("GEMINI_API_KEY")
-        
-        try:
-            os.environ["GOOGLE_API_KEY"] = api_key
-            os.environ["GEMINI_API_KEY"] = api_key
-            
-            # Instantiate a fresh agent for this request using the factory
-            # The agent (and its underlying client) should capture the key here.
-            local_agent = create_script_agent()
-
-            runner = Runner(
-                agent=local_agent,
-                app_name="infographic-agent-pro",
-                session_service=session_service,
-                artifact_service=artifact_service
-            )
-            
-        finally:
-            # Restore original state immediately after instantiation
-            if original_google_key:
-                os.environ["GOOGLE_API_KEY"] = original_google_key
-            else:
-                os.environ.pop("GOOGLE_API_KEY", None)
-            
-            if original_gemini_key:
-                os.environ["GEMINI_API_KEY"] = original_gemini_key
-            else:
-                os.environ.pop("GEMINI_API_KEY", None)
-
-    # Proceed with generation OUTSIDE the lock to allow concurrency
     try:
+        # We use a lock to ensure thread safety during the critical section where
+        # environment variables are modified for Agent/Client initialization.
+        async with env_lock:
+            original_keys = {
+                "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY"),
+                "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY"),
+            }
+            
+            try:
+                os.environ["GOOGLE_API_KEY"] = api_key
+                os.environ["GEMINI_API_KEY"] = api_key
+                
+                # Instantiate a fresh agent for this request using the factory
+                local_agent = create_script_agent()
+
+                runner = Runner(
+                    agent=local_agent,
+                    app_name="infographic-agent-pro",
+                    session_service=session_service,
+                    artifact_service=artifact_service
+                )
+                
+            finally:
+                # Restore original state immediately after instantiation
+                for key, original_value in original_keys.items():
+                    if original_value:
+                        os.environ[key] = original_value
+                    else:
+                        os.environ.pop(key, None)
+
+        # Proceed with generation OUTSIDE the lock to allow concurrency
         prompt = (
             f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
             "based strictly on the USER CONTENT provided below.\n\n"
@@ -157,13 +153,6 @@ async def generate_script(
         session_id = str(uuid.uuid4())
         user_id = "default_user" 
         
-        # Ensure session exists before running (Runner.run_async requires existing session)
-        await session_service.create_session(
-            app_name="infographic-agent-pro",
-            session_id=session_id,
-            user_id=user_id
-        )
-
         event_iterator = runner.run_async(
             session_id=session_id,
             user_id=user_id,
