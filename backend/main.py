@@ -114,7 +114,7 @@ async def generate_script(
     runner = None
     try:
         # We use a lock to ensure thread safety during the critical section where
-        # environment variables are modified for Agent/Client initialization.
+        # environment variables are modified for Agent/Client initialization AND execution.
         async with env_lock:
             keys_to_set = ("GOOGLE_API_KEY", "GEMINI_API_KEY")
             original_keys = {key: os.getenv(key) for key in keys_to_set}
@@ -123,7 +123,7 @@ async def generate_script(
                 for key in keys_to_set:
                     os.environ[key] = api_key
                 
-                # Instantiate a fresh agent for this request using the factory
+                # Instantiate a fresh agent for this request
                 local_agent = create_script_agent()
 
                 runner = Runner(
@@ -132,44 +132,43 @@ async def generate_script(
                     session_service=session_service,
                     artifact_service=artifact_service
                 )
+
+                # Generate IDs for this request
+                prompt = (
+                    f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
+                    "based strictly on the USER CONTENT provided below.\n\n"
+                    f"USER CONTENT:\n{request.source_content}"
+                )
                 
+                session_id = str(uuid.uuid4())
+                user_id = "default_user" 
+                
+                # Use run_debug to simplify session management.
+                # Must be called INSIDE the lock to ensure env vars are present for lazy clients.
+                events = await runner.run_debug(
+                    user_messages=prompt,
+                    session_id=session_id,
+                    user_id=user_id,
+                    quiet=True
+                )
+                
+                text_parts = [
+                    part.text
+                    for event in events
+                    if (content := getattr(event, "content", None))
+                    for part in getattr(content, "parts", [])
+                    if getattr(part, "text", None)
+                ]
+                
+                return {"script": "\n".join(text_parts)}
+
             finally:
-                # Restore original state immediately after instantiation
+                # Restore original state
                 for key, val in original_keys.items():
                     if val is not None:
                         os.environ[key] = val
                     else:
                         os.environ.pop(key, None)
-
-        # Proceed with generation OUTSIDE the lock to allow concurrency
-        prompt = (
-            f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
-            "based strictly on the USER CONTENT provided below.\n\n"
-            f"USER CONTENT:\n{request.source_content}"
-        )
-        
-        session_id = str(uuid.uuid4())
-        user_id = "default_user" 
-        
-        # Use run_debug to simplify session management and avoid "Session not found" errors.
-        # Since we wait for the full response anyway (no streaming to client), this is functionally equivalent 
-        # and more robust for this specific use case.
-        events = await runner.run_debug(
-            user_messages=prompt,
-            session_id=session_id,
-            user_id=user_id,
-            quiet=True
-        )
-        
-        text_parts = [
-            part.text
-            for event in events
-            if (content := getattr(event, "content", None))
-            for part in getattr(content, "parts", [])
-            if getattr(part, "text", None)
-        ]
-        
-        return {"script": "\n".join(text_parts)}
             
     except Exception as e:
         logger.exception("Script generation failed")
