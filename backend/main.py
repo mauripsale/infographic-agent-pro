@@ -102,8 +102,12 @@ class ScriptRequest(BaseModel):
     target_language: str = "English"
 
 class JobResponse(BaseModel):
-    jobId: str
+    job_id: str = Field(alias="jobId")
     status: str
+
+    model_config = {
+        "populate_by_name": True
+    }
 
 class ImageRequest(BaseModel):
     prompt: str

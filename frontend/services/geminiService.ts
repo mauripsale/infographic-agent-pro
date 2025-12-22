@@ -69,6 +69,12 @@ export const generateScriptFromSource = async (
   return new Promise((resolve, reject) => {
     const jobRef = doc(db, 'jobs', jobId);
     
+    // Set a 5-minute timeout to prevent memory leaks and handle stuck jobs
+    const timeoutId = setTimeout(() => {
+      unsubscribe();
+      reject(new Error(`Job ${jobId} timed out after 5 minutes.`));
+    }, 300000);
+
     const unsubscribe = onSnapshot(jobRef, (docSnap) => {
       if (!docSnap.exists()) return;
       
@@ -76,18 +82,21 @@ export const generateScriptFromSource = async (
       console.log(`Job ${jobId} status: ${data.status}`);
 
       if (data.status === 'completed') {
+        clearTimeout(timeoutId);
         unsubscribe();
         resolve({
           text: data.result.script,
           groundingChunks: [],
         });
       } else if (data.status === 'failed') {
+        clearTimeout(timeoutId);
         unsubscribe();
         reject(new Error(data.error || 'Job failed'));
       }
       // If 'pending' or 'processing', keep waiting...
     }, (error) => {
       console.error("Firestore listen error:", error);
+      clearTimeout(timeoutId);
       unsubscribe();
       reject(error);
     });

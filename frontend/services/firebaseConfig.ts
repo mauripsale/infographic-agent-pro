@@ -1,3 +1,6 @@
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+
 // services/firebaseConfig.ts
 // IMPORTANT: Replace with your own Firebase project's configuration.
 export const firebaseConfig = {
@@ -8,3 +11,6 @@ export const firebaseConfig = {
   messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
   appId: "YOUR_APP_ID"
 };
+
+const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
