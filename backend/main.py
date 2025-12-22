@@ -128,6 +128,10 @@ async def generate_script(
             instruction=textwrap.dedent("""\
                 You are an expert Infographic Script Designer. 
                 Transform the provided content into a structured infographic script.
+                
+                LANGUAGE RULE: The output MUST be in the same language as the provided source content. 
+                If the source is Italian, the script must be in Italian.
+                
                 Mandatory format for each slide:
                 #### Infographic X/Y: [Title]
                 - Layout: [Visual description]
@@ -144,7 +148,8 @@ async def generate_script(
 
         prompt = (
             f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
-            "based strictly on the USER CONTENT provided below.\n\n"
+            "based strictly on the USER CONTENT provided below.\n"
+            "IMPORTANT: The output language MUST match the language of the USER CONTENT (e.g., Italian source -> Italian output).\n\n"
             f"USER CONTENT:\n{request.source_content}"
         )
         
