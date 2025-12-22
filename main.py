@@ -64,7 +64,8 @@ else:
     ARTIFACT_SERVICE_URI = "memory://"
 
 # --- ADK SESSION SERVICE INITIALIZATION ---
-SESSION_DB_URI = os.getenv("SESSION_DB_URI", "sqlite+aiosqlite:///./sessions.db")
+# Use /tmp for Cloud Run compatibility (writable in-memory filesystem)
+SESSION_DB_URI = os.getenv("SESSION_DB_URI", "sqlite+aiosqlite:////tmp/sessions.db")
 # Initialize DatabaseSessionService for production persistence
 session_service = DatabaseSessionService(db_url=SESSION_DB_URI)
 
