@@ -1,4 +1,6 @@
 import { ModelType, GenerationConfig } from "../types";
+import { db } from "./firebaseConfig";
+import { doc, onSnapshot } from "firebase/firestore";
 
 export interface ScriptGenerationResult {
   text: string;
@@ -6,7 +8,6 @@ export interface ScriptGenerationResult {
 }
 
 export const getApiKey = (): string | null => {
-  // Return env var if present (priority), otherwise check local storage
   const envKey = import.meta.env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.API_KEY : '');
   if (envKey) return envKey;
   return localStorage.getItem('gemini-api-key');
@@ -18,8 +19,8 @@ export const setApiKey = (key: string) => {
 
 const getBackendUrl = () => {
   const url = import.meta.env.VITE_BACKEND_URL;
-  if (url) return url.replace(/\/$/, ''); // Remove trailing slash
-  return '/api'; // Use local proxy
+  if (url) return url.replace(/\/$/, '');
+  return '/api'; 
 };
 
 const LANGUAGE_MAP: Record<string, string> = {
@@ -28,48 +29,69 @@ const LANGUAGE_MAP: Record<string, string> = {
 };
 
 /**
- * Generates an infographic script from source content using the Python ADK Agent.
+ * Generates an infographic script asynchronously via Firestore Jobs.
  */
 export const generateScriptFromSource = async (
   source: string,
   config: GenerationConfig
 ): Promise<ScriptGenerationResult> => {
-  try {
-    const apiKey = getApiKey();
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-    
-    if (apiKey) {
-      headers['X-API-Key'] = apiKey;
-    }
-
-    const response = await fetch(`${getBackendUrl()}/generate-script`, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify({
-        source_content: source,
-        slide_count: config.slideCount,
-        detail_level: config.detailLevel,
-        target_language: LANGUAGE_MAP[config.language] || 'English',
-        model: config.model || 'gemini-2.0-flash' 
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || 'Failed to generate script via ADK Agent');
-    }
-
-    const data = await response.json();
-    return {
-      text: data.script,
-      groundingChunks: [], // Grounding handling is now in backend
-    };
-  } catch (error: any) {
-    console.error("ADK Agent Error:", error);
-    throw new Error(`Failed to generate script: ${error.message}`);
+  const apiKey = getApiKey();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (apiKey) {
+    headers['X-API-Key'] = apiKey;
   }
+
+  // 1. Start the Job
+  const response = await fetch(`${getBackendUrl()}/generate-script`, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify({
+      source_content: source,
+      slide_count: config.slideCount,
+      detail_level: config.detailLevel,
+      target_language: LANGUAGE_MAP[config.language] || 'English',
+      model: config.model || 'gemini-2.0-flash' 
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to start script generation job');
+  }
+
+  const { jobId } = await response.json();
+  console.log(`Job started: ${jobId}`);
+
+  // 2. Wait for Completion via Firestore
+  return new Promise((resolve, reject) => {
+    const jobRef = doc(db, 'jobs', jobId);
+    
+    const unsubscribe = onSnapshot(jobRef, (docSnap) => {
+      if (!docSnap.exists()) return;
+      
+      const data = docSnap.data();
+      console.log(`Job ${jobId} status: ${data.status}`);
+
+      if (data.status === 'completed') {
+        unsubscribe();
+        resolve({
+          text: data.result.script,
+          groundingChunks: [],
+        });
+      } else if (data.status === 'failed') {
+        unsubscribe();
+        reject(new Error(data.error || 'Job failed'));
+      }
+      // If 'pending' or 'processing', keep waiting...
+    }, (error) => {
+      console.error("Firestore listen error:", error);
+      unsubscribe();
+      reject(error);
+    });
+  });
 };
 
 /**
@@ -78,7 +100,7 @@ export const generateScriptFromSource = async (
 export const generateInfographicImage = async (
   prompt: string,
   model: ModelType,
-  aspectRatio: string // Restored parameter to match App.tsx usage
+  aspectRatio: string
 ): Promise<string> => {
   const apiKey = getApiKey();
   
@@ -100,7 +122,7 @@ export const generateInfographicImage = async (
       headers: headers,
       body: JSON.stringify({
         prompt: prompt,
-        model: model, // Using the parameter passed from UI
+        model: model, 
         aspect_ratio: aspectRatio 
       }),
     });
