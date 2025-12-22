@@ -99,7 +99,7 @@ jobs:
     - name: Firebase Deploy
       uses: w9jds/firebase-action@master
       with:
-        args: deploy --only hosting --config frontend/firebase.json
+        args: deploy --only hosting
       env:
         FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        PROJECT_PATH: ./frontend # Might be needed depending on how the action handles paths
+        PROJECT_PATH: ./frontend
