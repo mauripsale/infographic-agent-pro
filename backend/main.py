@@ -280,10 +280,17 @@ async def generate_image(
                     artifact_name = f"images/{uuid.uuid4()}{extension}"
                     
                     try:
-                        await artifact_service.save(
-                            name=artifact_name,
-                            data=part.inline_data.data,
-                            mime_type=mime_type
+                        # Use correct ADK save_artifact method
+                        await artifact_service.save_artifact(
+                            app_name="infographic-agent-pro",
+                            user_id="default_user",
+                            filename=artifact_name,
+                            artifact=genai.types.Part(
+                                inline_data=genai.types.Blob(
+                                    mime_type=mime_type,
+                                    data=part.inline_data.data
+                                )
+                            )
                         )
                         if ARTIFACT_BUCKET:
                             bucket = storage_client.bucket(ARTIFACT_BUCKET)
@@ -294,6 +301,8 @@ async def generate_image(
                                 method="GET"
                             )
                             return {"image_url": signed_url, "mime_type": mime_type}
+                    except GoogleCloudError as gce:
+                        logger.error(f"GCS operation failed: {gce}")
                     except Exception as e:
                         logger.error(f"Artifact save failed: {e}")
 
