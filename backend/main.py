@@ -19,7 +19,7 @@ from google.adk.models.google_llm import Gemini
 from google.adk.agents import Agent
 from google import genai
 from typing import Optional, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from google.cloud import storage
 from google.cloud.exceptions import GoogleCloudError
 from google.auth.exceptions import DefaultCredentialsError
