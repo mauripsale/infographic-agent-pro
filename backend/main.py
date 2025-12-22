@@ -154,11 +154,16 @@ async def process_script_generation(job_id: str, request_data: ScriptRequest, ap
                 You are an expert Infographic Script Designer. 
                 Transform the provided content into a structured infographic script.
                 
-                LANGUAGE RULE: The output MUST be in {request_data.target_language}.
+                LANGUAGE RULE: The body and title of the slides MUST be in {request_data.target_language}.
                 If the source content is in a different language, TRANSLATE it to {request_data.target_language}.
                 
+                TECHNICAL FORMAT RULE (CRITICAL): 
+                Each slide MUST start with the exact header format: "#### Slide X/Y: [Title]".
+                Do NOT translate the word "Slide". Do NOT use "Infografica", "Diapositiva" or other terms.
+                Always use "#### Slide" followed by the number.
+                
                 Mandatory format for each slide:
-                #### Infographic X/Y: [Title]
+                #### Slide X/Y: [Title]
                 - Layout: [Visual description]
                 - Body: [Main text]
                 - Details: [Style, colors]""")
