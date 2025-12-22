@@ -13,15 +13,14 @@ from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
 from google.adk.artifacts import GcsArtifactService, InMemoryArtifactService
 from google.adk.sessions import InMemorySessionService
+from google.adk.models.google_llm import Gemini
+from google.adk.agents import Agent
 from google import genai
 from typing import Optional
 from pydantic import BaseModel
 from google.cloud import storage
 from google.cloud.exceptions import GoogleCloudError
 from google.auth.exceptions import DefaultCredentialsError
-
-# Import our agents factory
-from script_agent.agent import create_script_agent
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -95,9 +94,6 @@ class ImageRequest(BaseModel):
     model: str = "gemini-2.0-flash"
     aspect_ratio: str = "16:9"
 
-# Global lock to protect os.environ access
-env_lock = asyncio.Lock()
-
 async def get_api_key(x_api_key: Optional[str] = Header(None)) -> str:
     api_key = x_api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -111,37 +107,41 @@ async def generate_script(
 ):
     logger.info(f"Generating script for input of {len(request.source_content)} chars")
 
-    runner = None
     try:
-        # We use a lock to ensure thread safety during the critical section where
-        # environment variables are modified for Agent/Client initialization.
-        async with env_lock:
-            keys_to_set = ("GOOGLE_API_KEY", "GEMINI_API_KEY")
-            original_keys = {key: os.getenv(key) for key in keys_to_set}
-            
-            try:
-                for key in keys_to_set:
-                    os.environ[key] = api_key
-                
-                # Instantiate a fresh agent for this request using the factory
-                local_agent = create_script_agent()
+        # 1. Create a dedicated genai.Client with the provided API key.
+        # This is the "per-request" configuration that avoids global state.
+        user_genai_client = genai.Client(api_key=api_key)
+        
+        # 2. Instantiate an ADK Gemini model object.
+        user_model = Gemini(model="gemini-2.5-flash")
+        
+        # 3. Inject our configured client into the ADK model.
+        # Since api_client is a cached_property, setting it manually overrides the default initialization.
+        user_model.api_client = user_genai_client
 
-                runner = Runner(
-                    agent=local_agent,
-                    app_name="infographic-agent-pro",
-                    session_service=session_service,
-                    artifact_service=artifact_service
-                )
-                
-            finally:
-                # Restore original state immediately after instantiation
-                for key, val in original_keys.items():
-                    if val is not None:
-                        os.environ[key] = val
-                    else:
-                        os.environ.pop(key, None)
+        # 4. Create the ADK Agent using the pre-configured model.
+        # This agent is thread-safe and scoped to this request.
+        import textwrap
+        local_agent = Agent(
+            name="InfographicScriptDesigner",
+            model=user_model,
+            instruction=textwrap.dedent("""\
+                You are an expert Infographic Script Designer. 
+                Transform the provided content into a structured infographic script.
+                Mandatory format for each slide:
+                #### Infographic X/Y: [Title]
+                - Layout: [Visual description]
+                - Body: [Main text]
+                - Details: [Style, colors]""")
+        )
 
-        # Proceed with generation OUTSIDE the lock to allow concurrency
+        runner = Runner(
+            agent=local_agent,
+            app_name="infographic-agent-pro",
+            session_service=session_service,
+            artifact_service=artifact_service
+        )
+
         prompt = (
             f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
             "based strictly on the USER CONTENT provided below.\n\n"
@@ -151,9 +151,8 @@ async def generate_script(
         session_id = str(uuid.uuid4())
         user_id = "default_user" 
         
-        # Use run_debug to simplify session management and avoid "Session not found" errors.
-        # Since we wait for the full response anyway (no streaming to client), this is functionally equivalent 
-        # and more robust for this specific use case.
+        # Use run_debug to manage session lifecycle automatically.
+        # This is safe and ADK-compliant.
         events = await runner.run_debug(
             user_messages=prompt,
             session_id=session_id,
