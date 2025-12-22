@@ -64,23 +64,23 @@ else:
     ARTIFACT_SERVICE_URI = "memory://"
 
 # --- ADK SESSION SERVICE INITIALIZATION ---
-SESSION_TYPE = os.getenv("SESSION_TYPE", "database") # Default to database
+SESSION_TYPE = os.getenv("SESSION_TYPE", "database")  # Default to database
 
 if SESSION_TYPE == "memory":
     logger.info("Using InMemorySessionService (Stateless)")
     session_service = InMemorySessionService()
-    SESSION_SERVICE_URI = "memory://"
+    SESSION_DB_URI = "memory://"
 else:
     # Use /tmp for Cloud Run compatibility (writable in-memory filesystem)
-    SESSION_DB_URI = os.getenv("SESSION_DB_URI", "sqlite+aiosqlite:////tmp/sessions.db")
-    logger.info(f"Using DatabaseSessionService with URI: {SESSION_DB_URI}")
+    _db_uri = os.getenv("SESSION_DB_URI", "sqlite+aiosqlite:////tmp/sessions.db")
+    logger.info(f"Attempting to use DatabaseSessionService with URI: {_db_uri}")
     try:
-        session_service = DatabaseSessionService(db_url=SESSION_DB_URI)
-        SESSION_SERVICE_URI = SESSION_DB_URI
+        session_service = DatabaseSessionService(db_url=_db_uri)
+        SESSION_DB_URI = _db_uri
     except Exception as e:
         logger.error(f"Failed to initialize DatabaseSessionService: {e}. Falling back to InMemory.")
         session_service = InMemorySessionService()
-        SESSION_SERVICE_URI = "memory://"
+        SESSION_DB_URI = "memory://"
 
 # --- ADK STANDARD CONFIGURATION ---
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
