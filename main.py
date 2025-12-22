@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException, Header, Depends
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
 from google.adk.artifacts import GcsArtifactService, InMemoryArtifactService
-from google.adk.sessions import DatabaseSessionService
+from google.adk.sessions import DatabaseSessionService, InMemorySessionService
 from google import genai
 from typing import Optional
 from pydantic import BaseModel
