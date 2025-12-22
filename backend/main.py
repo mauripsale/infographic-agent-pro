@@ -111,7 +111,7 @@ class JobResponse(BaseModel):
 
 class ImageRequest(BaseModel):
     prompt: str
-    model: str = "gemini-2.0-flash"
+    model: str = "gemini-2.5-flash"
     aspect_ratio: str = "16:9"
 
 async def get_api_key(x_api_key: Optional[str] = Header(None)) -> str:

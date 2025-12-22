@@ -53,7 +53,7 @@ export const generateScriptFromSource = async (
       slide_count: config.slideCount,
       detail_level: config.detailLevel,
       target_language: LANGUAGE_MAP[config.language] || 'English',
-      model: config.model || 'gemini-2.0-flash' 
+      model: config.model || 'gemini-2.5-flash' 
     }),
   });
 
