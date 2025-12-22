@@ -39,6 +39,11 @@ export const generateScriptFromSource = async (
       headers['X-API-Key'] = apiKey;
     }
 
+    const languageMap: Record<string, string> = {
+      'en': 'English',
+      'it': 'Italian'
+    };
+
     const response = await fetch(`${getBackendUrl()}/generate-script`, {
       method: 'POST',
       headers: headers,
@@ -46,6 +51,7 @@ export const generateScriptFromSource = async (
         source_content: source,
         slide_count: config.slideCount,
         detail_level: config.detailLevel,
+        target_language: languageMap[config.language] || 'English',
         model: config.model || 'gemini-2.0-flash' 
       }),
     });
