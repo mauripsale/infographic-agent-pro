@@ -157,6 +157,13 @@ async def generate_script(
         session_id = str(uuid.uuid4())
         user_id = "default_user" 
         
+        # Ensure session exists before running (Runner.run_async requires existing session)
+        await session_service.create_session(
+            app_name="infographic-agent-pro",
+            session_id=session_id,
+            user_id=user_id
+        )
+
         event_iterator = runner.run_async(
             session_id=session_id,
             user_id=user_id,
