@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException, Header, Depends
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
 from google.adk.artifacts import GcsArtifactService, InMemoryArtifactService
-from google.adk.sessions import DatabaseSessionService
+from google.adk.sessions import DatabaseSessionService, InMemorySessionService
 from google import genai
 from typing import Optional
 from pydantic import BaseModel
@@ -64,10 +64,23 @@ else:
     ARTIFACT_SERVICE_URI = "memory://"
 
 # --- ADK SESSION SERVICE INITIALIZATION ---
-# Use /tmp for Cloud Run compatibility (writable in-memory filesystem)
-SESSION_DB_URI = os.getenv("SESSION_DB_URI", "sqlite+aiosqlite:////tmp/sessions.db")
-# Initialize DatabaseSessionService for production persistence
-session_service = DatabaseSessionService(db_url=SESSION_DB_URI)
+SESSION_TYPE = os.getenv("SESSION_TYPE", "database")  # Default to database
+
+if SESSION_TYPE == "memory":
+    logger.info("Using InMemorySessionService (Stateless)")
+    session_service = InMemorySessionService()
+    SESSION_DB_URI = "memory://"
+else:
+    # Use /tmp for Cloud Run compatibility (writable in-memory filesystem)
+    _db_uri = os.getenv("SESSION_DB_URI", "sqlite+aiosqlite:////tmp/sessions.db")
+    logger.info(f"Attempting to use DatabaseSessionService with URI: {_db_uri}")
+    try:
+        session_service = DatabaseSessionService(db_url=_db_uri)
+        SESSION_DB_URI = _db_uri
+    except Exception as e:
+        logger.error(f"Failed to initialize DatabaseSessionService: {e}. Falling back to InMemory.")
+        session_service = InMemorySessionService()
+        SESSION_DB_URI = "memory://"
 
 # --- ADK STANDARD CONFIGURATION ---
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
