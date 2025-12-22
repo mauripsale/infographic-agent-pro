@@ -22,6 +22,11 @@ const getBackendUrl = () => {
   return '/api'; // Use local proxy
 };
 
+const LANGUAGE_MAP: Record<string, string> = {
+  'en': 'English',
+  'it': 'Italian'
+};
+
 /**
  * Generates an infographic script from source content using the Python ADK Agent.
  */
@@ -39,11 +44,6 @@ export const generateScriptFromSource = async (
       headers['X-API-Key'] = apiKey;
     }
 
-    const languageMap: Record<string, string> = {
-      'en': 'English',
-      'it': 'Italian'
-    };
-
     const response = await fetch(`${getBackendUrl()}/generate-script`, {
       method: 'POST',
       headers: headers,
@@ -51,7 +51,7 @@ export const generateScriptFromSource = async (
         source_content: source,
         slide_count: config.slideCount,
         detail_level: config.detailLevel,
-        target_language: languageMap[config.language] || 'English',
+        target_language: LANGUAGE_MAP[config.language] || 'English',
         model: config.model || 'gemini-2.0-flash' 
       }),
     });

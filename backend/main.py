@@ -88,6 +88,7 @@ class ScriptRequest(BaseModel):
     source_content: str
     slide_count: int = 5
     detail_level: str = "balanced"
+    target_language: str = "English"
 
 class ImageRequest(BaseModel):
     prompt: str
