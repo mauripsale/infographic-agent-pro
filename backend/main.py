@@ -115,14 +115,12 @@ async def generate_script(
     # either at init or lazily during execution. To be safe, we lock the whole process.
     # Cloud Run scaling (max-instances) will handle concurrency by spinning up more instances.
     async with env_lock:
-        original_keys = {
-            "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY"),
-            "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY"),
-        }
+        keys_to_set = ("GOOGLE_API_KEY", "GEMINI_API_KEY")
+        original_keys = {key: os.getenv(key) for key in keys_to_set}
         
         try:
-            os.environ["GOOGLE_API_KEY"] = api_key
-            os.environ["GEMINI_API_KEY"] = api_key
+            for key in keys_to_set:
+                os.environ[key] = api_key
             
             # Instantiate a fresh agent for this request
             local_agent = create_script_agent()
