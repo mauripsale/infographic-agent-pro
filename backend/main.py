@@ -111,74 +111,69 @@ async def generate_script(
 ):
     logger.info(f"Generating script for input of {len(request.source_content)} chars")
 
-    # Lock to prevent race conditions as google-adk/genai likely reads env vars 
-    # either at init or lazily during execution. To be safe, we lock the whole process.
-    # Cloud Run scaling (max-instances) will handle concurrency by spinning up more instances.
-    async with env_lock:
-        keys_to_set = ("GOOGLE_API_KEY", "GEMINI_API_KEY")
-        original_keys = {key: os.getenv(key) for key in keys_to_set}
-        
-        try:
-            for key in keys_to_set:
-                os.environ[key] = api_key
+    runner = None
+    try:
+        # We use a lock to ensure thread safety during the critical section where
+        # environment variables are modified for Agent/Client initialization.
+        async with env_lock:
+            keys_to_set = ("GOOGLE_API_KEY", "GEMINI_API_KEY")
+            original_keys = {key: os.getenv(key) for key in keys_to_set}
             
-            # Instantiate a fresh agent for this request
-            local_agent = create_script_agent()
+            try:
+                for key in keys_to_set:
+                    os.environ[key] = api_key
+                
+                # Instantiate a fresh agent for this request using the factory
+                local_agent = create_script_agent()
 
-            runner = Runner(
-                agent=local_agent,
-                app_name="infographic-agent-pro",
-                session_service=session_service,
-                artifact_service=artifact_service
-            )
-            
-            prompt = (
-                f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
-                "based strictly on the USER CONTENT provided below.\n\n"
-                f"USER CONTENT:\n{request.source_content}"
-            )
-            
-            session_id = str(uuid.uuid4())
-            user_id = "default_user" 
-            
-            # Ensure session exists
-            await session_service.create_session(
-                app_name="infographic-agent-pro",
-                session_id=session_id,
-                user_id=user_id
-            )
-
-            # Execute runner within the env context and lock
-            event_iterator = runner.run_async(
-                session_id=session_id,
-                user_id=user_id,
-                new_message=genai.types.Content(
-                    role="user",
-                    parts=[genai.types.Part(text=prompt)]
+                runner = Runner(
+                    agent=local_agent,
+                    app_name="infographic-agent-pro",
+                    session_service=session_service,
+                    artifact_service=artifact_service
                 )
-            )
-            
-            text_parts = [
-                part.text
-                async for event in event_iterator
-                if (content := getattr(event, "content", None))
-                for part in getattr(content, "parts", [])
-                if getattr(part, "text", None)
-            ]
-            
-            return {"script": "\n".join(text_parts)}
-            
-        except Exception as e:
-            logger.exception("Script generation failed")
-            raise HTTPException(status_code=500, detail="Internal script generation error.")
-        finally:
-            # Restore original state
-            for key, val in original_keys.items():
-                if val is not None:
-                    os.environ[key] = val
-                else:
-                    os.environ.pop(key, None)
+                
+            finally:
+                # Restore original state immediately after instantiation
+                for key, val in original_keys.items():
+                    if val is not None:
+                        os.environ[key] = val
+                    else:
+                        os.environ.pop(key, None)
 
+        # Proceed with generation OUTSIDE the lock to allow concurrency
+        prompt = (
+            f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
+            "based strictly on the USER CONTENT provided below.\n\n"
+            f"USER CONTENT:\n{request.source_content}"
+        )
+        
+        session_id = str(uuid.uuid4())
+        user_id = "default_user" 
+        
+        # Use run_debug to simplify session management and avoid "Session not found" errors.
+        # Since we wait for the full response anyway (no streaming to client), this is functionally equivalent 
+        # and more robust for this specific use case.
+        events = await runner.run_debug(
+            user_messages=prompt,
+            session_id=session_id,
+            user_id=user_id,
+            quiet=True
+        )
+        
+        text_parts = [
+            part.text
+            for event in events
+            if (content := getattr(event, "content", None))
+            for part in getattr(content, "parts", [])
+            if getattr(part, "text", None)
+        ]
+        
+        return {"script": "\n".join(text_parts)}
+            
+    except Exception as e:
+        logger.exception("Script generation failed")
+        raise HTTPException(status_code=500, detail="Internal script generation error.")
 
 @app.post("/api/generate-image")
 async def generate_image(
