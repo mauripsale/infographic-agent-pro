@@ -88,6 +88,7 @@ class ScriptRequest(BaseModel):
     source_content: str
     slide_count: int = 5
     detail_level: str = "balanced"
+    target_language: str = "English"
 
 class ImageRequest(BaseModel):
     prompt: str
@@ -125,12 +126,12 @@ async def generate_script(
         local_agent = Agent(
             name="InfographicScriptDesigner",
             model=user_model,
-            instruction=textwrap.dedent("""\
+            instruction=textwrap.dedent(f"""\
                 You are an expert Infographic Script Designer. 
                 Transform the provided content into a structured infographic script.
                 
-                LANGUAGE RULE: The output MUST be in the same language as the provided source content. 
-                If the source is Italian, the script must be in Italian.
+                LANGUAGE RULE: The output MUST be in {request.target_language}.
+                If the source content is in a different language, TRANSLATE it to {request.target_language}.
                 
                 Mandatory format for each slide:
                 #### Infographic X/Y: [Title]
@@ -148,8 +149,7 @@ async def generate_script(
 
         prompt = (
             f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
-            "based strictly on the USER CONTENT provided below.\n"
-            "IMPORTANT: The output language MUST match the language of the USER CONTENT (e.g., Italian source -> Italian output).\n\n"
+            "based strictly on the USER CONTENT provided below.\n\n"
             f"USER CONTENT:\n{request.source_content}"
         )
         
