@@ -20,18 +20,21 @@ from google.cloud import storage
 from google.cloud.exceptions import GoogleCloudError
 from google.auth.exceptions import DefaultCredentialsError
 
+# Import our agents factory
+from script_agent.agent import create_script_agent
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize GCS client globally variable (will be set if bucket is configured)
+storage_client = None
 
 # Load environment variables
 env_path = Path(__file__).resolve().parent / '.env'
 if not env_path.exists():
     env_path = Path(__file__).resolve().parent / '.env.local'
 load_dotenv(dotenv_path=env_path)
-
-# Initialize GCS client globally variable (will be set if bucket is configured)
-storage_client = None
 
 # --- ADK ARTIFACT SERVICE INITIALIZATION ---
 ARTIFACT_BUCKET = os.getenv("ARTIFACT_BUCKET")
@@ -92,6 +95,9 @@ class ImageRequest(BaseModel):
     model: str = "gemini-2.0-flash"
     aspect_ratio: str = "16:9"
 
+# Global lock to protect os.environ access
+env_lock = asyncio.Lock()
+
 async def get_api_key(x_api_key: Optional[str] = Header(None)) -> str:
     api_key = x_api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -105,41 +111,43 @@ async def generate_script(
 ):
     logger.info(f"Generating script for input of {len(request.source_content)} chars")
 
-    # To avoid global os.environ manipulation and Lock bottleneck, 
-    # we instantiate the agent locally for this request context.
-    # Note: Import inside function to allow model setting via environment
-    from google.adk import Agent
+    runner = None
     
-    # Temporarily set environment variable for this specific request processing
-    # Since FastAPI runs in a pool, this is still slightly risky but much better 
-    # than a global lock if we can't pass credentials to the runner directly.
-    # Actually, let's keep the Lock for safety BUT ONLY during Agent creation.
-    
-    original_google_key = os.getenv("GOOGLE_API_KEY")
-    try:
-        os.environ["GOOGLE_API_KEY"] = api_key
-        os.environ["GEMINI_API_KEY"] = api_key
+    # We use a lock to ensure thread safety during the critical section where
+    # environment variables are modified for Agent/Client initialization.
+    async with env_lock:
+        original_google_key = os.getenv("GOOGLE_API_KEY")
+        original_gemini_key = os.getenv("GEMINI_API_KEY")
         
-        # Instantiate a fresh agent for this request
-        local_agent = Agent(
-            name="InfographicScriptDesigner",
-            model="gemini-2.5-flash",
-            instruction="""You are an expert Infographic Script Designer. 
-            Transform the provided content into a structured infographic script.
-            Mandatory format for each slide:
-            #### Infographic X/Y: [Title]
-            - Layout: [Visual description]
-            - Body: [Main text]
-            - Details: [Style, colors]"""
-        )
+        try:
+            os.environ["GOOGLE_API_KEY"] = api_key
+            os.environ["GEMINI_API_KEY"] = api_key
+            
+            # Instantiate a fresh agent for this request using the factory
+            # The agent (and its underlying client) should capture the key here.
+            local_agent = create_script_agent()
 
-        runner = Runner(
-            agent=local_agent,
-            app_name="infographic-agent-pro",
-            session_service=session_service,
-            artifact_service=artifact_service
-        )
-        
+            runner = Runner(
+                agent=local_agent,
+                app_name="infographic-agent-pro",
+                session_service=session_service,
+                artifact_service=artifact_service
+            )
+            
+        finally:
+            # Restore original state immediately after instantiation
+            if original_google_key:
+                os.environ["GOOGLE_API_KEY"] = original_google_key
+            else:
+                os.environ.pop("GOOGLE_API_KEY", None)
+            
+            if original_gemini_key:
+                os.environ["GEMINI_API_KEY"] = original_gemini_key
+            else:
+                os.environ.pop("GEMINI_API_KEY", None)
+
+    # Proceed with generation OUTSIDE the lock to allow concurrency
+    try:
         prompt = (
             f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
             "based strictly on the USER CONTENT provided below.\n\n"
@@ -149,6 +157,13 @@ async def generate_script(
         session_id = str(uuid.uuid4())
         user_id = "default_user" 
         
+        # Ensure session exists before running (Runner.run_async requires existing session)
+        await session_service.create_session(
+            app_name="infographic-agent-pro",
+            session_id=session_id,
+            user_id=user_id
+        )
+
         event_iterator = runner.run_async(
             session_id=session_id,
             user_id=user_id,
@@ -171,12 +186,6 @@ async def generate_script(
     except Exception as e:
         logger.exception("Script generation failed")
         raise HTTPException(status_code=500, detail="Internal script generation error.")
-    finally:
-        # Restore original state
-        if original_google_key:
-            os.environ["GOOGLE_API_KEY"] = original_google_key
-        else:
-            os.environ.pop("GOOGLE_API_KEY", None)
 
 @app.post("/api/generate-image")
 async def generate_image(
