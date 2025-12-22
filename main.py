@@ -134,11 +134,20 @@ async def generate_script(
                 f"USER CONTENT:\n{request.source_content}"
             )
             
-            # Generate a new session ID for this request
+            # Generate IDs for this request
             session_id = str(uuid.uuid4())
+            user_id = "default_user" # ADK Runner requires a user_id
             
             # Execute the runner (returns an async generator of events)
-            event_iterator = await runner.run(session_id=session_id, input=prompt)
+            # ADK run_async requires a google.genai.types.Content object for new_message
+            event_iterator = runner.run_async(
+                session_id=session_id,
+                user_id=user_id,
+                new_message=genai.types.Content(
+                    role="user",
+                    parts=[genai.types.Part(text=prompt)]
+                )
+            )
             
             text_parts = [
                 part.text
