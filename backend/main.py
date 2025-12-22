@@ -4,11 +4,13 @@ import logging
 import base64
 import uuid
 import mimetypes
+import json
+import textwrap
 from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 import uvicorn
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Header, Depends, BackgroundTasks
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
 from google.adk.artifacts import GcsArtifactService, InMemoryArtifactService
@@ -16,17 +18,30 @@ from google.adk.sessions import InMemorySessionService
 from google.adk.models.google_llm import Gemini
 from google.adk.agents import Agent
 from google import genai
-from typing import Optional
-from pydantic import BaseModel
+from typing import Optional, Dict, Any
+from pydantic import BaseModel, Field
 from google.cloud import storage
 from google.cloud.exceptions import GoogleCloudError
 from google.auth.exceptions import DefaultCredentialsError
+import firebase_admin
+from firebase_admin import credentials, firestore
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize GCS client globally variable (will be set if bucket is configured)
+# Initialize Firebase Admin SDK
+# On Cloud Run, it uses Application Default Credentials automatically.
+try:
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app()
+    db = firestore.client()
+    logger.info("Firebase Admin initialized successfully.")
+except Exception as e:
+    logger.error(f"Failed to initialize Firebase Admin: {e}")
+    db = None
+
+# Initialize GCS client globally variable
 storage_client = None
 
 # Load environment variables
@@ -61,19 +76,15 @@ else:
     ARTIFACT_SERVICE_URI = "memory://"
 
 # --- ADK SESSION SERVICE INITIALIZATION ---
-# Using InMemorySessionService by default for production stability on Cloud Run (stateless)
 session_service = InMemorySessionService()
 SESSION_SERVICE_URI = "memory://"
 
 # --- ADK STANDARD CONFIGURATION ---
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# Use environment variable for frontend URL, fallback to local
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 ALLOWED_ORIGINS = [FRONTEND_URL, "http://localhost:8080"]
 SERVE_WEB_INTERFACE = False
 
-# Initialize ADK FastAPI App using the configured services
 app: FastAPI = get_fast_api_app(
     agents_dir=AGENT_DIR,
     session_service_uri=SESSION_SERVICE_URI,
@@ -82,7 +93,7 @@ app: FastAPI = get_fast_api_app(
     web=SERVE_WEB_INTERFACE,
 )
 
-# --- CUSTOM INFOGRAPHIC LOGIC ---
+# --- MODELS ---
 
 class ScriptRequest(BaseModel):
     source_content: str
@@ -90,9 +101,17 @@ class ScriptRequest(BaseModel):
     detail_level: str = "balanced"
     target_language: str = "English"
 
+class JobResponse(BaseModel):
+    job_id: str = Field(alias="jobId")
+    status: str
+
+    model_config = {
+        "populate_by_name": True
+    }
+
 class ImageRequest(BaseModel):
     prompt: str
-    model: str = "gemini-2.0-flash"
+    model: str = "gemini-2.5-flash"
     aspect_ratio: str = "16:9"
 
 async def get_api_key(x_api_key: Optional[str] = Header(None)) -> str:
@@ -101,37 +120,42 @@ async def get_api_key(x_api_key: Optional[str] = Header(None)) -> str:
         raise HTTPException(status_code=401, detail="Gemini API Key is required. Please provide it in the X-API-Key header.")
     return api_key
 
-@app.post("/api/generate-script")
-async def generate_script(
-    request: ScriptRequest, 
-    api_key: str = Depends(get_api_key)
-):
-    logger.info(f"Generating script for input of {len(request.source_content)} chars")
+# --- BACKGROUND TASKS ---
+
+async def process_script_generation(job_id: str, request_data: ScriptRequest, api_key: str):
+    """
+    Background task that generates the script and updates Firestore.
+    """
+    logger.info(f"Starting background job {job_id}...")
+    
+    if not db:
+        logger.error("Firestore DB not initialized. Cannot process job.")
+        return
+
+    doc_ref = db.collection('jobs').document(job_id)
 
     try:
-        # 1. Create a dedicated genai.Client with the provided API key.
-        # This is the "per-request" configuration that avoids global state.
+        # Update status to processing
+        doc_ref.set({
+            'status': 'processing',
+            'createdAt': firestore.SERVER_TIMESTAMP,
+            'request': request_data.model_dump()
+        }, merge=True)
+
+        # --- ADK GENERATION LOGIC ---
         user_genai_client = genai.Client(api_key=api_key)
-        
-        # 2. Instantiate an ADK Gemini model object.
         user_model = Gemini(model="gemini-2.5-flash")
-        
-        # 3. Inject our configured client into the ADK model.
-        # Since api_client is a cached_property, setting it manually overrides the default initialization.
         user_model.api_client = user_genai_client
 
-        # 4. Create the ADK Agent using the pre-configured model.
-        # This agent is thread-safe and scoped to this request.
-        import textwrap
         local_agent = Agent(
             name="InfographicScriptDesigner",
             model=user_model,
-            instruction=textwrap.dedent(f"""\
+            instruction=textwrap.dedent(f"""
                 You are an expert Infographic Script Designer. 
                 Transform the provided content into a structured infographic script.
                 
-                LANGUAGE RULE: The output MUST be in {request.target_language}.
-                If the source content is in a different language, TRANSLATE it to {request.target_language}.
+                LANGUAGE RULE: The output MUST be in {request_data.target_language}.
+                If the source content is in a different language, TRANSLATE it to {request_data.target_language}.
                 
                 Mandatory format for each slide:
                 #### Infographic X/Y: [Title]
@@ -148,16 +172,15 @@ async def generate_script(
         )
 
         prompt = (
-            f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
+            f"Generate a script of {request_data.slide_count} slides with detail level {request_data.detail_level} "
             "based strictly on the USER CONTENT provided below.\n\n"
-            f"USER CONTENT:\n{request.source_content}"
+            f"USER CONTENT:\n{request_data.source_content}"
         )
         
         session_id = str(uuid.uuid4())
-        user_id = "default_user" 
-        
-        # Use run_debug to manage session lifecycle automatically.
-        # This is safe and ADK-compliant.
+        user_id = "default_user" # We could use the Firebase User ID if available
+
+        # Run the generation
         events = await runner.run_debug(
             user_messages=prompt,
             session_id=session_id,
@@ -173,11 +196,54 @@ async def generate_script(
             if getattr(part, "text", None)
         ]
         
-        return {"script": "\n".join(text_parts)}
-            
+        final_script = "\n".join(text_parts)
+
+        # --- UPDATE FIRESTORE ---
+        doc_ref.update({
+            'status': 'completed',
+            'result': {
+                'script': final_script
+            },
+            'completedAt': firestore.SERVER_TIMESTAMP
+        })
+        logger.info(f"Job {job_id} completed successfully.")
+
     except Exception as e:
-        logger.exception("Script generation failed")
-        raise HTTPException(status_code=500, detail="Internal script generation error.")
+        logger.exception(f"Job {job_id} failed: {e}")
+        doc_ref.update({
+            'status': 'failed',
+            'error': str(e),
+            'completedAt': firestore.SERVER_TIMESTAMP
+        })
+
+# --- ENDPOINTS ---
+
+@app.post("/api/generate-script", response_model=JobResponse)
+async def generate_script(
+    request: ScriptRequest, 
+    background_tasks: BackgroundTasks,
+    api_key: str = Depends(get_api_key)
+):
+    """
+    Starts an asynchronous script generation job.
+    Returns a Job ID immediately.
+    """
+    if not db:
+        raise HTTPException(status_code=503, detail="Firestore service unavailable")
+
+    job_id = str(uuid.uuid4())
+    logger.info(f"Queueing job {job_id} for input of {len(request.source_content)} chars")
+
+    # Create initial document
+    db.collection('jobs').document(job_id).set({
+        'status': 'pending',
+        'createdAt': firestore.SERVER_TIMESTAMP
+    })
+
+    # Add task to background queue
+    background_tasks.add_task(process_script_generation, job_id, request, api_key)
+
+    return {"jobId": job_id, "status": "pending"}
 
 @app.post("/api/generate-image")
 async def generate_image(
@@ -185,7 +251,8 @@ async def generate_image(
     api_key: str = Depends(get_api_key)
 ):
     logger.info(f"Generating image using model: {request.model}...")
-
+    # Image generation is usually fast enough for sync calls (10-20s), 
+    # but could be async too. Keeping sync for now to minimize changes.
     try:
         client = genai.Client(api_key=api_key)
         
@@ -203,19 +270,16 @@ async def generate_image(
         for candidate in response.candidates:
             for part in candidate.content.parts:
                 if part.inline_data:
-                    # USE ADK ARTIFACT SERVICE natively
                     mime_type = part.inline_data.mime_type or "image/png"
                     extension = mimetypes.guess_extension(mime_type) or ".png"
                     artifact_name = f"images/{uuid.uuid4()}{extension}"
                     
                     try:
-                        # Save using ADK abstraction
                         await artifact_service.save(
                             name=artifact_name,
                             data=part.inline_data.data,
                             mime_type=mime_type
                         )
-                        
                         if ARTIFACT_BUCKET:
                             bucket = storage_client.bucket(ARTIFACT_BUCKET)
                             blob = bucket.blob(artifact_name)
@@ -224,21 +288,12 @@ async def generate_image(
                                 expiration=timedelta(hours=1),
                                 method="GET"
                             )
-                            return {
-                                "image_url": signed_url,
-                                "mime_type": mime_type
-                            }
-                    except GoogleCloudError as cloud_error:
-                        logger.error(f"GCS operation failed: {cloud_error}")
-                    except Exception as artifact_error:
-                        logger.error(f"Unexpected error in artifact service: {artifact_error}")
+                            return {"image_url": signed_url, "mime_type": mime_type}
+                    except Exception as e:
+                        logger.error(f"Artifact save failed: {e}")
 
-                    # Fallback to base64
                     image_b64 = base64.b64encode(part.inline_data.data).decode('utf-8')
-                    return {
-                        "image_data": image_b64,
-                        "mime_type": mime_type
-                    }
+                    return {"image_data": image_b64, "mime_type": mime_type}
         
         raise Exception("No image data returned from model.")
 
