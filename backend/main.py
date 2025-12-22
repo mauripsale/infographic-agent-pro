@@ -116,14 +116,12 @@ async def generate_script(
         # We use a lock to ensure thread safety during the critical section where
         # environment variables are modified for Agent/Client initialization.
         async with env_lock:
-            original_keys = {
-                "GOOGLE_API_KEY": os.getenv("GOOGLE_API_KEY"),
-                "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY"),
-            }
+            keys_to_set = ("GOOGLE_API_KEY", "GEMINI_API_KEY")
+            original_keys = {key: os.getenv(key) for key in keys_to_set}
             
             try:
-                os.environ["GOOGLE_API_KEY"] = api_key
-                os.environ["GEMINI_API_KEY"] = api_key
+                for key in keys_to_set:
+                    os.environ[key] = api_key
                 
                 # Instantiate a fresh agent for this request using the factory
                 local_agent = create_script_agent()
@@ -137,9 +135,9 @@ async def generate_script(
                 
             finally:
                 # Restore original state immediately after instantiation
-                for key, original_value in original_keys.items():
-                    if original_value:
-                        os.environ[key] = original_value
+                for key, val in original_keys.items():
+                    if val is not None:
+                        os.environ[key] = val
                     else:
                         os.environ.pop(key, None)
 
@@ -153,18 +151,19 @@ async def generate_script(
         session_id = str(uuid.uuid4())
         user_id = "default_user" 
         
-        event_iterator = runner.run_async(
+        # Use run_debug to simplify session management and avoid "Session not found" errors.
+        # Since we wait for the full response anyway (no streaming to client), this is functionally equivalent 
+        # and more robust for this specific use case.
+        events = await runner.run_debug(
+            user_messages=prompt,
             session_id=session_id,
             user_id=user_id,
-            new_message=genai.types.Content(
-                role="user",
-                parts=[genai.types.Part(text=prompt)]
-            )
+            quiet=True
         )
         
         text_parts = [
             part.text
-            async for event in event_iterator
+            for event in events
             if (content := getattr(event, "content", None))
             for part in getattr(content, "parts", [])
             if getattr(part, "text", None)
