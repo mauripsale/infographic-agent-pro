@@ -11,7 +11,7 @@ permissions:
   id-token: write
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }} # Aggiungi anche questo secret
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: us-central1
   BACKEND_SERVICE_NAME: infographic-agent-backend
 
@@ -29,8 +29,9 @@ jobs:
       with:
         python-version: "3.11"
     - name: Install Python Dependencies
-      run: pip install -r requirements.txt
+      run: pip install -r backend/requirements.txt
     - name: Lint Backend
+      working-directory: ./backend
       run: |
         pip install flake8
         flake8 main.py script_agent visual_agent --count --select=E9,F63,F7,F82 --show-source --statistics
@@ -41,9 +42,12 @@ jobs:
       with:
         node-version: "18"
         cache: "npm"
+        cache-dependency-path: frontend/package-lock.json
     - name: Install NPM Dependencies
+      working-directory: ./frontend
       run: npm ci
     - name: Build Frontend (Check)
+      working-directory: ./frontend
       run: npm run build
       env:
         VITE_GEMINI_API_KEY: "dummy"
@@ -72,7 +76,8 @@ jobs:
     - name: Build and Push Backend Image
       run: |
         gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
-        docker build -f Dockerfile.backend -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.BACKEND_SERVICE_NAME }}/${{ env.BACKEND_SERVICE_NAME }}:${{ github.sha }} .
+        # Build from backend directory context
+        docker build -f backend/Dockerfile -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.BACKEND_SERVICE_NAME }}/${{ env.BACKEND_SERVICE_NAME }}:${{ github.sha }} backend/
         docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.BACKEND_SERVICE_NAME }}/${{ env.BACKEND_SERVICE_NAME }}:${{ github.sha }}
 
     - name: Deploy to Cloud Run
@@ -85,6 +90,7 @@ jobs:
 
     # --- DEPLOY FRONTEND (Firebase Hosting) ---
     - name: Build and Deploy Frontend
+      working-directory: ./frontend
       run: |
         npm ci
         # Build without pre-set API keys to force UI prompt for user key
@@ -93,6 +99,7 @@ jobs:
     - name: Firebase Deploy
       uses: w9jds/firebase-action@master
       with:
-        args: deploy --only hosting
+        args: deploy --only hosting --config frontend/firebase.json
       env:
         FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        PROJECT_PATH: ./frontend # Might be needed depending on how the action handles paths
