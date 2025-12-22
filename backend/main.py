@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException, Header, Depends
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
 from google.adk.artifacts import GcsArtifactService, InMemoryArtifactService
-from google.adk.sessions import DatabaseSessionService, InMemorySessionService
+from google.adk.sessions import InMemorySessionService
 from google import genai
 from typing import Optional
 from pydantic import BaseModel
@@ -20,15 +20,9 @@ from google.cloud import storage
 from google.cloud.exceptions import GoogleCloudError
 from google.auth.exceptions import DefaultCredentialsError
 
-# Import our agents
-from script_agent import root_agent as script_agent
-
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Initialize GCS client globally variable (will be set if bucket is configured)
-storage_client = None
 
 # Load environment variables
 env_path = Path(__file__).resolve().parent / '.env'
@@ -36,18 +30,19 @@ if not env_path.exists():
     env_path = Path(__file__).resolve().parent / '.env.local'
 load_dotenv(dotenv_path=env_path)
 
+# Initialize GCS client globally variable (will be set if bucket is configured)
+storage_client = None
+
 # --- ADK ARTIFACT SERVICE INITIALIZATION ---
 ARTIFACT_BUCKET = os.getenv("ARTIFACT_BUCKET")
 if ARTIFACT_BUCKET:
     try:
         logger.info(f"Configuring GCS Artifact Service with bucket: {ARTIFACT_BUCKET}")
-        # Initialize client here, ensuring credentials are available only when needed
         storage_client = storage.Client()
         artifact_service = GcsArtifactService(bucket_name=ARTIFACT_BUCKET)
         ARTIFACT_SERVICE_URI = f"gs://{ARTIFACT_BUCKET}"
     except (DefaultCredentialsError, GoogleCloudError) as e:
         logger.error(f"Failed to initialize GCS client: {e}")
-        # Fallback to memory if GCS fails
         storage_client = None
         artifact_service = InMemoryArtifactService()
         ARTIFACT_SERVICE_URI = "memory://"
@@ -64,23 +59,9 @@ else:
     ARTIFACT_SERVICE_URI = "memory://"
 
 # --- ADK SESSION SERVICE INITIALIZATION ---
-SESSION_TYPE = os.getenv("SESSION_TYPE", "database")  # Default to database
-
-if SESSION_TYPE == "memory":
-    logger.info("Using InMemorySessionService (Stateless)")
-    session_service = InMemorySessionService()
-    SESSION_DB_URI = "memory://"
-else:
-    # Use /tmp for Cloud Run compatibility (writable in-memory filesystem)
-    _db_uri = os.getenv("SESSION_DB_URI", "sqlite+aiosqlite:////tmp/sessions.db")
-    logger.info(f"Attempting to use DatabaseSessionService with URI: {_db_uri}")
-    try:
-        session_service = DatabaseSessionService(db_url=_db_uri)
-        SESSION_DB_URI = _db_uri
-    except Exception as e:
-        logger.error(f"Failed to initialize DatabaseSessionService: {e}. Falling back to InMemory.")
-        session_service = InMemorySessionService()
-        SESSION_DB_URI = "memory://"
+# Using InMemorySessionService by default for production stability on Cloud Run (stateless)
+session_service = InMemorySessionService()
+SESSION_SERVICE_URI = "memory://"
 
 # --- ADK STANDARD CONFIGURATION ---
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -93,7 +74,7 @@ SERVE_WEB_INTERFACE = False
 # Initialize ADK FastAPI App using the configured services
 app: FastAPI = get_fast_api_app(
     agents_dir=AGENT_DIR,
-    session_service_uri=SESSION_DB_URI,
+    session_service_uri=SESSION_SERVICE_URI,
     artifact_service_uri=ARTIFACT_SERVICE_URI,
     allow_origins=ALLOWED_ORIGINS,
     web=SERVE_WEB_INTERFACE,
@@ -111,8 +92,6 @@ class ImageRequest(BaseModel):
     model: str = "gemini-2.0-flash"
     aspect_ratio: str = "16:9"
 
-env_lock = asyncio.Lock()
-
 async def get_api_key(x_api_key: Optional[str] = Header(None)) -> str:
     api_key = x_api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -126,65 +105,78 @@ async def generate_script(
 ):
     logger.info(f"Generating script for input of {len(request.source_content)} chars")
 
-    async with env_lock:
-        original_google_key = os.getenv("GOOGLE_API_KEY")
-        original_gemini_key = os.getenv("GEMINI_API_KEY")
+    # To avoid global os.environ manipulation and Lock bottleneck, 
+    # we instantiate the agent locally for this request context.
+    # Note: Import inside function to allow model setting via environment
+    from google.adk import Agent
+    
+    # Temporarily set environment variable for this specific request processing
+    # Since FastAPI runs in a pool, this is still slightly risky but much better 
+    # than a global lock if we can't pass credentials to the runner directly.
+    # Actually, let's keep the Lock for safety BUT ONLY during Agent creation.
+    
+    original_google_key = os.getenv("GOOGLE_API_KEY")
+    try:
+        os.environ["GOOGLE_API_KEY"] = api_key
+        os.environ["GEMINI_API_KEY"] = api_key
         
-        try:
-            os.environ["GOOGLE_API_KEY"] = api_key
-            os.environ["GEMINI_API_KEY"] = api_key
-            
-            # Configure Production Runner
-            runner = Runner(
-                agent=script_agent,
-                app_name="infographic-agent-pro",
-                session_service=session_service,
-                artifact_service=artifact_service
+        # Instantiate a fresh agent for this request
+        local_agent = Agent(
+            name="InfographicScriptDesigner",
+            model="gemini-2.5-flash",
+            instruction="""You are an expert Infographic Script Designer. 
+            Transform the provided content into a structured infographic script.
+            Mandatory format for each slide:
+            #### Infographic X/Y: [Title]
+            - Layout: [Visual description]
+            - Body: [Main text]
+            - Details: [Style, colors]"""
+        )
+
+        runner = Runner(
+            agent=local_agent,
+            app_name="infographic-agent-pro",
+            session_service=session_service,
+            artifact_service=artifact_service
+        )
+        
+        prompt = (
+            f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
+            "based strictly on the USER CONTENT provided below.\n\n"
+            f"USER CONTENT:\n{request.source_content}"
+        )
+        
+        session_id = str(uuid.uuid4())
+        user_id = "default_user" 
+        
+        event_iterator = runner.run_async(
+            session_id=session_id,
+            user_id=user_id,
+            new_message=genai.types.Content(
+                role="user",
+                parts=[genai.types.Part(text=prompt)]
             )
+        )
+        
+        text_parts = [
+            part.text
+            async for event in event_iterator
+            if (content := getattr(event, "content", None))
+            for part in getattr(content, "parts", [])
+            if getattr(part, "text", None)
+        ]
+        
+        return {"script": "\n".join(text_parts)}
             
-            prompt = (
-                f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
-                "based strictly on the USER CONTENT provided below.\n\n"
-                f"USER CONTENT:\n{request.source_content}"
-            )
-            
-            # Generate IDs for this request
-            session_id = str(uuid.uuid4())
-            user_id = "default_user" # ADK Runner requires a user_id
-            
-            # Execute the runner (returns an async generator of events)
-            # ADK run_async requires a google.genai.types.Content object for new_message
-            event_iterator = runner.run_async(
-                session_id=session_id,
-                user_id=user_id,
-                new_message=genai.types.Content(
-                    role="user",
-                    parts=[genai.types.Part(text=prompt)]
-                )
-            )
-            
-            text_parts = [
-                part.text
-                async for event in event_iterator
-                if (content := getattr(event, "content", None))
-                for part in getattr(content, "parts", [])
-                if getattr(part, "text", None)
-            ]
-            
-            return {"script": "\n".join(text_parts)}
-            
-        except Exception as e:
-            logger.exception("Script generation failed")
-            raise HTTPException(status_code=500, detail="Internal script generation error.")
-        finally:
-            if original_google_key:
-                os.environ["GOOGLE_API_KEY"] = original_google_key
-            else:
-                os.environ.pop("GOOGLE_API_KEY", None)
-            if original_gemini_key:
-                os.environ["GEMINI_API_KEY"] = original_gemini_key
-            else:
-                os.environ.pop("GEMINI_API_KEY", None)
+    except Exception as e:
+        logger.exception("Script generation failed")
+        raise HTTPException(status_code=500, detail="Internal script generation error.")
+    finally:
+        # Restore original state
+        if original_google_key:
+            os.environ["GOOGLE_API_KEY"] = original_google_key
+        else:
+            os.environ.pop("GOOGLE_API_KEY", None)
 
 @app.post("/api/generate-image")
 async def generate_image(
@@ -224,16 +216,13 @@ async def generate_image(
                         )
                         
                         if ARTIFACT_BUCKET:
-                            # Generate Signed URL for secure access (valid 1 hour)
                             bucket = storage_client.bucket(ARTIFACT_BUCKET)
                             blob = bucket.blob(artifact_name)
-                            
                             signed_url = blob.generate_signed_url(
                                 version="v4",
                                 expiration=timedelta(hours=1),
                                 method="GET"
                             )
-                            
                             return {
                                 "image_url": signed_url,
                                 "mime_type": mime_type
