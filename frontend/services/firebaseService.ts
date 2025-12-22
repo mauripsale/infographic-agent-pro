@@ -195,7 +195,7 @@ export async function addSlide(
     {
         insertText: {
             objectId: pageId,
-            text: `${slide.title}\n${slide.content}`,
+            text: `${slide.title}\n${slide.rawContent}`,
             insertionIndex: 0
         }
     }
