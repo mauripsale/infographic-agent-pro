@@ -36,9 +36,16 @@ const ErrorIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+const SparklesIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+  </svg>
+);
+
 function App() {
   const { user, loading } = useAuth();
   const [sourceContent, setSourceContent] = useState('');
+  const [scriptContent, setScriptContent] = useState(''); // Intermediate script state
   const [slides, setSlides] = useState<SlidePrompt[]>([]);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -81,29 +88,28 @@ function App() {
       console.error("File read error", err);
       setGlobalError("Failed to read file.");
     }
-    // Reset file input so same file can be selected again if needed
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
+  // Step 1: Generate Script from Source
   const handleGenerateScript = async () => {
     if (!sourceContent.trim()) return;
     
-    // Check API Key
     if (!getApiKey()) {
       setIsApiKeyModalOpen(true);
       return;
     }
 
     setIsGeneratingScript(true);
+    setScriptContent(''); // Clear previous script
     setSlides([]); // Clear previous slides
     setGlobalError(null);
 
     try {
       const result = await generateScriptFromSource(sourceContent, generationConfig);
-      const parsedSlides = parseBatchPrompt(result.text);
-      setSlides(parsedSlides);
+      setScriptContent(result.text);
     } catch (error) {
       console.error("Script generation failed:", error);
       setGlobalError("Failed to generate script. Please check your API Key and try again.");
@@ -112,14 +118,24 @@ function App() {
     }
   };
 
+  // Step 2: Create Presentation (Parse Script)
+  const handleCreatePresentation = () => {
+    if (!scriptContent.trim()) return;
+    try {
+      const parsedSlides = parseBatchPrompt(scriptContent);
+      setSlides(parsedSlides);
+    } catch (error) {
+      console.error("Parsing failed:", error);
+      setGlobalError("Failed to parse the script. Please ensure it follows the slide format.");
+    }
+  };
+
   const handleGenerateImage = async (index: number, prompt: string) => {
-    // Check API Key
     if (!getApiKey()) {
       setIsApiKeyModalOpen(true);
       return;
     }
 
-    // Optimistic update
     setSlides(prev => prev.map((s, i) => i === index ? { ...s, status: 'generating' } : s));
 
     try {
@@ -147,11 +163,9 @@ function App() {
       return;
     }
     
-    // Trigger generation for all slides that are not already completed or generating
     const slidesToGenerate = slides.map((slide, index) => ({ slide, index }))
       .filter(({ slide }) => slide.status !== 'completed' && slide.status !== 'generating');
 
-    // Launch all requests in parallel (Flash is fast)
     await Promise.all(slidesToGenerate.map(({ slide, index }) => 
       handleGenerateImage(index, slide.rawContent)
     ));
@@ -160,7 +174,6 @@ function App() {
   const handleRegenerateSlide = async (index: number) => {
     const slide = slides[index];
     if (slide) {
-        // Use the original rawContent as prompt for regeneration
         await handleGenerateImage(index, slide.rawContent);
     }
   };
@@ -168,6 +181,7 @@ function App() {
   const handleReset = () => {
     if (window.confirm("Are you sure you want to start over? Current progress will be lost.")) {
       setSourceContent('');
+      setScriptContent('');
       setSlides([]);
       setGlobalError(null);
       setSelectedImage(null);
@@ -209,8 +223,8 @@ function App() {
               </div>
             )}
 
-            {/* Input Section - Only show if no slides generated yet */}
-            {slides.length === 0 && (
+            {/* Step 1: Input Section - Only show if no script generated yet */}
+            {slides.length === 0 && !scriptContent && (
               <section className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-semibold text-gray-900">Source Content</h2>
@@ -320,7 +334,45 @@ function App() {
               </section>
             )}
 
-            {/* Slides Grid Section */}
+            {/* Step 2: Script Editor - Show if script generated but slides NOT generated yet */}
+            {scriptContent && slides.length === 0 && (
+              <section className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900">Edit Generated Script</h2>
+                  <button 
+                    onClick={handleReset}
+                    className="text-gray-500 hover:text-gray-700 font-medium text-sm flex items-center gap-1"
+                  >
+                    <ResetIcon />
+                    Start Over
+                  </button>
+                </div>
+                
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Review and edit the script below. Each slide should start with <strong>#### Slide X/Y: Title</strong>.
+                  </p>
+                  <textarea
+                    value={scriptContent}
+                    onChange={(e) => setScriptContent(e.target.value)}
+                    className="w-full h-96 p-4 border border-gray-300 rounded-md font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleCreatePresentation}
+                    disabled={!scriptContent.trim()}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <SparklesIcon />
+                    Generate Infographics
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* Step 3: Slides Grid Section */}
             {slides.length > 0 && (
               <section className="space-y-4">
                 <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
