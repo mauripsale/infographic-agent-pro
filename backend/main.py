@@ -96,7 +96,7 @@ env_origins_str = os.getenv("ALLOWED_ORIGINS", "")
 env_origins = [url.strip() for url in env_origins_str.split(",") if url.strip()]
 
 # Combine defaults with environment specific origins
-ALLOWED_ORIGINS = list(set(DEFAULT_ORIGINS + env_origins + [FRONTEND_URL]))
+ALLOWED_ORIGINS = list(set(DEFAULT_ORIGINS + env_origins + ([FRONTEND_URL] if FRONTEND_URL else [])))
 
 SERVE_WEB_INTERFACE = False
 
