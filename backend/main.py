@@ -18,6 +18,7 @@ from google.adk.sessions import InMemorySessionService
 from google.adk.models.google_llm import Gemini
 from google.adk.agents import Agent
 from google import genai
+from google.generativeai import types as genai_types
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 from google.cloud import storage
@@ -126,7 +127,7 @@ class JobResponse(BaseModel):
 
 class ImageRequest(BaseModel):
     prompt: str
-    model: str = "gemini-2.5-flash"
+    model: str = "gemini-2.5-flash-image"
     aspect_ratio: str = "16:9"
 
 async def get_api_key(x_api_key: Optional[str] = Header(None)) -> str:
@@ -181,7 +182,8 @@ async def process_script_generation(job_id: str, request_data: ScriptRequest, ap
                 #### Slide X/Y: [Title]
                 - Layout: [Visual description]
                 - Body: [Main text]
-                - Details: [Style, colors]""")
+                - Details: [Style, colors]"""
+            )
         )
 
         runner = Runner(
@@ -271,30 +273,30 @@ async def generate_image(
     api_key: str = Depends(get_api_key)
 ):
     logger.info(f"Generating image using model: {request.model}...")
-    # Image generation is usually fast enough for sync calls (10-20s), 
-    # but could be async too. Keeping sync for now to minimize changes.
     try:
-        client = genai.Client(api_key=api_key)
-        
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(request.model)
+
         system_instruction = (
             "Create a high-quality professional infographic image based on the user-provided segment below. "
             f"Style: professional, clean, aesthetic. Ratio: {request.aspect_ratio}"
         )
         full_prompt = f"{system_instruction}\n\nUSER SEGMENT: {request.prompt}"
 
-        response = client.models.generate_content(
-            model=request.model,
-            contents=full_prompt,
-            generation_config={"response_mime_type": "image/png"} # Explicitly request image
+        generation_config = genai_types.GenerationConfig(
+            response_mime_type="image/png"
         )
-
-        # Robust check for valid response and content
+        
+        response = model.generate_content(
+            contents=full_prompt,
+            generation_config=generation_config
+        )
+        
         if not response.candidates:
             logger.error("Image generation failed: No candidates returned from model.")
             raise HTTPException(status_code=500, detail="Image generation failed: No candidates in response.")
 
         for candidate in response.candidates:
-            # Handle cases where content is blocked by safety filters
             if not candidate.content or not candidate.content.parts:
                 finish_reason = getattr(candidate, 'finish_reason', 'UNKNOWN')
                 safety_ratings = getattr(candidate, 'safety_ratings', [])
@@ -304,7 +306,7 @@ async def generate_image(
                 )
                 if finish_reason == 'SAFETY':
                     details = ", ".join([f"{r.category.name}={r.probability.name}" for r in safety_ratings])
-                    raise HTTPException(status_code=400, detail=f"Image generation blocked due to safety concerns. Details: {details}")
+                    raise HTTPException(status_code=400, detail=f"Image generation blocked. Details: {details}")
                 else:
                     raise HTTPException(status_code=500, detail=f"Image generation failed with reason: {finish_reason}")
             
@@ -323,8 +325,8 @@ async def generate_image(
                             user_id="default_user",
                             session_id=temp_session_id,
                             filename=artifact_name,
-                            artifact=genai.types.Part(
-                                inline_data=genai.types.Blob(
+                            artifact=genai_types.Part(
+                                inline_data=genai_types.Blob(
                                     mime_type=mime_type,
                                     data=part.inline_data.data
                                 )
@@ -348,15 +350,18 @@ async def generate_image(
                         logger.error(f"Artifact save failed: {e}")
                         raise HTTPException(status_code=500, detail="Failed to save artifact.")
 
-                    # Fallback for in-memory or if GCS signed URL fails
+                    # Fallback for in-memory artifact service (no GCS configured)
                     image_b64 = base64.b64encode(part.inline_data.data).decode('utf-8')
                     return {"image_data": image_b64, "mime_type": mime_type}
         
         raise HTTPException(status_code=500, detail="No image data found in model response.")
 
     except Exception as e:
-        logger.exception("Image generation failed")
-        raise HTTPException(status_code=500, detail="Internal image generation error.")
+        logger.exception(f"Image generation failed: {e}")
+        # Re-raise if it's already an HTTPException, otherwise wrap it
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Internal image generation error: {e}")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
