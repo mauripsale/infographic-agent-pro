@@ -57,6 +57,7 @@ function App() {
   const [scriptContent, setScriptContent] = useState(''); // Intermediate script state
   const [slides, setSlides] = useState<SlidePrompt[]>([]);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
+  const [isGeneratingImages, setIsGeneratingImages] = useState(false); // New state for image generation status
   const [generationRequest, setGenerationRequest] = useState<CancellableScriptPromise | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
@@ -69,7 +70,7 @@ function App() {
     style: 'professional, clean, aesthetic',
     aspectRatio: AspectRatio.SIXTEEN_NINE,
     language: Language.ENGLISH,
-    model: 'gemini-2.5-flash'
+    model: 'gemini-2.5-flash' // Default model
   });
 
   useEffect(() => {
@@ -98,48 +99,52 @@ function App() {
       console.error("File read error", err);
       setGlobalError("Failed to read file.");
     }
+    // Reset file input so same file can be selected again if needed
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
+  // Step 1: Generate Script from Source
   const handleGenerateScript = async () => {
     if (!sourceContent.trim() || isGeneratingScript) return;
     
+    // Check API Key
     if (!getApiKey()) {
       setIsApiKeyModalOpen(true);
       return;
     }
 
     setIsGeneratingScript(true);
-    setScriptContent('');
-    setSlides([]);
+    setScriptContent(''); // Clear previous script
+    setSlides([]); // Clear previous slides
     setGlobalError(null);
 
     const request = generateScriptFromSource(sourceContent, generationConfig);
-    setGenerationRequest(request);
+    setGenerationRequest(request); // Store the cancellable promise
 
     try {
       const result = await request;
       setScriptContent(result.text);
     } catch (error) {
       const err = error as Error;
-      if (err.message !== "Cancelled") {
+      if (err.message !== "Cancelled") { // Ignore cancelled errors
         console.error("Script generation failed:", err);
         setGlobalError(`Failed to generate script: ${err.message}`);
       }
     } finally {
       setIsGeneratingScript(false);
-      setGenerationRequest(null);
+      setGenerationRequest(null); // Clear the request
     }
   };
 
   const handleCancelGeneration = () => {
     if (generationRequest) {
-      generationRequest.cancel();
+      generationRequest.cancel(); // Call the cancel method
     }
   };
 
+  // Step 2: Create Presentation (Parse Script)
   const handleCreatePresentation = () => {
     if (!scriptContent.trim()) return;
     try {
@@ -152,6 +157,7 @@ function App() {
   };
 
   const handleGenerateImage = async (index: number, prompt: string) => {
+    // Check API Key
     if (!getApiKey()) {
       setIsApiKeyModalOpen(true);
       return;
@@ -162,7 +168,8 @@ function App() {
     try {
       const imageUrl = await generateInfographicImage(
         prompt, 
-        ModelType.FLASH,
+        // Use selected model from config
+        generationConfig.model === 'gemini-3.0' ? ModelType.GEMINI_3_0 : ModelType.FLASH,
         generationConfig.aspectRatio
       );
       
@@ -178,23 +185,34 @@ function App() {
     }
   };
 
-  const handleGenerateAllImages = async () => {
+  const handleGenerateAllImages = async (parallel = true) => {
     if (!getApiKey()) {
       setIsApiKeyModalOpen(true);
       return;
     }
     
+    setIsGeneratingImages(true); // Set image generation status
     const slidesToGenerate = slides.map((slide, index) => ({ slide, index }))
-      .filter(({ slide }) => slide.status !== 'completed' && slide.status !== 'generating');
+      .filter(({ slide }) => slide.status === 'pending' || slide.status === 'failed');
 
-    await Promise.all(slidesToGenerate.map(({ slide, index }) => 
-      handleGenerateImage(index, slide.rawContent)
-    ));
+    if (parallel) {
+      // Parallel generation
+      await Promise.all(slidesToGenerate.map(({ slide, index }) => 
+        handleGenerateImage(index, slide.rawContent)
+      ));
+    } else {
+      // Sequential generation
+      for (const { slide, index } of slidesToGenerate) {
+        await handleGenerateImage(index, slide.rawContent);
+      }
+    }
+    setIsGeneratingImages(false); // Reset image generation status
   };
 
   const handleRegenerateSlide = async (index: number) => {
     const slide = slides[index];
     if (slide) {
+        // Use the original rawContent as prompt for regeneration
         await handleGenerateImage(index, slide.rawContent);
     }
   };
@@ -206,12 +224,17 @@ function App() {
       setSlides([]);
       setGlobalError(null);
       setSelectedImage(null);
+      setGenerationRequest(null); // Clear any pending requests
+      setIsGeneratingScript(false); // Reset script generation state
+      setIsGeneratingImages(false); // Reset image generation state
     }
   };
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-gray-50">Loading...</div>;
   }
+
+  const anySlideNeedsGeneration = slides.some(s => s.status === 'pending' || s.status === 'failed');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -247,7 +270,7 @@ function App() {
             {/* Step 1: Input Section - Only show if no script generated yet */}
             {slides.length === 0 && !scriptContent && (
               <section className="bg-white rounded-lg shadow-sm p-6">
-                <fieldset disabled={isGeneratingScript}>
+                <fieldset disabled={isGeneratingScript}> {/* Lock inputs during generation */}
                   <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-semibold text-gray-900">Source Content</h2>
                     <div>
@@ -278,7 +301,7 @@ function App() {
                   <Separator />
 
                   {/* Configuration Controls */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6"> {/* Changed to lg:grid-cols-5 for model selector */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Slide Count
@@ -286,13 +309,27 @@ function App() {
                       <input
                         type="number"
                         min={1}
-                        max={20}
+                        max={20} {/* Max slide count set to 20 */}
                         value={generationConfig.slideCount}
                         onChange={(e) => setGenerationConfig(prev => ({ ...prev, slideCount: parseInt(e.target.value) || 5 }))}
                         className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                       />
                     </div>
 
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Model
+                      </label>
+                      <select
+                        value={generationConfig.model}
+                        onChange={(e) => setGenerationConfig(prev => ({ ...prev, model: e.target.value as ModelType }))}
+                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                        <option value="gemini-3.0">Gemini 3.0</option>
+                      </select>
+                    </div>
+                    
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Detail Level
@@ -392,7 +429,7 @@ function App() {
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <SparklesIcon />
-                    Generate Infographics
+                    Create Presentation
                   </button>
                 </div>
               </section>
@@ -419,14 +456,23 @@ function App() {
                     </div>
                   </div>
                   
-                  <button
-                    onClick={handleGenerateAllImages}
-                    disabled={!slides.some(s => s.status === 'pending' || s.status === 'failed')}
-                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ImagesIcon />
-                    Generate All Images
-                  </button>
+                  <div className="flex gap-2"> {/* Added flex gap for buttons */}
+                    <button
+                      onClick={() => handleGenerateAllImages(false)} // Series generation
+                      disabled={!anySlideNeedsGeneration || isGeneratingImages}
+                      className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md font-medium shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Generate (Series)
+                    </button>
+                    <button
+                      onClick={() => handleGenerateAllImages(true)} // Parallel generation
+                      disabled={!anySlideNeedsGeneration || isGeneratingImages}
+                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ImagesIcon />
+                      Generate (Parallel)
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -434,7 +480,8 @@ function App() {
                     <SlideCard
                       key={index}
                       slide={slide}
-                      onRegenerate={() => handleRegenerateSlide(index)}
+                      onGenerate={slide.status === 'pending' || slide.status === 'failed' ? () => handleGenerateImage(index, slide.rawContent) : undefined}
+                      onRegenerate={slide.status === 'completed' || slide.status === 'failed' ? () => handleRegenerateSlide(index) : undefined}
                       onViewFull={(s) => setSelectedImage(s.imageUrl || null)}
                     />
                   ))}

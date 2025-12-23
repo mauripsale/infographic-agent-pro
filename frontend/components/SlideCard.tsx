@@ -5,11 +5,12 @@ import { ImagePreviewModal } from './ImagePreviewModal';
 
 interface SlideCardProps {
   slide: SlidePrompt;
+  onGenerate?: (slide: SlidePrompt) => void;
   onRegenerate?: (slide: SlidePrompt) => void;
   onViewFull?: (slide: SlidePrompt) => void;
 }
 
-export const SlideCard: React.FC<SlideCardProps> = ({ slide, onRegenerate, onViewFull }) => {
+export const SlideCard: React.FC<SlideCardProps> = ({ slide, onGenerate, onRegenerate, onViewFull }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleViewFull = () => {
@@ -17,6 +18,13 @@ export const SlideCard: React.FC<SlideCardProps> = ({ slide, onRegenerate, onVie
       onViewFull(slide);
     } else {
       setIsModalOpen(true);
+    }
+  };
+
+  const handleGenerateClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onGenerate) {
+      onGenerate(slide);
     }
   };
 
@@ -40,7 +48,17 @@ export const SlideCard: React.FC<SlideCardProps> = ({ slide, onRegenerate, onVie
               <p className="text-xs text-slate-500 mt-1">{slide.error}</p>
             </div>
           ) : (
-            <div className="text-slate-600 italic text-sm">Waiting to start...</div>
+            <div className="text-slate-600 italic text-sm text-center p-4">
+              <p>Waiting to generate image...</p>
+              {onGenerate && (
+                <button 
+                  onClick={handleGenerateClick}
+                  className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-xs font-bold"
+                >
+                  Generate
+                </button>
+              )}
+            </div>
           )}
           
           <div className="absolute top-2 right-2 flex gap-2">
