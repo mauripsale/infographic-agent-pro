@@ -274,9 +274,9 @@ async def generate_image(
 ):
     logger.info(f"Generating image using model: {request.model}...")
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(request.model)
-
+        # Create a non-global client for thread safety
+        client = genai.GenerativeModel(request.model, api_key=api_key)
+        
         system_instruction = (
             "Create a high-quality professional infographic image based on the user-provided segment below. "
             f"Style: professional, clean, aesthetic. Ratio: {request.aspect_ratio}"
@@ -287,7 +287,8 @@ async def generate_image(
             response_mime_type="image/png"
         )
         
-        response = model.generate_content(
+        # Use async version to avoid blocking the event loop
+        response = await client.generate_content_async(
             contents=full_prompt,
             generation_config=generation_config
         )
@@ -357,11 +358,11 @@ async def generate_image(
         raise HTTPException(status_code=500, detail="No image data found in model response.")
 
     except Exception as e:
-        logger.exception(f"Image generation failed: {e}")
+        logger.exception("Image generation failed")
         # Re-raise if it's already an HTTPException, otherwise wrap it
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail=f"Internal image generation error: {e}")
+        raise HTTPException(status_code=500, detail="Internal image generation error.")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
