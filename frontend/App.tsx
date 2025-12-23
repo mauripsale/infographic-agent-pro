@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
-import ImagePreviewModal from './components/ImagePreviewModal';
-import ApiKeyModal from './components/ApiKeyModal';
-import PresentationView from './components/PresentationView';
-import Separator from './components/common/Separator';
+import { ImagePreviewModal } from './components/ImagePreviewModal';
+import { ApiKeyModal } from './components/ApiKeyModal';
+import { SlideCard } from './components/SlideCard';
+import { Separator } from './components/common/Separator';
 import { generateScriptFromSource, generateInfographicImage, getApiKey, setApiKey } from './services/geminiService';
 import { parseBatchPrompt } from './utils/promptParser';
 import { SlidePrompt, ModelType, DetailLevel, AspectRatio, GenerationConfig, Language } from './types';
@@ -226,13 +226,26 @@ function App() {
               </div>
             </section>
 
-            {/* Presentation View (Grid of Slides) */}
+            {/* Slides Grid Section */}
             {slides.length > 0 && (
-              <PresentationView 
-                slides={slides} 
-                onImageClick={setSelectedImage}
-                onRegenerateSlide={handleRegenerateSlide}
-              />
+              <section className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-gray-900">Generated Infographics</h2>
+                  <div className="text-sm text-gray-500">
+                    {slides.filter(s => s.status === 'completed').length} of {slides.length} completed
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {slides.map((slide, index) => (
+                    <SlideCard
+                      key={index}
+                      slide={slide}
+                      onRegenerate={() => handleRegenerateSlide(index)}
+                      onViewFull={(s) => setSelectedImage(s.imageUrl || null)}
+                    />
+                  ))}
+                </div>
+              </section>
             )}
           </div>
         )}
