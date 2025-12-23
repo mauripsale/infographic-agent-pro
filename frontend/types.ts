@@ -22,11 +22,9 @@ export interface SlidePrompt {
 
 
 export enum ModelType {
-
-  FLASH = 'gemini-2.5-flash-image',
-
-  PRO = 'gemini-3-pro-image-preview'
-
+  FLASH = 'gemini-2.5-flash',
+  PRO = 'gemini-3-pro-image-preview',
+  GEMINI_3_0 = 'gemini-3.0'
 }
 
 
