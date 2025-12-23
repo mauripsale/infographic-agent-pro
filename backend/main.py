@@ -303,7 +303,8 @@ async def generate_image(
                     f"Safety Ratings: {safety_ratings}"
                 )
                 if finish_reason == 'SAFETY':
-                    raise HTTPException(status_code=400, detail=f"Image generation blocked due to safety concerns. {safety_ratings}")
+                    details = ", ".join([f"{r.category.name}={r.probability.name}" for r in safety_ratings])
+                    raise HTTPException(status_code=400, detail=f"Image generation blocked due to safety concerns. Details: {details}")
                 else:
                     raise HTTPException(status_code=500, detail=f"Image generation failed with reason: {finish_reason}")
             
