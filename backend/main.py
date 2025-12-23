@@ -281,6 +281,7 @@ async def generate_image(
                     
                     # Generate a temp session ID for this artifact save operation
                     temp_session_id = str(uuid.uuid4())
+                    logger.info(f"Attempting to save artifact '{artifact_name}' with session_id='{temp_session_id}'")
                     
                     try:
                         # Use correct ADK save_artifact method with session_id
