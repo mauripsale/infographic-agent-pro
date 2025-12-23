@@ -1,86 +1,62 @@
-
 import React from 'react';
-import { ModelType } from '../types';
-import { Separator } from './common/Separator';
+import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
-  selectedModel: ModelType;
-  setSelectedModel: (model: ModelType) => void;
-  isGenerating: boolean;
-  isSignedIn: boolean;
-  onSignIn: () => void;
-  onSignOut: () => void;
-  onManageApiKey: () => void;
+  onApiKeyClick: () => void;
+  hasApiKey: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ selectedModel, setSelectedModel, isGenerating, isSignedIn, onSignIn, onSignOut, onManageApiKey }) => {
+const Header: React.FC<HeaderProps> = ({ onApiKeyClick, hasApiKey }) => {
+  const { user, signInWithGoogle, logout } = useAuth();
+
   return (
-    <header className="sticky top-0 z-50 bg-slate-900/80 backdrop-blur-md border-b border-slate-700 px-6 py-4 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className="bg-blue-600 p-2 rounded-lg">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+    <header className="bg-white shadow-sm sticky top-0 z-10">
+      <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
+        <div className="flex items-center">
+          <svg className="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
           </svg>
+          <h1 className="ml-2 text-xl font-bold text-gray-900">Infographic Agent Pro</h1>
         </div>
-        <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent">
-          Infographic Agent Pro
-        </h1>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <button
-          onClick={onManageApiKey}
-          className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500"
-          title="Change your Gemini API Key"
-        >
-          Manage API Key
-        </button>
-
-        <Separator />
-
-        <div className="flex bg-slate-800 rounded-full p-1 border border-slate-700">
+        <div className="flex items-center gap-4">
           <button
-            onClick={() => setSelectedModel(ModelType.FLASH)}
-            disabled={isGenerating}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-              selectedModel === ModelType.FLASH 
-                ? 'bg-blue-600 text-white' 
-                : 'text-slate-400 hover:text-slate-200'
+            onClick={onApiKeyClick}
+            className={`px-3 py-1 rounded-md text-sm font-medium ${
+              hasApiKey 
+                ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 animate-pulse'
             }`}
           >
-            2.5 Flash
+            {hasApiKey ? 'API Key Configured' : 'Set Gemini API Key'}
           </button>
-          <button
-            onClick={() => setSelectedModel(ModelType.PRO)}
-            disabled={isGenerating}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-              selectedModel === ModelType.PRO 
-                ? 'bg-blue-600 text-white' 
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            3 Pro
-          </button>
-        </div>
-        
-        <Separator />
 
-        {isSignedIn ? (
-          <button
-            onClick={onSignOut}
-            className="px-4 py-1.5 rounded-full text-sm font-medium transition-all bg-slate-800 text-slate-400 hover:text-slate-200"
-          >
-            Sign Out
-          </button>
-        ) : (
-          <button
-            onClick={onSignIn}
-            className="px-4 py-1.5 rounded-full text-sm font-medium transition-all bg-blue-600 text-white"
-          >
-            Sign In with Google
-          </button>
-        )}
+          {user ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-700 hidden sm:block">{user.displayName}</span>
+              <img 
+                src={user.photoURL || 'https://via.placeholder.com/32'} 
+                alt="User" 
+                className="h-8 w-8 rounded-full border border-gray-300"
+              />
+              <button
+                onClick={logout}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={signInWithGoogle}
+              className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Sign In with Google
+            </button>
+          )}
+        </div>
       </div>
     </header>
   );
 };
+
+export default Header;
