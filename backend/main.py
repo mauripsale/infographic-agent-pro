@@ -279,11 +279,15 @@ async def generate_image(
                     extension = mimetypes.guess_extension(mime_type) or ".png"
                     artifact_name = f"images/{uuid.uuid4()}{extension}"
                     
+                    # Generate a temp session ID for this artifact save operation
+                    temp_session_id = str(uuid.uuid4())
+                    
                     try:
-                        # Use correct ADK save_artifact method
+                        # Use correct ADK save_artifact method with session_id
                         await artifact_service.save_artifact(
                             app_name="infographic-agent-pro",
                             user_id="default_user",
+                            session_id=temp_session_id,
                             filename=artifact_name,
                             artifact=genai.types.Part(
                                 inline_data=genai.types.Blob(
@@ -294,7 +298,13 @@ async def generate_image(
                         )
                         if ARTIFACT_BUCKET:
                             bucket = storage_client.bucket(ARTIFACT_BUCKET)
-                            blob = bucket.blob(artifact_name)
+                            # ADK GCS implementation likely adds prefixes, but if we construct path manually:
+                            # Let's trust ADK pathing logic or manual blob access if we knew the path.
+                            # ADK uses: {app_name}/{user_id}/{session_id}/{filename}
+                            # So we must replicate that path to find the blob.
+                            storage_path = f"infographic-agent-pro/default_user/{temp_session_id}/{artifact_name}"
+                            
+                            blob = bucket.blob(storage_path)
                             signed_url = blob.generate_signed_url(
                                 version="v4",
                                 expiration=timedelta(hours=1),

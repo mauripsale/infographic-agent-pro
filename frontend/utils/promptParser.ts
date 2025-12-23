@@ -9,16 +9,16 @@ export const parseBatchPrompt = (text: string): SlidePrompt[] => {
   // Flexible regex to handle:
   // - Optional Markdown headers (# to ######)
   // - Optional bolding (** or __)
-  // - Keywords: Infographic, Slide, Page (optional)
+  // - Keywords: Infographic, Infografica, Slide, Diapositiva, Page, etc. (optional)
   // - Formats: "1/10", "1 of 10", "1 \ 10", or just "1"
   // - Optional titles with colons or dashes
-  const slideRegex = /(?:\r?\n|^)#{1,6}\s*[\*_]*\s*(?:Infographic|Slide|Page)?\s*(\d+)\s*(?:\/|of|\\)?\s*(\d+)?\s*[\*_]*\s*[:\-\s]*(.*)/gi;
+  const slideRegex = /(?:\r?\n|^)#{1,6}\s*[\*_]*\s*(?:[a-z\u00C0-\u017F]+)?\s*(\d+)\s*(?:\/|of|\\)?\s*(\d+)?\s*[\*_]*\s*[:\-\s]*(.*)/gi;
   
   const matches = Array.from(text.matchAll(slideRegex));
   
   if (matches.length === 0) {
     // Fallback: If no headers are found, try searching for any "X/Y" pattern at the start of lines
-    const fallbackRegex = /(?:\r?\n|^)[\*_]*\s*(?:Infographic|Slide|Page)?\s*(\d+)\s*(?:\/|of)\s*(\d+)\s*[\*_]*\s*[:\-\s]*(.*)/gi;
+    const fallbackRegex = /(?:\r?\n|^)[\*_]*\s*(?:[a-z\u00C0-\u017F]+)?\s*(\d+)\s*(?:\/|of)\s*(\d+)\s*[\*_]*\s*[:\-\s]*(.*)/gi;
     const fallbackMatches = Array.from(text.matchAll(fallbackRegex));
     if (fallbackMatches.length > 0) {
       return extractSlides(text, fallbackMatches);

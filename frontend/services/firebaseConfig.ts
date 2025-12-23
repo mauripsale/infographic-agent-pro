@@ -3,15 +3,15 @@ import { getFirestore } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
 
 // services/firebaseConfig.ts
-// IMPORTANT: Replace with your own Firebase project's configuration.
+// Configuration loaded from environment variables
 export const firebaseConfig = {
-  apiKey: "AIzaSyBZJOqyLOu7KK2yoRP5GKpl2TFSYKGf4bI",
-  authDomain: "qwiklabs-asl-04-f9d4ba2925b9.firebaseapp.com",
-  projectId: "qwiklabs-asl-04-f9d4ba2925b9",
-  storageBucket: "qwiklabs-asl-04-f9d4ba2925b9.firebasestorage.app",
-  messagingSenderId: "218788847170",
-  appId: "1:218788847170:web:5cb315322d8129984bd7db",
-  measurementId: "G-FJVR1SD5T4"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);

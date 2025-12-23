@@ -1,6 +1,7 @@
 {
   "hosting": {
     "public": "dist",
+    "site": "qwiklabs-asl-04-f9d4ba2925b9",
     "ignore": [
       "firebase.json",
       "**/.*",
