@@ -82,7 +82,22 @@ SESSION_SERVICE_URI = "memory://"
 # --- ADK STANDARD CONFIGURATION ---
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
-ALLOWED_ORIGINS = [FRONTEND_URL, "http://localhost:8080"]
+
+# Define default development origins
+DEFAULT_ORIGINS = [
+    "http://localhost:3000", 
+    "http://localhost:8080",
+    "http://localhost:5173"
+]
+
+# Load additional origins from environment variable (comma-separated)
+# Example env var: ALLOWED_ORIGINS="https://myapp.web.app,https://myapp.firebaseapp.com"
+env_origins_str = os.getenv("ALLOWED_ORIGINS", "")
+env_origins = [url.strip() for url in env_origins_str.split(",") if url.strip()]
+
+# Combine defaults with environment specific origins
+ALLOWED_ORIGINS = list(set(DEFAULT_ORIGINS + env_origins + ([FRONTEND_URL] if FRONTEND_URL else [])))
+
 SERVE_WEB_INTERFACE = False
 
 app: FastAPI = get_fast_api_app(
