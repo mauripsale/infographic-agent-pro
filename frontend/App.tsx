@@ -42,12 +42,22 @@ const SparklesIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+const LoadingSpinnerIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin" {...props}>
+    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+  </svg>
+);
+
+// Type for the cancellable promise
+type CancellableScriptPromise = ReturnType<typeof generateScriptFromSource>;
+
 function App() {
   const { user, loading } = useAuth();
   const [sourceContent, setSourceContent] = useState('');
   const [scriptContent, setScriptContent] = useState(''); // Intermediate script state
   const [slides, setSlides] = useState<SlidePrompt[]>([]);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
+  const [generationRequest, setGenerationRequest] = useState<CancellableScriptPromise | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
@@ -93,9 +103,8 @@ function App() {
     }
   };
 
-  // Step 1: Generate Script from Source
   const handleGenerateScript = async () => {
-    if (!sourceContent.trim()) return;
+    if (!sourceContent.trim() || isGeneratingScript) return;
     
     if (!getApiKey()) {
       setIsApiKeyModalOpen(true);
@@ -103,22 +112,34 @@ function App() {
     }
 
     setIsGeneratingScript(true);
-    setScriptContent(''); // Clear previous script
-    setSlides([]); // Clear previous slides
+    setScriptContent('');
+    setSlides([]);
     setGlobalError(null);
 
+    const request = generateScriptFromSource(sourceContent, generationConfig);
+    setGenerationRequest(request);
+
     try {
-      const result = await generateScriptFromSource(sourceContent, generationConfig);
+      const result = await request;
       setScriptContent(result.text);
     } catch (error) {
-      console.error("Script generation failed:", error);
-      setGlobalError("Failed to generate script. Please check your API Key and try again.");
+      const err = error as Error;
+      if (err.message !== "Cancelled") {
+        console.error("Script generation failed:", err);
+        setGlobalError(`Failed to generate script: ${err.message}`);
+      }
     } finally {
       setIsGeneratingScript(false);
+      setGenerationRequest(null);
     }
   };
 
-  // Step 2: Create Presentation (Parse Script)
+  const handleCancelGeneration = () => {
+    if (generationRequest) {
+      generationRequest.cancel();
+    }
+  };
+
   const handleCreatePresentation = () => {
     if (!scriptContent.trim()) return;
     try {
@@ -226,115 +247,120 @@ function App() {
             {/* Step 1: Input Section - Only show if no script generated yet */}
             {slides.length === 0 && !scriptContent && (
               <section className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900">Source Content</h2>
-                  <div>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      accept=".txt,.md,.pdf"
-                      className="hidden"
-                    />
+                <fieldset disabled={isGeneratingScript}>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-semibold text-gray-900">Source Content</h2>
+                    <div>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept=".txt,.md,.pdf"
+                        className="hidden"
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-2"
+                      >
+                        <UploadIcon />
+                        Upload File
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <textarea
+                    value={sourceContent}
+                    onChange={(e) => setSourceContent(e.target.value)}
+                    placeholder="Paste your document text, article, or notes here... OR upload a file (PDF/TXT)"
+                    className="w-full h-48 p-4 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 mb-4"
+                  />
+                  
+                  <Separator />
+
+                  {/* Configuration Controls */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Slide Count
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={generationConfig.slideCount}
+                        onChange={(e) => setGenerationConfig(prev => ({ ...prev, slideCount: parseInt(e.target.value) || 5 }))}
+                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Detail Level
+                      </label>
+                      <select
+                        value={generationConfig.detailLevel}
+                        onChange={(e) => setGenerationConfig(prev => ({ ...prev, detailLevel: e.target.value as DetailLevel }))}
+                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                        {Object.values(DetailLevel).map((level) => (
+                          <option key={level} value={level}>
+                            {level.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Aspect Ratio
+                      </label>
+                      <select
+                        value={generationConfig.aspectRatio}
+                        onChange={(e) => setGenerationConfig(prev => ({ ...prev, aspectRatio: e.target.value as AspectRatio }))}
+                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                        {Object.values(AspectRatio).map((ratio) => (
+                          <option key={ratio} value={ratio}>{ratio}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Language
+                      </label>
+                      <select
+                        value={generationConfig.language}
+                        onChange={(e) => setGenerationConfig(prev => ({ ...prev, language: e.target.value as Language }))}
+                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                        <option value={Language.ENGLISH}>English</option>
+                        <option value={Language.ITALIAN}>Italiano</option>
+                      </select>
+                    </div>
+                  </div>
+                </fieldset>
+                <div className="flex justify-end gap-4">
+                  {isGeneratingScript && (
                     <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-2"
+                      onClick={handleCancelGeneration}
+                      className="px-6 py-2 rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300 font-medium"
                     >
-                      <UploadIcon />
-                      Upload File
+                      Cancel
                     </button>
-                  </div>
-                </div>
-                
-                <textarea
-                  value={sourceContent}
-                  onChange={(e) => setSourceContent(e.target.value)}
-                  placeholder="Paste your document text, article, or notes here... OR upload a file (PDF/TXT)"
-                  className="w-full h-48 p-4 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 mb-4"
-                />
-                
-                <Separator />
-
-                {/* Configuration Controls */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Slide Count
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={generationConfig.slideCount}
-                      onChange={(e) => setGenerationConfig(prev => ({ ...prev, slideCount: parseInt(e.target.value) || 5 }))}
-                      className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Detail Level
-                    </label>
-                    <select
-                      value={generationConfig.detailLevel}
-                      onChange={(e) => setGenerationConfig(prev => ({ ...prev, detailLevel: e.target.value as DetailLevel }))}
-                      className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      {Object.values(DetailLevel).map((level) => (
-                        <option key={level} value={level}>
-                          {level.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Aspect Ratio
-                    </label>
-                    <select
-                      value={generationConfig.aspectRatio}
-                      onChange={(e) => setGenerationConfig(prev => ({ ...prev, aspectRatio: e.target.value as AspectRatio }))}
-                      className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      {Object.values(AspectRatio).map((ratio) => (
-                        <option key={ratio} value={ratio}>{ratio}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Language
-                    </label>
-                    <select
-                      value={generationConfig.language}
-                      onChange={(e) => setGenerationConfig(prev => ({ ...prev, language: e.target.value as Language }))}
-                      className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      <option value={Language.ENGLISH}>English</option>
-                      <option value={Language.ITALIAN}>Italiano</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
+                  )}
                   <button
                     onClick={handleGenerateScript}
                     disabled={isGeneratingScript || !sourceContent.trim()}
-                    className={`px-6 py-2 rounded-md text-white font-medium ${
-                      isGeneratingScript || !sourceContent.trim()
-                        ? 'bg-indigo-400 cursor-not-allowed'
-                        : 'bg-indigo-600 hover:bg-indigo-700'
-                    }`}
+                    className="px-6 py-2 rounded-md text-white font-medium bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {isGeneratingScript ? 'Generating Script...' : 'Generate Script'}
+                    {isGeneratingScript ? <><LoadingSpinnerIcon /> Generating...</> : 'Generate Script'}
                   </button>
                 </div>
               </section>
             )}
 
-            {/* Step 2: Script Editor - Show if script generated but slides NOT generated yet */}
+            {/* Step 2: Script Editor */}
             {scriptContent && slides.length === 0 && (
               <section className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex justify-between items-center mb-4">
