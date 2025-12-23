@@ -81,8 +81,14 @@ SESSION_SERVICE_URI = "memory://"
 
 # --- ADK STANDARD CONFIGURATION ---
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
-ALLOWED_ORIGINS = [FRONTEND_URL, "http://localhost:8080"]
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://qwiklabs-asl-04-f9d4ba2925b9.web.app")
+ALLOWED_ORIGINS = [
+    FRONTEND_URL, 
+    "https://qwiklabs-asl-04-f9d4ba2925b9.firebaseapp.com",
+    "http://localhost:3000", 
+    "http://localhost:8080",
+    "http://localhost:5173"
+]
 SERVE_WEB_INTERFACE = False
 
 app: FastAPI = get_fast_api_app(
