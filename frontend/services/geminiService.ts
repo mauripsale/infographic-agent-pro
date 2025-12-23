@@ -28,79 +28,103 @@ const LANGUAGE_MAP: Record<string, string> = {
   'it': 'Italian'
 };
 
+interface CancellablePromise<T> extends Promise<T> {
+  cancel: () => void;
+}
+
 /**
  * Generates an infographic script asynchronously via Firestore Jobs.
+ * This function returns a Promise with a `cancel()` method to abort the process.
  */
-export const generateScriptFromSource = async (
+export const generateScriptFromSource = (
   source: string,
   config: GenerationConfig
-): Promise<ScriptGenerationResult> => {
-  const apiKey = getApiKey();
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (apiKey) {
-    headers['X-API-Key'] = apiKey;
-  }
+): CancellablePromise<ScriptGenerationResult> => {
+  const controller = new AbortController();
+  const signal = controller.signal;
 
-  // 1. Start the Job
-  const response = await fetch(`${getBackendUrl()}/generate-script`, {
-    method: 'POST',
-    headers: headers,
-    body: JSON.stringify({
-      source_content: source,
-      slide_count: config.slideCount,
-      detail_level: config.detailLevel,
-      target_language: LANGUAGE_MAP[config.language] || 'English',
-      model: config.model || 'gemini-2.5-flash' 
-    }),
-  });
+  const promise = new Promise<ScriptGenerationResult>(async (resolve, reject) => {
+    let unsubscribe = () => {};
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Failed to start script generation job');
-  }
-
-  const { jobId } = await response.json();
-  console.log(`Job started: ${jobId}`);
-
-  // 2. Wait for Completion via Firestore
-  return new Promise((resolve, reject) => {
-    const jobRef = doc(db, 'jobs', jobId);
-    
-    // Set a 5-minute timeout to prevent memory leaks and handle stuck jobs
     const timeoutId = setTimeout(() => {
       unsubscribe();
-      reject(new Error(`Job ${jobId} timed out after 5 minutes.`));
+      reject(new Error(`Job timed out after 5 minutes.`));
     }, 300000);
 
-    const unsubscribe = onSnapshot(jobRef, (docSnap) => {
-      if (!docSnap.exists()) return;
-      
-      const data = docSnap.data();
-      console.log(`Job ${jobId} status: ${data.status}`);
-
-      if (data.status === 'completed') {
-        clearTimeout(timeoutId);
-        unsubscribe();
-        resolve({
-          text: data.result.script,
-          groundingChunks: [],
-        });
-      } else if (data.status === 'failed') {
-        clearTimeout(timeoutId);
-        unsubscribe();
-        reject(new Error(data.error || 'Job failed'));
-      }
-      // If 'pending' or 'processing', keep waiting...
-    }, (error) => {
-      console.error("Firestore listen error:", error);
+    // Function to clean up listeners
+    const cleanup = () => {
       clearTimeout(timeoutId);
       unsubscribe();
-      reject(error);
+    };
+
+    signal.addEventListener('abort', () => {
+      cleanup();
+      reject(new Error("Cancelled"));
     });
-  });
+
+    try {
+      // 1. Start the Job
+      const apiKey = getApiKey();
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (apiKey) headers['X-API-Key'] = apiKey;
+
+      const response = await fetch(`${getBackendUrl()}/generate-script`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+          source_content: source,
+          slide_count: config.slideCount,
+          detail_level: config.detailLevel,
+          target_language: LANGUAGE_MAP[config.language] || 'English',
+          model: config.model || 'gemini-2.5-flash' 
+        }),
+        signal,
+      });
+
+      if (!response.ok) {
+        throw new Error((await response.json()).detail || 'Failed to start job');
+      }
+
+      const { jobId } = await response.json();
+      console.log(`Job started: ${jobId}`);
+
+      // 2. Wait for Completion via Firestore
+      const jobRef = doc(db, 'jobs', jobId);
+      
+      unsubscribe = onSnapshot(jobRef, (docSnap) => {
+        if (!docSnap.exists()) return;
+        
+        const data = docSnap.data();
+        console.log(`Job ${jobId} status: ${data.status}`);
+
+        if (data.status === 'completed') {
+          cleanup();
+          resolve({ text: data.result.script, groundingChunks: [] });
+        } else if (data.status === 'failed') {
+          cleanup();
+          reject(new Error(data.error || 'Job failed'));
+        }
+      }, (error) => {
+        console.error("Firestore listen error:", error);
+        cleanup();
+        reject(error);
+      });
+
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') {
+        // Fetch was aborted, which is expected. The promise will be rejected by the event listener.
+        return;
+      }
+      cleanup();
+      reject(error);
+    }
+  }) as CancellablePromise<ScriptGenerationResult>;
+
+  promise.cancel = () => {
+    controller.abort();
+  };
+
+  return promise;
 };
 
 /**
