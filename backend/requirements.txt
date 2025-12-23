@@ -26,6 +26,8 @@ attrs==25.4.0
     #   referencing
 authlib==1.6.6
     # via google-adk
+cachecontrol==0.14.4
+    # via firebase-admin
 cachetools==6.2.4
     # via google-auth
 certifi==2025.11.12
@@ -55,10 +57,13 @@ fastapi==0.123.10
     # via
     #   -r backend/requirements.in
     #   google-adk
+firebase-admin==6.6.0
+    # via -r backend/requirements.in
 google-adk @ git+https://github.com/google/adk-python.git@0b1cff2976d1c04acf3863f76107b05d1cec448f
     # via -r backend/requirements.in
 google-api-core[grpc]==2.28.1
     # via
+    #   firebase-admin
     #   google-api-python-client
     #   google-cloud-aiplatform
     #   google-cloud-appengine-logging
@@ -67,6 +72,7 @@ google-api-core[grpc]==2.28.1
     #   google-cloud-bigtable
     #   google-cloud-core
     #   google-cloud-discoveryengine
+    #   google-cloud-firestore
     #   google-cloud-logging
     #   google-cloud-monitoring
     #   google-cloud-pubsub
@@ -77,7 +83,9 @@ google-api-core[grpc]==2.28.1
     #   google-cloud-storage
     #   google-cloud-trace
 google-api-python-client==2.187.0
-    # via google-adk
+    # via
+    #   firebase-admin
+    #   google-adk
 google-auth[requests]==2.45.0
     # via
     #   google-api-core
@@ -90,6 +98,7 @@ google-auth[requests]==2.45.0
     #   google-cloud-bigtable
     #   google-cloud-core
     #   google-cloud-discoveryengine
+    #   google-cloud-firestore
     #   google-cloud-logging
     #   google-cloud-monitoring
     #   google-cloud-pubsub
@@ -119,11 +128,14 @@ google-cloud-core==2.5.0
     # via
     #   google-cloud-bigquery
     #   google-cloud-bigtable
+    #   google-cloud-firestore
     #   google-cloud-logging
     #   google-cloud-spanner
     #   google-cloud-storage
 google-cloud-discoveryengine==0.13.12
     # via google-adk
+google-cloud-firestore==2.22.0
+    # via firebase-admin
 google-cloud-logging==3.13.0
     # via
     #   google-cloud-aiplatform
@@ -146,6 +158,7 @@ google-cloud-speech==2.35.0
     # via google-adk
 google-cloud-storage==2.18.0
     # via
+    #   firebase-admin
     #   google-adk
     #   google-cloud-aiplatform
 google-cloud-trace==1.17.0
@@ -240,6 +253,8 @@ mcp==1.25.0
     # via google-adk
 mmh3==5.2.0
     # via google-cloud-spanner
+msgpack==1.1.2
+    # via cachecontrol
 numpy==2.4.0
     # via shapely
 opentelemetry-api==1.37.0
@@ -309,6 +324,7 @@ proto-plus==1.27.0
     #   google-cloud-bigquery-storage
     #   google-cloud-bigtable
     #   google-cloud-discoveryengine
+    #   google-cloud-firestore
     #   google-cloud-logging
     #   google-cloud-monitoring
     #   google-cloud-pubsub
@@ -326,6 +342,7 @@ protobuf==6.33.2
     #   google-cloud-bigquery-storage
     #   google-cloud-bigtable
     #   google-cloud-discoveryengine
+    #   google-cloud-firestore
     #   google-cloud-logging
     #   google-cloud-monitoring
     #   google-cloud-pubsub
@@ -362,7 +379,9 @@ pydantic-core==2.41.5
 pydantic-settings==2.12.0
     # via mcp
 pyjwt[crypto]==2.10.1
-    # via mcp
+    # via
+    #   firebase-admin
+    #   mcp
 pyparsing==3.3.1
     # via httplib2
 python-dateutil==2.9.0.post0
@@ -384,6 +403,7 @@ referencing==0.37.0
     #   jsonschema-specifications
 requests==2.32.5
     # via
+    #   cachecontrol
     #   google-adk
     #   google-api-core
     #   google-auth
