@@ -362,7 +362,8 @@ function App() {
                 <div className="flex justify-end">
                   <button
                     onClick={handleCreatePresentation}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-bold shadow-sm transition-all flex items-center gap-2"
+                    disabled={!scriptContent.trim()}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <SparklesIcon />
                     Generate Infographics
