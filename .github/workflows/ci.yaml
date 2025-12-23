@@ -95,6 +95,16 @@ jobs:
         npm ci
         # Build without pre-set API keys to force UI prompt for user key
         npm run build
+      env:
+        # Firebase Config (Public values needed for client-side auth)
+        # TODO: Move these to GitHub Secrets for better security hygiene, although they are public in client code.
+        VITE_FIREBASE_API_KEY: "AIzaSyBZJOqyLOu7KK2yoRP5GKpl2TFSYKGf4bI"
+        VITE_FIREBASE_AUTH_DOMAIN: "qwiklabs-asl-04-f9d4ba2925b9.firebaseapp.com"
+        VITE_FIREBASE_PROJECT_ID: "qwiklabs-asl-04-f9d4ba2925b9"
+        VITE_FIREBASE_STORAGE_BUCKET: "qwiklabs-asl-04-f9d4ba2925b9.firebasestorage.app"
+        VITE_FIREBASE_MESSAGING_SENDER_ID: "218788847170"
+        VITE_FIREBASE_APP_ID: "1:218788847170:web:5cb315322d8129984bd7db"
+        VITE_FIREBASE_MEASUREMENT_ID: "G-FJVR1SD5T4"
     
     - name: Firebase Deploy
       uses: w9jds/firebase-action@master
