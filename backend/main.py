@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 import uvicorn
 from fastapi import FastAPI, HTTPException, Header, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-import google.generativeai as genai
+from google import genai
+from google.genai import types as genai_types
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 from google.cloud import storage
@@ -128,7 +129,7 @@ async def generate_image(request: ImageRequest, api_key: str = Depends(get_api_k
         
         response = await model.generate_content_async(
             contents=full_prompt,
-            generation_config={"response_mime_type": "image/png"}
+            generation_config=genai_types.GenerationConfig(response_mime_type="image/png")
         )
         
         if not response.parts:
