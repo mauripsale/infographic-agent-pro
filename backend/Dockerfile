@@ -1,4 +1,6 @@
-FROM python:3.11.9-slim
+ARG PYTHON_VERSION_MAJOR_MINOR=3.11
+ARG PYTHON_VERSION_FULL=3.11.9
+FROM python:${PYTHON_VERSION_FULL}-slim
 WORKDIR /app
 
 # Required for git-based dependencies
@@ -9,8 +11,9 @@ RUN adduser --disabled-password --gecos "" myuser
 USER myuser
 WORKDIR /home/myuser/app
 
-# Set PATH to include user's local bin
+# Set PATH and PYTHONPATH to include user's local installations
 ENV PATH="/home/myuser/.local/bin:$PATH"
+ENV PYTHONPATH="/home/myuser/.local/lib/python${PYTHON_VERSION_MAJOR_MINOR}/site-packages"
 
 # Install dependencies as the non-root user
 COPY requirements.txt .
