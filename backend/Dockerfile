@@ -14,7 +14,7 @@ ENV PATH="/home/myuser/.local/bin:$PATH"
 
 # Install dependencies as the non-root user
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --upgrade pip && pip install --no-cache-dir --user -r requirements.txt
 
 # Copy application code
 COPY . .
