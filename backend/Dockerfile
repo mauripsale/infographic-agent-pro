@@ -1,4 +1,6 @@
-FROM python:3.11.9-slim
+ARG PYTHON_VERSION_MAJOR_MINOR=3.11
+ARG PYTHON_VERSION_FULL=3.11.9
+FROM python:${PYTHON_VERSION_FULL}-slim
 WORKDIR /app
 
 # Required for git-based dependencies
@@ -11,7 +13,7 @@ WORKDIR /home/myuser/app
 
 # Set PATH and PYTHONPATH to include user's local installations
 ENV PATH="/home/myuser/.local/bin:$PATH"
-ENV PYTHONPATH="/home/myuser/.local/lib/python3.11/site-packages"
+ENV PYTHONPATH="/home/myuser/.local/lib/python${PYTHON_VERSION_MAJOR_MINOR}/site-packages"
 
 # Install dependencies as the non-root user
 COPY requirements.txt .
