@@ -1,26 +1,26 @@
-ARG PYTHON_VERSION_MAJOR_MINOR=3.11
-ARG PYTHON_VERSION_FULL=3.11.9
-FROM python:${PYTHON_VERSION_FULL}-slim
+# Use a specific Python slim image for reproducibility
+FROM python:3.11.9-slim
+
+# Set the working directory in the container
 WORKDIR /app
 
-# Required for git-based dependencies
+# Install git, which is required for pip dependencies from git repositories
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user
-RUN adduser --disabled-password --gecos "" myuser
-USER myuser
-WORKDIR /home/myuser/app
+# Upgrade pip to the latest version
+RUN pip install --upgrade pip
 
-# Set PATH and PYTHONPATH to include user's local installations
-ENV PATH="/home/myuser/.local/bin:$PATH"
-ENV PYTHONPATH="/home/myuser/.local/lib/python${PYTHON_VERSION_MAJOR_MINOR}/site-packages"
-
-# Install dependencies as the non-root user
+# Copy the requirements file into the container
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install --no-cache-dir --user -r requirements.txt
 
-# Copy application code
+# Install the Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the rest of the application code into the container
 COPY . .
 
-# Use shell form to expand $PORT
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+# Expose the port the app runs on
+EXPOSE 8080
+
+# Run the application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
