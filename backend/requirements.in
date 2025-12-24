@@ -1,6 +1,7 @@
-fastapi==0.123.10
-uvicorn==0.38.0
-python-dotenv==1.2.1
-firebase-admin==6.6.0
-google-genai
-google-cloud-storage==2.18.0
+google-adk
+fastapi
+uvicorn
+python-pptx
+beautifulsoup4
+requests
+lxml
