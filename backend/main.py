@@ -18,7 +18,6 @@ from google.adk.sessions import InMemorySessionService
 from google.adk.models.google_llm import Gemini
 from google.adk.agents import Agent
 from google import genai
-from google.generativeai import types as genai_types
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 from google.cloud import storage
@@ -274,23 +273,19 @@ async def generate_image(
 ):
     logger.info(f"Generating image using model: {request.model}...")
     try:
-        # Create a non-global client for thread safety
-        client = genai.GenerativeModel(request.model, api_key=api_key)
+        user_genai_client = genai.Client(api_key=api_key)
+        user_model = Gemini(model=request.model)
+        user_model.api_client = user_genai_client
         
         system_instruction = (
             "Create a high-quality professional infographic image based on the user-provided segment below. "
             f"Style: professional, clean, aesthetic. Ratio: {request.aspect_ratio}"
         )
         full_prompt = f"{system_instruction}\n\nUSER SEGMENT: {request.prompt}"
-
-        generation_config = genai_types.GenerationConfig(
-            response_mime_type="image/png"
-        )
         
-        # Use async version to avoid blocking the event loop
-        response = await client.generate_content_async(
+        response = await user_model.generate_content_async(
             contents=full_prompt,
-            generation_config=generation_config
+            generation_config={"response_mime_type": "image/png"}
         )
         
         if not response.candidates:
@@ -326,8 +321,8 @@ async def generate_image(
                             user_id="default_user",
                             session_id=temp_session_id,
                             filename=artifact_name,
-                            artifact=genai_types.Part(
-                                inline_data=genai_types.Blob(
+                            artifact=genai.types.Part(
+                                inline_data=genai.types.Blob(
                                     mime_type=mime_type,
                                     data=part.inline_data.data
                                 )
@@ -359,7 +354,6 @@ async def generate_image(
 
     except Exception as e:
         logger.exception("Image generation failed")
-        # Re-raise if it's already an HTTPException, otherwise wrap it
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail="Internal image generation error.")
