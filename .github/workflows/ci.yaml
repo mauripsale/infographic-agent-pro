@@ -88,7 +88,8 @@ jobs:
 
         - name: Build and Push Docker image
           run: |
-            docker build -f backend/Dockerfile -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/infographic-agent-backend/infographic-agent-backend:${{ github.sha }} backend/
+            cd backend/
+            docker build -f Dockerfile -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/infographic-agent-backend/infographic-agent-backend:${{ github.sha }} .
             docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/infographic-agent-backend/infographic-agent-backend:${{ github.sha }}
         
         - name: Deploy to Cloud Run
