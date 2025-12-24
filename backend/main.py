@@ -90,8 +90,8 @@ async def get_api_key(x_api_key: Optional[str] = Header(None)) -> str:
 async def generate_script(request: ScriptRequest, api_key: str = Depends(get_api_key)):
     logger.info(f"Generating script with model: {request.model}...")
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(request.model)
+        client = genai.Client(api_key=api_key)
+        model = client.get_model(request.model)
 
         prompt = (
             f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
@@ -118,8 +118,8 @@ async def generate_script(request: ScriptRequest, api_key: str = Depends(get_api
 async def generate_image(request: ImageRequest, api_key: str = Depends(get_api_key)):
     logger.info(f"Generating image using model: {request.model}...")
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(request.model)
+        client = genai.Client(api_key=api_key)
+        model = client.get_model(request.model)
 
         system_instruction = (
             "Create a high-quality professional infographic image based on the user-provided segment below. "
