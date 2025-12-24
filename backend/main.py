@@ -11,13 +11,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 import uvicorn
 from fastapi import FastAPI, HTTPException, Header, Depends, BackgroundTasks
-from google.adk.cli.fast_api import get_fast_api_app
-from google.adk.runners import Runner
-from google.adk.artifacts import GcsArtifactService, InMemoryArtifactService
-from google.adk.sessions import InMemorySessionService
-from google.adk.models.google_llm import Gemini
-from google.adk.agents import Agent
-from google import genai
+from fastapi.middleware.cors import CORSMiddleware
+import google.generativeai as genai
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 from google.cloud import storage
@@ -31,7 +26,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize Firebase Admin SDK
-# On Cloud Run, it uses Application Default Credentials automatically.
 try:
     if not firebase_admin._apps:
         firebase_admin.initialize_app()
@@ -41,88 +35,42 @@ except Exception as e:
     logger.error(f"Failed to initialize Firebase Admin: {e}")
     db = None
 
-# Initialize GCS client globally variable
+# Initialize GCS client
 storage_client = None
-
-# Load environment variables
-env_path = Path(__file__).resolve().parent / '.env'
-if not env_path.exists():
-    env_path = Path(__file__).resolve().parent / '.env.local'
-load_dotenv(dotenv_path=env_path)
-
-# --- ADK ARTIFACT SERVICE INITIALIZATION ---
 ARTIFACT_BUCKET = os.getenv("ARTIFACT_BUCKET")
 if ARTIFACT_BUCKET:
     try:
-        logger.info(f"Configuring GCS Artifact Service with bucket: {ARTIFACT_BUCKET}")
         storage_client = storage.Client()
-        artifact_service = GcsArtifactService(bucket_name=ARTIFACT_BUCKET)
-        ARTIFACT_SERVICE_URI = f"gs://{ARTIFACT_BUCKET}"
     except (DefaultCredentialsError, GoogleCloudError) as e:
         logger.error(f"Failed to initialize GCS client: {e}")
-        storage_client = None
-        artifact_service = InMemoryArtifactService()
-        ARTIFACT_SERVICE_URI = "memory://"
-        ARTIFACT_BUCKET = None
-    except Exception as e:
-        logger.exception(f"Unexpected error during GCS initialization: {e}")
-        storage_client = None
-        artifact_service = InMemoryArtifactService()
-        ARTIFACT_SERVICE_URI = "memory://"
-        ARTIFACT_BUCKET = None
-else:
-    logger.info("Using In-Memory Artifact Service (No ARTIFACT_BUCKET configured)")
-    artifact_service = InMemoryArtifactService()
-    ARTIFACT_SERVICE_URI = "memory://"
 
-# --- ADK SESSION SERVICE INITIALIZATION ---
-session_service = InMemorySessionService()
-SESSION_SERVICE_URI = "memory://"
+# Load environment variables
+load_dotenv()
 
-# --- ADK STANDARD CONFIGURATION ---
-AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+# --- FastAPI App Initialization ---
+app = FastAPI()
 
-# Define default development origins
-DEFAULT_ORIGINS = [
-    "http://localhost:3000", 
-    "http://localhost:8080",
-    "http://localhost:5173"
-]
-
-# Load additional origins from environment variable (comma-separated)
-# Example env var: ALLOWED_ORIGINS="https://myapp.web.app,https://myapp.firebaseapp.com"
+# CORS Configuration
 env_origins_str = os.getenv("ALLOWED_ORIGINS", "")
-env_origins = [url.strip() for url in env_origins_str.split(",") if url.strip()]
+ALLOWED_ORIGINS = [url.strip() for url in env_origins_str.split(",") if url.strip()]
+if not ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS = ["http://localhost:3000", "http://localhost:5173"]
 
-# Combine defaults with environment specific origins
-ALLOWED_ORIGINS = list(set(DEFAULT_ORIGINS + env_origins + ([FRONTEND_URL] if FRONTEND_URL else [])))
-
-SERVE_WEB_INTERFACE = False
-
-app: FastAPI = get_fast_api_app(
-    agents_dir=AGENT_DIR,
-    session_service_uri=SESSION_SERVICE_URI,
-    artifact_service_uri=ARTIFACT_SERVICE_URI,
+app.add_middleware(
+    CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    web=SERVE_WEB_INTERFACE,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# --- MODELS ---
-
+# --- Pydantic Models ---
 class ScriptRequest(BaseModel):
     source_content: str
     slide_count: int = 5
     detail_level: str = "balanced"
     target_language: str = "English"
-
-class JobResponse(BaseModel):
-    job_id: str = Field(alias="jobId")
-    status: str
-
-    model_config = {
-        "populate_by_name": True
-    }
+    model: str = "gemini-2.5-flash"
 
 class ImageRequest(BaseModel):
     prompt: str
@@ -132,231 +80,74 @@ class ImageRequest(BaseModel):
 async def get_api_key(x_api_key: Optional[str] = Header(None)) -> str:
     api_key = x_api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=401, detail="Gemini API Key is required. Please provide it in the X-API-Key header.")
+        raise HTTPException(status_code=401, detail="Gemini API Key is required.")
     return api_key
 
-# --- BACKGROUND TASKS ---
-
-async def process_script_generation(job_id: str, request_data: ScriptRequest, api_key: str):
-    """
-    Background task that generates the script and updates Firestore.
-    """
-    logger.info(f"Starting background job {job_id}...")
-    
-    if not db:
-        logger.error("Firestore DB not initialized. Cannot process job.")
-        return
-
-    doc_ref = db.collection('jobs').document(job_id)
-
+# --- API Endpoints ---
+@app.post("/api/generate-script")
+async def generate_script(request: ScriptRequest, api_key: str = Depends(get_api_key)):
+    logger.info("Generating script...")
     try:
-        # Update status to processing
-        doc_ref.set({
-            'status': 'processing',
-            'createdAt': firestore.SERVER_TIMESTAMP,
-            'request': request_data.model_dump()
-        }, merge=True)
-
-        # --- ADK GENERATION LOGIC ---
-        user_genai_client = genai.Client(api_key=api_key)
-        user_model = Gemini(model="gemini-2.5-flash")
-        user_model.api_client = user_genai_client
-
-        local_agent = Agent(
-            name="InfographicScriptDesigner",
-            model=user_model,
-            instruction=textwrap.dedent(f"""
-                You are an expert Infographic Script Designer. 
-                Transform the provided content into a structured infographic script.
-                
-                LANGUAGE RULE: The body and title of the slides MUST be in {request_data.target_language}.
-                If the source content is in a different language, TRANSLATE it to {request_data.target_language}.
-                
-                TECHNICAL FORMAT RULE (CRITICAL): 
-                Each slide MUST start with the exact header format: "#### Slide X/Y: [Title]".
-                Do NOT translate the word "Slide". Do NOT use "Infografica", "Diapositiva" or other terms.
-                Always use "#### Slide" followed by the number.
-                
-                Mandatory format for each slide:
-                #### Slide X/Y: [Title]
-                - Layout: [Visual description]
-                - Body: [Main text]
-                - Details: [Style, colors]"""
-            )
-        )
-
-        runner = Runner(
-            agent=local_agent,
-            app_name="infographic-agent-pro",
-            session_service=session_service,
-            artifact_service=artifact_service
-        )
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(request.model)
 
         prompt = (
-            f"Generate a script of {request_data.slide_count} slides with detail level {request_data.detail_level} "
-            "based strictly on the USER CONTENT provided below.\n\n"
-            f"USER CONTENT:\n{request_data.source_content}"
+            f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
+            f"based strictly on the USER CONTENT provided below. The output must be in {request.target_language}.\n\n"
+            "Each slide MUST start with the exact header format: '#### Slide X/Y: [Title]'.\n\n"
+            f"USER CONTENT:\n{request.source_content}"
         )
-        
-        session_id = str(uuid.uuid4())
-        user_id = "default_user" # We could use the Firebase User ID if available
 
-        # Run the generation
-        events = await runner.run_debug(
-            user_messages=prompt,
-            session_id=session_id,
-            user_id=user_id,
-            quiet=True
-        )
-        
-        text_parts = [
-            part.text
-            for event in events
-            if (content := getattr(event, "content", None))
-            for part in getattr(content, "parts", [])
-            if getattr(part, "text", None)
-        ]
-        
-        final_script = "\n".join(text_parts)
-
-        # --- UPDATE FIRESTORE ---
-        doc_ref.update({
-            'status': 'completed',
-            'result': {
-                'script': final_script
-            },
-            'completedAt': firestore.SERVER_TIMESTAMP
-        })
-        logger.info(f"Job {job_id} completed successfully.")
-
+        response = await model.generate_content_async(prompt)
+        return {"text": response.text}
     except Exception as e:
-        logger.exception(f"Job {job_id} failed: {e}")
-        doc_ref.update({
-            'status': 'failed',
-            'error': str(e),
-            'completedAt': firestore.SERVER_TIMESTAMP
-        })
-
-# --- ENDPOINTS ---
-
-@app.post("/api/generate-script", response_model=JobResponse)
-async def generate_script(
-    request: ScriptRequest, 
-    background_tasks: BackgroundTasks,
-    api_key: str = Depends(get_api_key)
-):
-    """
-    Starts an asynchronous script generation job.
-    Returns a Job ID immediately.
-    """
-    if not db:
-        raise HTTPException(status_code=503, detail="Firestore service unavailable")
-
-    job_id = str(uuid.uuid4())
-    logger.info(f"Queueing job {job_id} for input of {len(request.source_content)} chars")
-
-    # Create initial document
-    db.collection('jobs').document(job_id).set({
-        'status': 'pending',
-        'createdAt': firestore.SERVER_TIMESTAMP
-    })
-
-    # Add task to background queue
-    background_tasks.add_task(process_script_generation, job_id, request, api_key)
-
-    return {"jobId": job_id, "status": "pending"}
+        logger.exception("Script generation failed")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/generate-image")
-async def generate_image(
-    request: ImageRequest, 
-    api_key: str = Depends(get_api_key)
-):
+async def generate_image(request: ImageRequest, api_key: str = Depends(get_api_key)):
     logger.info(f"Generating image using model: {request.model}...")
     try:
-        user_genai_client = genai.Client(api_key=api_key)
-        user_model = Gemini(model=request.model)
-        user_model.api_client = user_genai_client
-        
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(request.model)
+
         system_instruction = (
             "Create a high-quality professional infographic image based on the user-provided segment below. "
             f"Style: professional, clean, aesthetic. Ratio: {request.aspect_ratio}"
         )
         full_prompt = f"{system_instruction}\n\nUSER SEGMENT: {request.prompt}"
         
-        response = await user_model.generate_content_async(
+        response = await model.generate_content_async(
             contents=full_prompt,
             generation_config={"response_mime_type": "image/png"}
         )
         
         if not response.candidates:
-            logger.error("Image generation failed: No candidates returned from model.")
-            raise HTTPException(status_code=500, detail="Image generation failed: No candidates in response.")
-
-        for candidate in response.candidates:
-            if not candidate.content or not candidate.content.parts:
-                finish_reason = getattr(candidate, 'finish_reason', 'UNKNOWN')
-                safety_ratings = getattr(candidate, 'safety_ratings', [])
-                logger.error(
-                    f"Image generation blocked. Finish Reason: {finish_reason}. "
-                    f"Safety Ratings: {safety_ratings}"
-                )
-                if finish_reason == 'SAFETY':
-                    details = ", ".join([f"{r.category.name}={r.probability.name}" for r in safety_ratings])
-                    raise HTTPException(status_code=400, detail=f"Image generation blocked. Details: {details}")
-                else:
-                    raise HTTPException(status_code=500, detail=f"Image generation failed with reason: {finish_reason}")
+            raise HTTPException(status_code=500, detail="No candidates in response.")
             
-            for part in candidate.content.parts:
-                if part.inline_data:
-                    mime_type = part.inline_data.mime_type or "image/png"
-                    extension = mimetypes.guess_extension(mime_type) or ".png"
-                    artifact_name = f"images/{uuid.uuid4()}{extension}"
-                    
-                    temp_session_id = str(uuid.uuid4())
-                    logger.info(f"Attempting to save artifact '{artifact_name}' with session_id='{temp_session_id}'")
-                    
-                    try:
-                        await artifact_service.save_artifact(
-                            app_name="infographic-agent-pro",
-                            user_id="default_user",
-                            session_id=temp_session_id,
-                            filename=artifact_name,
-                            artifact=genai.types.Part(
-                                inline_data=genai.types.Blob(
-                                    mime_type=mime_type,
-                                    data=part.inline_data.data
-                                )
-                            )
-                        )
-                        if ARTIFACT_BUCKET:
-                            bucket = storage_client.bucket(ARTIFACT_BUCKET)
-                            storage_path = f"infographic-agent-pro/default_user/{temp_session_id}/{artifact_name}"
-                            
-                            blob = bucket.blob(storage_path)
-                            signed_url = blob.generate_signed_url(
-                                version="v4",
-                                expiration=timedelta(hours=1),
-                                method="GET"
-                            )
-                            return {"image_url": signed_url, "mime_type": mime_type}
-                    except GoogleCloudError as gce:
-                        logger.error(f"GCS operation failed: {gce}")
-                        raise HTTPException(status_code=500, detail="Failed to save image to storage.")
-                    except Exception as e:
-                        logger.error(f"Artifact save failed: {e}")
-                        raise HTTPException(status_code=500, detail="Failed to save artifact.")
+        part = response.parts[0]
+        if not part.inline_data:
+             raise HTTPException(status_code=500, detail="No image data in response.")
 
-                    # Fallback for in-memory artifact service (no GCS configured)
-                    image_b64 = base64.b64encode(part.inline_data.data).decode('utf-8')
-                    return {"image_data": image_b64, "mime_type": mime_type}
+        mime_type = part.inline_data.mime_type
+        image_data = part.inline_data.data
+
+        # If GCS is configured, upload and return signed URL
+        if storage_client and ARTIFACT_BUCKET:
+            bucket = storage_client.bucket(ARTIFACT_BUCKET)
+            blob_name = f"images/{uuid.uuid4()}.png"
+            blob = bucket.blob(blob_name)
+            blob.upload_from_string(image_data, content_type=mime_type)
+            signed_url = blob.generate_signed_url(version="v4", expiration=timedelta(hours=1))
+            return {"image_url": signed_url, "mime_type": mime_type}
         
-        raise HTTPException(status_code=500, detail="No image data found in model response.")
+        # Fallback to base64 encoding
+        image_b64 = base64.b64encode(image_data).decode('utf-8')
+        return {"image_data": image_b64, "mime_type": mime_type}
 
     except Exception as e:
         logger.exception("Image generation failed")
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail="Internal image generation error.")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
