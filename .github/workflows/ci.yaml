@@ -65,11 +65,11 @@ jobs:
         - name: Checkout
           uses: actions/checkout@v2
 
-        - name: Google Auth
-          uses: 'google-github-actions/auth@v1'
-          with:
-            credentials_json: '${{ secrets.GCP_SA_KEY }}'
-
+                - name: Google Auth
+                  uses: 'google-github-actions/auth@v1'
+                  with:
+                    workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
+                    service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}' 
         - name: Set up Cloud SDK
           uses: 'google-github-actions/setup-gcloud@v1'
 
