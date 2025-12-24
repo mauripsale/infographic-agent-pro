@@ -21,6 +21,9 @@ from google.auth.exceptions import DefaultCredentialsError
 import firebase_admin
 from firebase_admin import credentials, firestore
 
+# Load environment variables at the very beginning
+load_dotenv()
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -41,11 +44,9 @@ ARTIFACT_BUCKET = os.getenv("ARTIFACT_BUCKET")
 if ARTIFACT_BUCKET:
     try:
         storage_client = storage.Client()
+        logger.info(f"GCS client initialized for bucket: {ARTIFACT_BUCKET}")
     except (DefaultCredentialsError, GoogleCloudError) as e:
         logger.error(f"Failed to initialize GCS client: {e}")
-
-# Load environment variables
-load_dotenv()
 
 # --- FastAPI App Initialization ---
 app = FastAPI()
@@ -70,11 +71,11 @@ class ScriptRequest(BaseModel):
     slide_count: int = 5
     detail_level: str = "balanced"
     target_language: str = "English"
-    model: str = "gemini-2.5-flash"
+    model: str = "gemini-1.5-flash-latest"
 
 class ImageRequest(BaseModel):
     prompt: str
-    model: str = "gemini-2.5-flash-image"
+    model: str = "gemini-1.5-flash-latest"
     aspect_ratio: str = "16:9"
 
 async def get_api_key(x_api_key: Optional[str] = Header(None)) -> str:
@@ -86,7 +87,7 @@ async def get_api_key(x_api_key: Optional[str] = Header(None)) -> str:
 # --- API Endpoints ---
 @app.post("/api/generate-script")
 async def generate_script(request: ScriptRequest, api_key: str = Depends(get_api_key)):
-    logger.info("Generating script...")
+    logger.info(f"Generating script with model: {request.model}...")
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel(request.model)
@@ -99,10 +100,18 @@ async def generate_script(request: ScriptRequest, api_key: str = Depends(get_api
         )
 
         response = await model.generate_content_async(prompt)
+        
+        if not response.parts:
+            finish_reason = response.candidates[0].finish_reason if response.candidates else 'UNKNOWN'
+            logger.error(f"Script generation blocked. Finish Reason: {finish_reason}")
+            raise HTTPException(status_code=500, detail=f"Script generation failed with reason: {finish_reason}")
+            
         return {"text": response.text}
     except Exception as e:
         logger.exception("Script generation failed")
-        raise HTTPException(status_code=500, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail="Internal script generation error.")
 
 @app.post("/api/generate-image")
 async def generate_image(request: ImageRequest, api_key: str = Depends(get_api_key)):
@@ -122,8 +131,18 @@ async def generate_image(request: ImageRequest, api_key: str = Depends(get_api_k
             generation_config={"response_mime_type": "image/png"}
         )
         
-        if not response.candidates:
-            raise HTTPException(status_code=500, detail="No candidates in response.")
+        if not response.parts:
+            finish_reason = response.candidates[0].finish_reason if response.candidates else 'UNKNOWN'
+            safety_ratings = response.candidates[0].safety_ratings if response.candidates else []
+            logger.error(
+                f"Image generation blocked. Finish Reason: {finish_reason}. "
+                f"Safety Ratings: {safety_ratings}"
+            )
+            if finish_reason == 'SAFETY':
+                details = ", ".join([f"{r.category.name}={r.probability.name}" for r in safety_ratings])
+                raise HTTPException(status_code=400, detail=f"Image generation blocked. Details: {details}")
+            else:
+                raise HTTPException(status_code=500, detail=f"Image generation failed with reason: {finish_reason}")
             
         part = response.parts[0]
         if not part.inline_data:
@@ -132,22 +151,27 @@ async def generate_image(request: ImageRequest, api_key: str = Depends(get_api_k
         mime_type = part.inline_data.mime_type
         image_data = part.inline_data.data
 
-        # If GCS is configured, upload and return signed URL
         if storage_client and ARTIFACT_BUCKET:
             bucket = storage_client.bucket(ARTIFACT_BUCKET)
-            blob_name = f"images/{uuid.uuid4()}.png"
+            extension = mimetypes.guess_extension(mime_type) or ".png"
+            blob_name = f"images/{uuid.uuid4()}{extension}"
             blob = bucket.blob(blob_name)
+            
             blob.upload_from_string(image_data, content_type=mime_type)
-            signed_url = blob.generate_signed_url(version="v4", expiration=timedelta(hours=1))
+            
+            url_expiration_hours = int(os.getenv("SIGNED_URL_EXPIRATION_HOURS", 1))
+            signed_url = blob.generate_signed_url(version="v4", expiration=timedelta(hours=url_expiration_hours))
+            
             return {"image_url": signed_url, "mime_type": mime_type}
         
-        # Fallback to base64 encoding
         image_b64 = base64.b64encode(image_data).decode('utf-8')
         return {"image_data": image_b64, "mime_type": mime_type}
 
     except Exception as e:
         logger.exception("Image generation failed")
-        raise HTTPException(status_code=500, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail="Internal image generation error.")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
