@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 import uvicorn
 from fastapi import FastAPI, HTTPException, Header, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from google import genai
+import google.generativeai as genai
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 from google.cloud import storage
