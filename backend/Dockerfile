@@ -9,8 +9,9 @@ RUN adduser --disabled-password --gecos "" myuser
 USER myuser
 WORKDIR /home/myuser/app
 
-# Set PATH to include user's local bin
+# Set PATH and PYTHONPATH to include user's local installations
 ENV PATH="/home/myuser/.local/bin:$PATH"
+ENV PYTHONPATH="/home/myuser/.local/lib/python3.11/site-packages"
 
 # Install dependencies as the non-root user
 COPY requirements.txt .
