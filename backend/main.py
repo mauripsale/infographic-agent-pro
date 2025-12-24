@@ -91,7 +91,6 @@ async def generate_script(request: ScriptRequest, api_key: str = Depends(get_api
     logger.info(f"Generating script with model: {request.model}...")
     try:
         client = genai.Client(api_key=api_key)
-        model = client.get_model(request.model)
 
         prompt = (
             f"Generate a script of {request.slide_count} slides with detail level {request.detail_level} "
@@ -100,7 +99,10 @@ async def generate_script(request: ScriptRequest, api_key: str = Depends(get_api
             f"USER CONTENT:\n{request.source_content}"
         )
 
-        response = await model.generate_content_async(prompt)
+        response = await client.models.generate_content_async(
+            model=request.model, 
+            contents=prompt
+        )
         
         if not response.parts:
             finish_reason = response.candidates[0].finish_reason if response.candidates else 'UNKNOWN'
@@ -119,7 +121,6 @@ async def generate_image(request: ImageRequest, api_key: str = Depends(get_api_k
     logger.info(f"Generating image using model: {request.model}...")
     try:
         client = genai.Client(api_key=api_key)
-        model = client.get_model(request.model)
 
         system_instruction = (
             "Create a high-quality professional infographic image based on the user-provided segment below. "
@@ -127,7 +128,8 @@ async def generate_image(request: ImageRequest, api_key: str = Depends(get_api_k
         )
         full_prompt = f"{system_instruction}\n\nUSER SEGMENT: {request.prompt}"
         
-        response = await model.generate_content_async(
+        response = await client.models.generate_content_async(
+            model=request.model,
             contents=full_prompt,
             generation_config=genai_types.GenerationConfig(response_mime_type="image/png")
         )
