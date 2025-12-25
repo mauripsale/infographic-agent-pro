@@ -93,7 +93,7 @@ When deploying the frontend, you must set the `NEXT_PUBLIC_COPILOT_API_URL` envi
 
 For example, if your backend is deployed at `https://your-backend-service.com`, set the following environment variable in your frontend hosting provider's settings (e.g., Vercel, Netlify):
 
-`NEXT_PUBLIC_COPILOT_API_URL=https://your-backend-service.com/api/chat`
+`NEXT_PUBLIC_COPILOT_API_URL=https://your-backend-service.com/api`
 
 Failure to set this variable will cause the frontend to default to `localhost`, which will not be accessible from the public internet.
 

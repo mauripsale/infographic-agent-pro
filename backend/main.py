@@ -6,7 +6,7 @@ from google_adk.runtime import adk_runtime
 
 from agents.infographic_agent.agent import presentation_pipeline
 
-# Create the FastAPI app
+# Create the main FastAPI app
 app = FastAPI()
 
 # Mount static files directory
@@ -14,18 +14,18 @@ STATIC_DIR = Path("static")
 STATIC_DIR.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-@app.on_event("startup")
-async def startup_event():
-    adk_runtime.init(
-        agent=presentation_pipeline,
-        creds=os.environ.get("GOOGLE_API_KEY"),
-        is_async=True,
-    )
+# Initialize the ADK runtime
+adk_runtime.init(
+    agent=presentation_pipeline,
+    creds=os.environ.get("GOOGLE_API_KEY"),
+    is_async=True,
+)
 
-@app.post("/api/chat")
-async def chat(request: dict):
-    response = await adk_runtime.call_agent(request)
-    return response
+# Get the ADK's FastAPI app, which includes all necessary routes (/chat, /info)
+adk_app = adk_runtime.get_fastapi_app()
+
+# Mount the ADK app at the /api path
+app.mount("/api", adk_app)
 
 if __name__ == "__main__":
     import uvicorn
