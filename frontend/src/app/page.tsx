@@ -11,9 +11,8 @@ import {
   Slide,
   usePresentation,
 } from "../components/Presentation";
-import ***
-  "../styles/globals.css"; // Assicurati che il percorso sia corretto
-import *** React, *** useState *** from "react";
+import "../styles/globals.css";
+import React, { useState } from "react";
 
 const InfoAgent = () => ***
   const [slides, setSlides] = useState<Slide[]>([]);
