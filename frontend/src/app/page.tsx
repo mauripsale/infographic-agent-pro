@@ -66,13 +66,7 @@ export default function InfoAgent() {
       <CopilotPopup
         instructions="Help the user create a presentation."
         defaultOpen={true}
-        labels={"Make a presentation"}
-        runtimeOptions={{
-          headers: {
-            "google-api-key": apiKey,
-          },
+        labels={{
+          initial: "Make a presentation",
         }}
-      />
-    </div>
-  );
-}
+        runtimeOptions={{
