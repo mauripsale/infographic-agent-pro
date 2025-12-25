@@ -1,5 +1,5 @@
 import os
-from google.adk.runtime import adk_runtime
+from google_adk.runtime import adk_runtime
 
 from agent import presentation_pipeline
 

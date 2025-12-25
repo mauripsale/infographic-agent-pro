@@ -1,5 +1,5 @@
-from google.adk.agents import LlmAgent, SequentialAgent
-from google.adk.tools import FunctionTool, GoogleSearchTool
+from google_adk.agents import LlmAgent, SequentialAgent
+from google_adk.tools import FunctionTool, GoogleSearchTool
 import json
 import requests
 from bs4 import BeautifulSoup
