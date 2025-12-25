@@ -49,32 +49,33 @@ export default function InfoAgent() {
   });
 
   return (
-    <div className="relative">
-      <Presentation presentation={presentation} />
-      <div className="absolute top-4 right-4">
-        {!apiKey ? (
-          <input
-            type="text"
-            placeholder="Enter your Google API Key"
-            className="p-2 border rounded"
-            onChange={(e) => setApiKey(e.target.value)}
-          />
-        ) : (
-          <p className="text-sm text-gray-500">API Key is set</p>
-        )}
+    <CopilotKit runtimeOptions={{
+      headers: {
+        "google-api-key": apiKey,
+      },
+    }}>
+      <div className="relative">
+        <Presentation presentation={presentation} />
+        <div className="absolute top-4 right-4">
+          {!apiKey ? (
+            <input
+              type="text"
+              placeholder="Enter your Google API Key"
+              className="p-2 border rounded"
+              onChange={(e) => setApiKey(e.target.value)}
+            />
+          ) : (
+            <p className="text-sm text-gray-500">API Key is set</p>
+          )}
+        </div>
+        <CopilotPopup
+          instructions="Help the user create a presentation."
+          defaultOpen={true}
+          labels={{
+            initial: "Make a presentation",
+          }}
+        />
       </div>
-      <CopilotPopup
-        instructions="Help the user create a presentation."
-        defaultOpen={true}
-        labels={{
-          initial: "Make a presentation",
-        }}
-        runtimeOptions={{
-          headers: {
-            "google-api-key": apiKey,
-          },
-        }}
-      />
-    </div>
+    </CopilotKit>
   );
 }
