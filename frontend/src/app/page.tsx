@@ -44,7 +44,7 @@ export default function InfoAgent() {
     ],
     handler: async (slides) => {
       console.log(slides);
-      setSlides(slides as Slide[]);
+      setSlides(slides as SlideData[]);
     },
   });
 
