@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  CopilotProvider,
+  CopilotKit,
   useCopilotAction,
 } from "@copilotkit/react-core";
 import { CopilotPopup } from "@copilotkit/react-ui";
@@ -48,7 +48,7 @@ export default function InfoAgent() {
   });
 
   return (
-    <CopilotProvider
+    <CopilotKit
       headers={{
         "google-api-key": apiKey,
       }}
@@ -75,6 +75,6 @@ export default function InfoAgent() {
           }}
         />
       </div>
-    </CopilotProvider>
+    </CopilotKit>
   );
 }
