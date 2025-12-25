@@ -101,7 +101,5 @@ jobs:
             service: 'infographic-agent-backend'
             image: 'us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/infographic-agent-backend/infographic-agent-backend:${{ github.sha }}'
             region: 'us-central1'
-            platform: 'managed'
-            allow_unauthenticated: true
             labels: 'managed-by=github-actions,commit-sha=${{ github.sha }}'
-            max_instances: 1
+            flags: '--allow-unauthenticated'
