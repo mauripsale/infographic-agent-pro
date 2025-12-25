@@ -2,12 +2,25 @@ import os
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from google_adk.runtime import adk_runtime
 
 from agents.infographic_agent.agent import presentation_pipeline
 
 # Create the main FastAPI app
 app = FastAPI()
+
+# --- CORS Middleware ---
+# This is crucial for allowing the deployed frontend to communicate with this backend.
+# In a real-world production environment, you should restrict origins to your specific frontend domain.
+# For example: allow_origins=["https://your-frontend-domain.com"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Mount static files directory
 STATIC_DIR = Path("static")
