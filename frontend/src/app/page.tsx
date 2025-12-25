@@ -14,7 +14,7 @@ import {
 import "./globals.css";
 import React, { useState } from "react";
 
-const InfoAgent = () => {
+export default function InfoAgent() {
   const [slides, setSlides] = useState<Slide[]>([]);
   const presentation = usePresentation(slides);
   const [apiKey, setApiKey] = useState("");
@@ -74,4 +74,4 @@ const InfoAgent = () => {
       />
     </div>
   );
-};
+}
