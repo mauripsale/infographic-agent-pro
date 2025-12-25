@@ -70,3 +70,11 @@ export default function InfoAgent() {
           initial: "Make a presentation",
         }}
         runtimeOptions={{
+          headers: {
+            "google-api-key": apiKey,
+          },
+        }}
+      />
+    </div>
+  );
+}
