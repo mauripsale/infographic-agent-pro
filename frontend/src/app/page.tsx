@@ -49,7 +49,7 @@ export default function InfoAgent() {
 
   return (
     <CopilotKit
-      runtimeUrl={process.env.NEXT_PUBLIC_COPILOT_API_URL || "http://localhost:8080/api/chat"}
+      runtimeUrl="/api/chat"
       headers={{
         "google-api-key": apiKey,
       }}
