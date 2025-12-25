@@ -102,4 +102,4 @@ jobs:
             image: 'us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/infographic-agent-backend/infographic-agent-backend:${{ github.sha }}'
             region: 'us-central1'
             labels: 'managed-by=github-actions,commit-sha=${{ github.sha }}'
-            flags: '--allow-unauthenticated'
+            flags: '--allow-unauthenticated --timeout 600'
