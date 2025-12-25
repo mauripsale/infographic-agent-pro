@@ -14,38 +14,38 @@ import {
 import "../styles/globals.css";
 import React, { useState } from "react";
 
-const InfoAgent = () => ***
+const InfoAgent = () => {
   const [slides, setSlides] = useState<Slide[]>([]);
   const presentation = usePresentation(slides);
   const [apiKey, setApiKey] = useState("");
 
-  useCopilotAction(***
+  useCopilotAction({
     name: "showSlides",
     description: "Show a presentation to the user.",
     parameters: [
-      ***
+      {
         name: "slides",
         type: "object[]",
         description: "The slides to show.",
         attributes: [
-          ***
+          {
             name: "title",
             type: "string",
             description: "The title of the slide.",
-          ***,
-          ***
+          },
+          {
             name: "content",
             type: "string",
             description: "The content of the slide, as markdown.",
-          ***,
+          },
         ],
-      ***,
+      },
     ],
-    handler: async (*** slides ***) => ***
+    handler: async (slides) => {
       console.log(slides);
       setSlides(slides as Slide[]);
-    ***,
-  ***);
+    },
+  });
 
   return (
     <div className="relative">
@@ -65,15 +65,13 @@ const InfoAgent = () => ***
       <CopilotPopup
         instructions="Help the user create a presentation."
         defaultOpen={true}
-        labels=***"Make a presentation"***
-        runtimeOptions=***
-          headers: ***
+        labels={"Make a presentation"}
+        runtimeOptions={{
+          headers: {
             "google-api-key": apiKey,
-          ***,
-        ***
+          },
+        }}
       />
     </div>
   );
-***;
-
-export default InfoAgent;
+};
