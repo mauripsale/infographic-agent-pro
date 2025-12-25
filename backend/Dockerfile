@@ -19,5 +19,7 @@ COPY . .
 # Make port 8080 available to the world outside this container
 EXPOSE 8080
 
-# Run the application
-CMD ["python", "main.py"]
+# Run the application using the ADK web server
+# The ADK CLI will automatically pick up the agent defined in the current directory
+# and respect the PORT environment variable provided by Cloud Run.
+CMD ["adk", "web"]
