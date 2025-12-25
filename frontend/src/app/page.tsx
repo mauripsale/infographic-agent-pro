@@ -42,9 +42,9 @@ export default function InfoAgent() {
         ],
       },
     ],
-    handler: async (slides) => {
+    handler: async ({ slides }: { slides: SlideData[] }) => {
       console.log(slides);
-      setSlides(slides as SlideData[]);
+      setSlides(slides);
     },
   });
 
