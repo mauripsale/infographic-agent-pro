@@ -1,9 +1,8 @@
 "use client";
 
 import {
-  CopilotKit,
+  CopilotProvider,
   useCopilotAction,
-  useCopilotReadable,
 } from "@copilotkit/react-core";
 import { CopilotPopup } from "@copilotkit/react-ui";
 import {
@@ -49,11 +48,11 @@ export default function InfoAgent() {
   });
 
   return (
-    <CopilotKit runtimeOptions={{
-      headers: {
+    <CopilotProvider
+      headers={{
         "google-api-key": apiKey,
-      },
-    }}>
+      }}
+    >
       <div className="relative">
         <Presentation presentation={presentation} />
         <div className="absolute top-4 right-4">
@@ -76,6 +75,6 @@ export default function InfoAgent() {
           }}
         />
       </div>
-    </CopilotKit>
+    </CopilotProvider>
   );
 }
