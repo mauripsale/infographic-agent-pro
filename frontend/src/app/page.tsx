@@ -1,16 +1,16 @@
 "use client";
 
-import ***
+import {
   CopilotKit,
   useCopilotAction,
   useCopilotReadable,
-*** from "@copilotkit/react-core";
-import *** CopilotPopup *** from "@copilotkit/react-ui";
-import ***
+} from "@copilotkit/react-core";
+import { CopilotPopup } from "@copilotkit/react-ui";
+import {
   Presentation,
   Slide,
   usePresentation,
-*** from "../components/Presentation";
+} from "../components/Presentation";
 import ***
   "../styles/globals.css"; // Assicurati che il percorso sia corretto
 import *** React, *** useState *** from "react";
