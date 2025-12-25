@@ -1,7 +1,7 @@
 import os
 from google_adk.runtime import adk_runtime
 
-from agent import presentation_pipeline
+from agents.infographic_agent.agent import presentation_pipeline
 
 if __name__ == "__main__":
     adk_runtime.run(
