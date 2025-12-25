@@ -86,6 +86,9 @@ jobs:
         - name: Configure Docker
           run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
+        - name: List all files for debugging
+          run: ls -laR
+
         - name: Build and Push Docker image
           run: |
             cd backend/
