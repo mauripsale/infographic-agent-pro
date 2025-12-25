@@ -59,7 +59,7 @@ export default function InfoAgent() {
 
   return (
     <CopilotKit
-      runtimeUrl="https://infographic-agent-backend-218788847170.us-central1.run.app/api"
+      runtimeUrl={process.env.NEXT_PUBLIC_COPILOT_API_URL || "http://localhost:8080/api"}
       headers={{
         "google-api-key": apiKey,
       }}

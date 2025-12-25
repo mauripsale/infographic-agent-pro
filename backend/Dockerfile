@@ -19,5 +19,5 @@ COPY . .
 # Make port 8080 available to the world outside this container
 EXPOSE 8080
 
-# Run the production API server on the correct host and port for Cloud Run, with CORS enabled
-CMD exec adk api_server agents --host 0.0.0.0 --port $PORT --allow_origins "*"
+# Run the production API server using Gunicorn
+CMD exec gunicorn --bind :$PORT --workers 1 --worker-class uvicorn.workers.UvicornWorker --timeout 0 main:app
