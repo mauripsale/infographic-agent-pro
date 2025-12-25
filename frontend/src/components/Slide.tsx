@@ -1,5 +1,5 @@
 import React from "react";
-import *** SlideData *** from "./Presentation";
+import { SlideData } from "./Presentation";
 import Markdown from "react-markdown";
 
 export const Slide: React.FC<*** slide: SlideData ***> = (*** slide ***) => ***

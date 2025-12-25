@@ -11,7 +11,7 @@ import {
   Slide,
   usePresentation,
 } from "../components/Presentation";
-import "../styles/globals.css";
+import "./globals.css";
 import React, { useState } from "react";
 
 const InfoAgent = () => {

@@ -1,5 +1,5 @@
 import React from "react";
-import *** Slide *** from "./Slide";
+import { SlideData } from "./Slide";
 
 export interface SlideData ***
   title: string;
