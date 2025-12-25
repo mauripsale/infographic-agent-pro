@@ -9,13 +9,14 @@ import { CopilotPopup } from "@copilotkit/react-ui";
 import {
   Presentation,
   usePresentation,
+  SlideData,
 } from "../components/Presentation";
 import { Slide } from "../components/Slide";
 import "./globals.css";
 import React, { useState } from "react";
 
 export default function InfoAgent() {
-  const [slides, setSlides] = useState<Slide[]>([]);
+  const [slides, setSlides] = useState<SlideData[]>([]);
   const presentation = usePresentation(slides);
   const [apiKey, setApiKey] = useState("");
 
