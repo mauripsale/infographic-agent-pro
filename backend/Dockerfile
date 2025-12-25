@@ -19,5 +19,6 @@ COPY . .
 # Make port 8080 available to the world outside this container
 EXPOSE 8080
 
-# Run the production API server and point it to the agents directory
-CMD ["adk", "api_server", "agents"]
+# Run the production API server on the correct host and port for Cloud Run
+# Using shell form to allow environment variable substitution for $PORT
+CMD exec adk api_server agents --host 0.0.0.0 --port $PORT
