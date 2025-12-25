@@ -8,9 +8,9 @@ import {
 import { CopilotPopup } from "@copilotkit/react-ui";
 import {
   Presentation,
-  Slide,
   usePresentation,
 } from "../components/Presentation";
+import { Slide } from "../components/Slide";
 import "./globals.css";
 import React, { useState } from "react";
 
