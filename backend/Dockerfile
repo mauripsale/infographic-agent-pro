@@ -20,4 +20,4 @@ COPY . .
 EXPOSE 8080
 
 # Run the application
-CMD ["python", "main.py"]
+CMD ["adk", "--help"]
