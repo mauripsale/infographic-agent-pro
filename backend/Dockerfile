@@ -19,5 +19,5 @@ COPY . .
 # Make port 8080 available to the world outside this container
 EXPOSE 8080
 
-# Run the production API server
-CMD ["adk", "api_server"]
+# Discover the options for the api_server command
+CMD ["adk", "api_server", "--help"]
