@@ -18,6 +18,7 @@ export default function InfoAgent() {
   const [slides, setSlides] = useState<SlideData[]>([]);
   const presentation = usePresentation(slides);
   const [apiKey, setApiKey] = useState("");
+  const [downloadLink, setDownloadLink] = useState<string | null>(null);
 
   useCopilotAction({
     name: "showSlides",
@@ -40,10 +41,19 @@ export default function InfoAgent() {
           },
         ],
       },
+      {
+        name: "pptx_file_path",
+        type: "string",
+        description: "The path to the generated PPTX file.",
+      },
     ],
-    handler: async ({ slides }: { slides: SlideData[] }) => {
-      console.log(slides);
-      setSlides(slides);
+    handler: async ({ slides, pptx_file_path }: { slides?: SlideData[]; pptx_file_path?: string }) => {
+      if (slides) {
+        setSlides(slides);
+      }
+      if (pptx_file_path) {
+        setDownloadLink(pptx_file_path);
+      }
     },
   });
 
@@ -56,7 +66,7 @@ export default function InfoAgent() {
     >
       <div className="relative">
         <Presentation presentation={presentation} />
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-4 right-4 flex flex-col items-end space-y-2">
           {!apiKey ? (
             <input
               type="text"
@@ -66,6 +76,15 @@ export default function InfoAgent() {
             />
           ) : (
             <p className="text-sm text-gray-500">API Key is set</p>
+          )}
+          {downloadLink && (
+            <a
+              href={downloadLink}
+              download
+              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Download Presentation
+            </a>
           )}
         </div>
         <CopilotPopup
@@ -78,4 +97,5 @@ export default function InfoAgent() {
       </div>
     </CopilotKit>
   );
+}
 }
