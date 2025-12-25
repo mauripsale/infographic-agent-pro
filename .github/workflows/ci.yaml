@@ -103,4 +103,3 @@ jobs:
             region: 'us-central1'
             labels: 'managed-by=github-actions,commit-sha=${{ github.sha }}'
             flags: '--allow-unauthenticated'
-            env_vars: 'GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}'
