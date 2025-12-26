@@ -475,3 +475,4 @@ xlsxwriter==3.2.9
 zipp==3.23.0
     # via importlib-metadata
 gunicorn
+google-adk
