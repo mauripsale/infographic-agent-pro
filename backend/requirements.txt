@@ -197,6 +197,8 @@ grpcio==1.76.0
     #   grpcio-status
 grpcio-status==1.76.0
     # via google-api-core
+gunicorn==23.0.0
+    # via -r backend/requirements.in
 h11==0.16.0
     # via
     #   httpcore
@@ -297,6 +299,7 @@ packaging==25.0
     # via
     #   google-cloud-aiplatform
     #   google-cloud-bigquery
+    #   gunicorn
 pillow==12.0.0
     # via python-pptx
 proto-plus==1.27.0

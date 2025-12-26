@@ -5,3 +5,4 @@ python-pptx
 beautifulsoup4
 requests
 lxml
+gunicorn
