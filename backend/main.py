@@ -12,11 +12,10 @@ app = FastAPI()
 
 # --- CORS Middleware ---
 # This is crucial for allowing the deployed frontend to communicate with this backend.
-# In a real-world production environment, you should restrict origins to your specific frontend domain.
-# For example: allow_origins=["https://your-frontend-domain.com"]
+# We are specifying the exact frontend origin to ensure security.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["https://qwiklabs-asl-04-f9d4ba2925b9.web.app"],
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
