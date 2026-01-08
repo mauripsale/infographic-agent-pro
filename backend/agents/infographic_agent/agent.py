@@ -1,5 +1,5 @@
 from google.adk.agents import LlmAgent, SequentialAgent
-from google.adk.tools import FunctionTool, GoogleSearchTool
+from google.adk.tools import FunctionTool, google_search
 import io
 import os
 import sys
