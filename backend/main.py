@@ -72,7 +72,7 @@ async def health_check():
     """Simple health check endpoint."""
     return {"status": "ok"}
 
-@app.post("/api/copilotkit") # Assuming CopilotKit targets this or similar
+@app.post("/api") # Endpoint matching frontend configuration
 async def chat_endpoint(request: Request):
     """
     Manual implementation of a chat endpoint using ADK Runner.
