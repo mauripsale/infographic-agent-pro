@@ -1,19 +1,20 @@
 import os
 import logging
+import json
+import asyncio
 from pathlib import Path
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 # Imports rigorosamente basati sulla documentazione ADK Python
-from google.adk import Agent
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
-# Import del contesto e dell'agente definito nell'altro file
 try:
     from context import model_context
 except ImportError:
@@ -35,7 +36,6 @@ class ModelSelectionMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
             
         model_header = request.headers.get("X-GenAI-Model")
-        # Imposta il contesto per la richiesta corrente
         token = model_context.set(model_header if model_header else "gemini-2.5-flash")
         try:
             response = await call_next(request)
@@ -51,7 +51,7 @@ class ModelSelectionMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(ModelSelectionMiddleware)
 
-# --- MIDDLEWARE 2: CORS (Cruciale per CopilotKit) ---
+# --- MIDDLEWARE 2: CORS ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -70,98 +70,110 @@ STATIC_DIR = Path("static")
 STATIC_DIR.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# --- ADK SERVICE INITIALIZATION ---
-# Usiamo InMemorySessionService come da esempi della documentazione per demo/test
+# --- ADK SERVICE ---
 session_service = InMemorySessionService()
 
-# --- API ENDPOINTS ---
+# --- A2UI ENDPOINTS ---
 
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
 
-@app.get("/api/info")
-async def get_agent_info():
+@app.post("/agent/stream")
+async def agent_stream(request: Request):
     """
-    Endpoint richiesto da CopilotKit per scoprire gli agenti disponibili.
-    Restituisce un agente chiamato 'default'.
-    """
-    logger.info("Handling GET /api/info request")
-    return {
-        "agents": [
-            {
-                "id": "default", # Adding explicit ID which might be required by the client
-                "name": "default",
-                "description": "Infographic Generator Agent",
-                "model": "gemini-2.5-flash",
-                # Eventuali altre info richieste dal protocollo CopilotKit/ADK wrapper
-            }
-        ]
-    }
-
-@app.post("/api")
-async def chat_endpoint(request: Request):
-    """
-    Endpoint principale per la chat.
-    Accetta il payload JSON, istanzia un Runner ADK e restituisce la risposta.
+    A2UI Endpoint: Streams JSONL messages to the client.
     """
     try:
         data = await request.json()
-        messages = data.get("messages", [])
+        query = data.get("query", "")
+        session_id = data.get("session_id", "default-session")
         
-        if not messages:
-            return {"messages": []}
+        logger.info(f"Received A2UI request: query='{query}', session_id='{session_id}'")
 
-        # Estrae l'ultimo messaggio utente
-        last_message_text = messages[-1].get("content", "")
-        
-        # Inizializza il Runner per questa richiesta
-        # Nota: L'agente 'presentation_pipeline' è importato e riutilizzato (è stateless o gestito dal runner)
-        runner = Runner(
-            agent=presentation_pipeline,
-            app_name="infographic-agent",
-            session_service=session_service
-        )
+        async def event_generator():
+            # 1. Initialize Surface
+            surface_id = "main_surface"
+            yield json.dumps({
+                "createSurface": {
+                    "surfaceId": surface_id,
+                    "catalogId": "https://a2ui.dev/specification/0.9/standard_catalog_definition.json"
+                }
+            }) + "\n"
+            
+            # 2. Show loading state
+            yield json.dumps({
+                "updateComponents": {
+                    "surfaceId": surface_id,
+                    "components": [
+                        {"id": "root", "component": "Column", "children": ["status_text"]},
+                        {"id": "status_text", "component": "Text", "text": "Analyzing request..."}
+                    ]
+                }
+            }) + "\n"
 
-        # Crea una sessione (o ne recupera una se passassimo un session_id)
-        user_id = "default_user"
-        session = await session_service.create_session(
-            app_name="infographic-agent",
-            user_id=user_id
-        )
+            # 3. Run the Agent (ADK Runner)
+            runner = Runner(
+                agent=presentation_pipeline,
+                app_name="infographic-agent",
+                session_service=session_service
+            )
+            
+            # Create/Get session
+            session = await session_service.create_session(
+                app_name="infographic-agent",
+                user_id="user_a2ui",
+                session_id=session_id
+            )
 
-        # Prepara il contenuto per Gemini (google.genai.types)
-        content = types.Content(
-            role="user",
-            parts=[types.Part(text=last_message_text)]
-        )
-
-        # Esegue l'agente e raccoglie la risposta
-        # ADK Runner.run_async restituisce un generatore asincrono di eventi
-        agent_responses = []
-        async for event in runner.run_async(
-            session_id=session.id,
-            user_id=user_id,
-            new_message=content
-        ):
-            # Analizza gli eventi per estrarre il testo della risposta
-            if event.content and event.content.parts:
-                for part in event.content.parts:
-                    if part.text:
-                        agent_responses.append(part.text)
-        
-        full_response = "\n".join(agent_responses)
-        
-        # Restituisce la risposta nel formato atteso da CopilotKit (array di messaggi)
-        return {
-            "messages": [
-                {"role": "assistant", "content": full_response}
+            content = types.Content(role="user", parts=[types.Part(text=query)])
+            
+            agent_response_text = ""
+            async for event in runner.run_async(session_id=session.id, user_id="user_a2ui", new_message=content):
+                if event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if part.text:
+                            agent_response_text += part.text
+            
+            # 4. Update UI with Agent Response
+            # Here we dynamically build the UI based on the agent's output.
+            # Assuming the agent returns the JSON for the slide script or a file path.
+            
+            # Simple heuristic: if it looks like a path, show a download button
+            components = [
+                {"id": "root", "component": "Column", "children": ["response_text"]}
             ]
-        }
+            comp_defs = [
+                {"id": "response_text", "component": "Text", "text": agent_response_text}
+            ]
+
+            if "/static/" in agent_response_text:
+                 # Extract link (simple logic)
+                 import re
+                 match = re.search(r'(/static/[\w\.-]+)', agent_response_text)
+                 if match:
+                     link = match.group(1)
+                     components[0]["children"].append("download_button")
+                     comp_defs.append({
+                         "id": "download_button", 
+                         "component": "Button", 
+                         "child": "btn_label",
+                         "action": {"name": "download", "context": {"url": link}} # Client handles action
+                     })
+                     comp_defs.append({"id": "btn_label", "component": "Text", "text": "Download Presentation"})
+
+            yield json.dumps({
+                "updateComponents": {
+                    "surfaceId": surface_id,
+                    "components": components + comp_defs
+                }
+            }) + "\n"
+
+        return StreamingResponse(event_generator(), media_type="application/x-ndjson")
 
     except Exception as e:
-        logger.error(f"Error in chat endpoint: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error in A2UI stream: {e}", exc_info=True)
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 if __name__ == "__main__":
     import uvicorn
