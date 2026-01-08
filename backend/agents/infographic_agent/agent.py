@@ -6,8 +6,33 @@ from bs4 import BeautifulSoup
 from pptx import Presentation
 import time
 from pathlib import Path
+import sys
+
+# Try to import context from backend root or relative
+try:
+    # If running from backend/ as root
+    from context import model_context
+except ImportError:
+    try:
+        # If running as package
+        from ...context import model_context
+    except ImportError:
+        # Fallback/Mock for standalone testing
+        from contextvars import ContextVar
+        model_context = ContextVar("model_context", default="gemini-2.5-flash")
 
 STATIC_DIR = Path("static")
+
+class DynamicLlmAgent(LlmAgent):
+    """An agent that selects its model dynamically from context."""
+    @property
+    def model(self):
+        return model_context.get()
+    
+    @model.setter
+    def model(self, value):
+        # Ignore setting model to fixed value, rely on context
+        pass
 
 def get_webpage_content(url: str) -> str:
     """Fetches and extracts the main text content from a URL."""
@@ -49,9 +74,9 @@ def create_presentation_file(json_content: str) -> str:
         return f"Error creating presentation file: {str(e)}"
 
 # --- Agent 1: Script Generator ---
-script_generator = LlmAgent(
+script_generator = DynamicLlmAgent(
     name="ScriptGenerator",
-    model="gemini-1.5-flash-latest",
+    model="gemini-2.5-flash", # Default, will be overridden by property
     description="Analyzes content from text or URLs and generates a presentation script.",
     instruction="""You are an expert content creator. Your task is to analyze the user's input (which can be plain text or a URL). If the input is a URL, use the `get_webpage_content` tool to fetch the text.
 Synthesize the content into a structure for a slide presentation.
@@ -62,9 +87,9 @@ Output ONLY the JSON block. Do not add any conversational text before or after t
 )
 
 # --- Agent 2: Slide Builder ---
-slide_builder = LlmAgent(
+slide_builder = DynamicLlmAgent(
     name="SlideBuilder",
-    model="gemini-1.5-flash-latest",
+    model="gemini-2.5-flash", # Default
     description="Generates a .pptx file from a presentation script.",
     instruction="""You are a presentation designer.
 Take the JSON content provided in `slide_script` from the previous step.
@@ -81,4 +106,3 @@ presentation_pipeline = SequentialAgent(
     description="A pipeline that transforms content into a presentation file.",
     sub_agents=[script_generator, slide_builder]
 )
-

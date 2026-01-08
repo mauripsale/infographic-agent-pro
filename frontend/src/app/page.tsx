@@ -18,6 +18,7 @@ export default function InfoAgent() {
   const [slides, setSlides] = useState<SlideData[]>([]);
   const presentation = usePresentation(slides);
   const [apiKey, setApiKey] = useState("");
+  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash");
   const [downloadLink, setDownloadLink] = useState<string | null>(null);
 
   useCopilotAction({
@@ -62,6 +63,7 @@ export default function InfoAgent() {
       runtimeUrl={process.env.NEXT_PUBLIC_COPILOT_API_URL || "http://localhost:8080/api"}
       headers={{
         "google-api-key": apiKey,
+        "X-GenAI-Model": selectedModel,
       }}
     >
       <div className="relative">
@@ -77,6 +79,19 @@ export default function InfoAgent() {
           ) : (
             <p className="text-sm text-gray-500">API Key is set</p>
           )}
+
+          <div className="flex flex-col space-y-1">
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="p-2 border rounded bg-white text-black text-sm"
+            >
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+              <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
+              <option value="gemini-3-pro-preview">Gemini 3 Pro Preview</option>
+            </select>
+          </div>
+
           {downloadLink && (
             <a
               href={downloadLink}

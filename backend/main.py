@@ -4,11 +4,30 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from google_adk.runtime import adk_runtime
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from context import model_context
 
 from agents.infographic_agent.agent import presentation_pipeline
 
 # Create the main FastAPI app
 app = FastAPI()
+
+class ModelSelectionMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        model_header = request.headers.get("X-GenAI-Model")
+        if model_header:
+            token = model_context.set(model_header)
+        else:
+            token = model_context.set("gemini-2.5-flash")
+        
+        try:
+            response = await call_next(request)
+            return response
+        finally:
+            model_context.reset(token)
+
+app.add_middleware(ModelSelectionMiddleware)
 
 # --- CORS Middleware ---
 # This is crucial for allowing the deployed frontend to communicate with this backend.
