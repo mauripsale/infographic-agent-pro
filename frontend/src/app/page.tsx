@@ -98,7 +98,7 @@ export default function A2UIAgent() {
     setRootComponentId(null);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://infographic-agent-backend-218788847170.us-central1.run.app";
       const response = await fetch(`${apiUrl}/agent/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
