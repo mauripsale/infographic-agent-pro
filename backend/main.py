@@ -86,9 +86,11 @@ async def get_agent_info():
     Endpoint richiesto da CopilotKit per scoprire gli agenti disponibili.
     Restituisce un agente chiamato 'default'.
     """
+    logger.info("Handling GET /api/info request")
     return {
         "agents": [
             {
+                "id": "default", # Adding explicit ID which might be required by the client
                 "name": "default",
                 "description": "Infographic Generator Agent",
                 "model": "gemini-2.5-flash",
