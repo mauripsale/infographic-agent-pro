@@ -4,9 +4,14 @@ import json
 import requests
 from bs4 import BeautifulSoup
 from pptx import Presentation
+from pptx.util import Inches
 import time
 from pathlib import Path
 import sys
+import os
+import io
+from google import genai
+from google.genai import types
 
 # Try to import context from backend root or relative
 try:
@@ -48,29 +53,79 @@ def get_webpage_content(url: str) -> str:
     except requests.RequestException as e:
         return f"Error fetching URL: {e}"
 
+def generate_image(prompt: str) -> io.BytesIO:
+    """Generates an image using Imagen 3 via Google GenAI SDK."""
+    try:
+        # We use the API key from environment
+        client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
+        
+        # Using Imagen 3 model for high quality generation
+        response = client.models.generate_images(
+            model='imagen-3.0-generate-001',
+            prompt=prompt,
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+                aspect_ratio="16:9" 
+            )
+        )
+        if response.generated_images:
+            image_bytes = response.generated_images[0].image.image_bytes
+            return io.BytesIO(image_bytes)
+        return None
+    except Exception as e:
+        print(f"Image generation failed for prompt '{prompt}': {e}")
+        return None
+
 def create_presentation_file(json_content: str) -> str:
     """Creates a .pptx presentation file from a JSON structure."""
     try:
         slides_data = json.loads(json_content)
         prs = Presentation()
+        
         for slide_info in slides_data:
-            slide_layout = prs.slide_layouts[1]  # Title and Content
+            # Use a blank layout or Title/Content. 
+            # Layout 1 is Title + Content. Layout 5 is Title Only. Layout 6 is Blank.
+            # Let's use Layout 1 and resize content if image exists, or add image on side.
+            slide_layout = prs.slide_layouts[1] 
             slide = prs.slides.add_slide(slide_layout)
-            title = slide.shapes.title
-            content = slide.placeholders[1]
             
+            # Title
+            title = slide.shapes.title
             title.text = slide_info.get("title", "No Title")
             
-            content.text = ""
+            # Content (Bullet points)
+            content_placeholder = slide.placeholders[1]
+            content_placeholder.text = ""
             for point in slide_info.get("bullet_points", []):
-                p = content.text_frame.add_paragraph()
+                p = content_placeholder.text_frame.add_paragraph()
                 p.text = point
-                p.level = 1
-        
+                p.level = 0 # Top level bullet
+            
+            # Image Generation
+            image_prompt = slide_info.get("image_prompt")
+            if image_prompt:
+                print(f"Generating image for slide: {title.text}")
+                image_stream = generate_image(image_prompt)
+                if image_stream:
+                    # Add image to slide. 
+                    # Position: Right side, slightly overlapping content or resizing content?
+                    # Let's just put it in the bottom right corner for now or adjust layout.
+                    # Better: Resize text placeholder to left half, put image on right half.
+                    
+                    # Page width is usually 10 inches.
+                    # Move text box to width 5 inches.
+                    content_placeholder.width = Inches(4.5)
+                    
+                    # Add picture at Left=5.5 inches, Top=2 inches
+                    slide.shapes.add_picture(image_stream, Inches(5), Inches(2), width=Inches(4.5))
+
         filename = STATIC_DIR / f"presentation_{int(time.time())}.pptx"
         prs.save(filename)
         return f"/static/{filename.name}"
     except Exception as e:
+        # Log full error for debugging
+        import traceback
+        traceback.print_exc()
         return f"Error creating presentation file: {str(e)}"
 
 # --- Agent 1: Script Generator ---
@@ -80,7 +135,12 @@ script_generator = DynamicLlmAgent(
     description="Analyzes content from text or URLs and generates a presentation script.",
     instruction="""You are an expert content creator. Your task is to analyze the user's input (which can be plain text or a URL). If the input is a URL, use the `get_webpage_content` tool to fetch the text.
 Synthesize the content into a structure for a slide presentation.
-Generate a valid JSON output containing a list of slides. Each slide must have "title" and "bullet_points" (a list of strings).
+Generate a valid JSON output containing a list of slides. 
+Each slide MUST have:
+1. "title": A clear title.
+2. "bullet_points": A list of strings (key points).
+3. "image_prompt": A descriptive prompt for an AI image generator to create a visual relevant to the slide's content. Be creative and visual (e.g., "A futuristic city skyline with flying cars, neon lights, digital art style").
+
 Output ONLY the JSON block. Do not add any conversational text before or after the JSON.""",
     tools=[FunctionTool(get_webpage_content)],
     output_key="slide_script"
