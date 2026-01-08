@@ -1,30 +1,37 @@
 from google_adk.agents import LlmAgent, SequentialAgent
 from google_adk.tools import FunctionTool, GoogleSearchTool
+import io
+import os
+import sys
+import time
 import json
-import requests
+from pathlib import Path
 from bs4 import BeautifulSoup
+import requests
 from pptx import Presentation
 from pptx.util import Inches
-import time
-from pathlib import Path
-import sys
-import os
-import io
-from google import genai
-from google.genai import types
 
-# Try to import context from backend root or relative
+from google_adk.agents import LlmAgent, SequentialAgent
+from google_adk.tools import FunctionTool, GoogleSearchTool
+
+# Robust import for google.genai
 try:
-    # If running from backend/ as root
-    from context import model_context
+    from google import genai
+    from google.genai import types
+    HAS_GENAI = True
 except ImportError:
-    try:
-        # If running as package
-        from ...context import model_context
-    except ImportError:
-        # Fallback/Mock for standalone testing
-        from contextvars import ContextVar
-        model_context = ContextVar("model_context", default="gemini-2.5-flash")
+    print("Warning: google.genai module not found. Image generation will be disabled.")
+    HAS_GENAI = False
+
+# Robust import for context
+try:
+    # Try importing context assuming it's in the python path (root)
+    import context
+    model_context = context.model_context
+except ImportError:
+    print("Warning: Could not import context. Using fallback ContextVar.")
+    from contextvars import ContextVar
+    model_context = ContextVar("model_context", default="gemini-2.5-flash")
 
 STATIC_DIR = Path("static")
 
