@@ -34,7 +34,10 @@ app.add_middleware(ModelSelectionMiddleware)
 # We are specifying the exact frontend origin to ensure security.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://qwiklabs-asl-04-f9d4ba2925b9.web.app"],
+    allow_origins=[
+        "https://qwiklabs-asl-04-f9d4ba2925b9.web.app",
+        "https://qwiklabs-asl-04-f9d4ba2925b9.firebaseapp.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
