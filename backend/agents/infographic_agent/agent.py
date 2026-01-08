@@ -1,5 +1,5 @@
-from google_adk.agents import LlmAgent, SequentialAgent
-from google_adk.tools import FunctionTool, GoogleSearchTool
+from google.adk.agents import LlmAgent, SequentialAgent
+from google.adk.tools import FunctionTool, GoogleSearchTool
 import io
 import os
 import sys
@@ -10,9 +10,6 @@ from bs4 import BeautifulSoup
 import requests
 from pptx import Presentation
 from pptx.util import Inches
-
-from google_adk.agents import LlmAgent, SequentialAgent
-from google_adk.tools import FunctionTool, GoogleSearchTool
 
 # Robust import for google.genai
 try:
@@ -62,6 +59,8 @@ def get_webpage_content(url: str) -> str:
 
 def generate_image(prompt: str) -> io.BytesIO:
     """Generates an image using Imagen 3 via Google GenAI SDK."""
+    if not HAS_GENAI:
+        return None
     try:
         # We use the API key from environment
         client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
@@ -114,15 +113,8 @@ def create_presentation_file(json_content: str) -> str:
                 print(f"Generating image for slide: {title.text}")
                 image_stream = generate_image(image_prompt)
                 if image_stream:
-                    # Add image to slide. 
-                    # Position: Right side, slightly overlapping content or resizing content?
-                    # Let's just put it in the bottom right corner for now or adjust layout.
-                    # Better: Resize text placeholder to left half, put image on right half.
-                    
-                    # Page width is usually 10 inches.
-                    # Move text box to width 5 inches.
+                    # Resize text box to left half, put image on right half.
                     content_placeholder.width = Inches(4.5)
-                    
                     # Add picture at Left=5.5 inches, Top=2 inches
                     slide.shapes.add_picture(image_stream, Inches(5), Inches(2), width=Inches(4.5))
 

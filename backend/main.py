@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from google_adk.runtime import adk_runtime
+from google.adk.runtime import adk_runtime
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from context import model_context
