@@ -87,8 +87,10 @@ export default function InfoAgent() {
               className="p-2 border rounded bg-white text-black text-sm"
             >
               <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+              <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image</option>
               <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
               <option value="gemini-3-pro-preview">Gemini 3 Pro Preview</option>
+              <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image Preview</option>
             </select>
           </div>
 
