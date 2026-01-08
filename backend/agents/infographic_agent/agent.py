@@ -58,28 +58,52 @@ def get_webpage_content(url: str) -> str:
         return f"Error fetching URL: {e}"
 
 def generate_image(prompt: str) -> io.BytesIO:
-    """Generates an image using Imagen 3 via Google GenAI SDK."""
+    """Generates an image using Gemini multimodal models (e.g., gemini-2.5-flash-image)."""
     if not HAS_GENAI:
         return None
     try:
-        # We use the API key from environment
         client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
         
-        # Using Imagen 3 model for high quality generation
-        response = client.models.generate_images(
-            model='imagen-3.0-generate-001',
-            prompt=prompt,
-            config=types.GenerateImagesConfig(
-                number_of_images=1,
-                aspect_ratio="16:9" 
-            )
+        # Get model from context, default to gemini-2.5-flash-image for this tool
+        # If the user selected a standard text model, we override with an image model here
+        model_name = model_context.get()
+        if "image" not in model_name:
+            model_name = "gemini-2.5-flash-image"
+            
+        print(f"Generating image with model '{model_name}' for prompt: {prompt}")
+        
+        # According to doc for gemini-2.5-flash-image, we can use generate_content
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt
         )
-        if response.generated_images:
-            image_bytes = response.generated_images[0].image.image_bytes
-            return io.BytesIO(image_bytes)
+        
+        # Extract image bytes from the response
+        # The response parts can contain text or inline_data (blobs)
+        for part in response.candidates[0].content.parts:
+            if part.inline_data:
+                return io.BytesIO(part.inline_data.data)
+            # Some versions might return it in a different field, checking standard as_image or bytes
+            try:
+                # Fallback check for different SDK versions/responses
+                if hasattr(part, 'image_bytes'):
+                    return io.BytesIO(part.image_bytes)
+            except:
+                pass
+                
+        # If generate_content didn't return an image, fallback to Imagen if the model selection allows
+        if "imagen" in model_name or not response.candidates[0].content.parts:
+             img_res = client.models.generate_images(
+                model='imagen-3.0-generate-001',
+                prompt=prompt,
+                config=types.GenerateImagesConfig(number_of_images=1)
+             )
+             if img_res.generated_images:
+                 return io.BytesIO(img_res.generated_images[0].image.image_bytes)
+
         return None
     except Exception as e:
-        print(f"Image generation failed for prompt '{prompt}': {e}")
+        print(f"Image generation failed for model '{model_name}': {e}")
         return None
 
 def create_presentation_file(json_content: str) -> str:
