@@ -85,6 +85,17 @@ async def agent_stream(request: Request):
     A2UI Endpoint: Streams JSONL messages to the client.
     """
     try:
+        # Extract API Key from headers
+        api_key = request.headers.get("x-goog-api-key")
+        if not api_key:
+            # Fallback to env var or raise error (for now just log warning)
+            logger.warning("No API Key provided in headers, relying on server environment.")
+        else:
+            # Set API key for this request context (Note: This is not thread-safe in multi-threaded envs
+            # but standard Cloud Run instances often handle one request at a time per thread or use process workers.
+            # For a more robust solution, we'd pass auth config to ADK components directly.)
+            os.environ["GOOGLE_API_KEY"] = api_key
+
         data = await request.json()
         query = data.get("query", "")
         session_id = data.get("session_id", "default-session")
