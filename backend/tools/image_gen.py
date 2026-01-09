@@ -2,6 +2,7 @@ import os
 import uuid
 import logging
 import json
+import time
 from pathlib import Path
 from google import genai
 from google.genai import types
@@ -39,33 +40,41 @@ class ImageGenerationTool:
 
             client = genai.Client(api_key=self.api_key)
             
-            # Get the exact model selected by the user (Flash Image or Pro Image)
             model_id = model_context.get()
             if "image" not in model_id:
-                model_id = "gemini-2.5-flash-image" # Safe fallback to Nano Banana
+                model_id = "gemini-2.5-flash-image"
 
             logger.info(f"🎨 Nano Banana [Model: {model_id}] is drawing: {prompt[:40]}...")
 
-            # Correct multimodal call for Gemini Image models
-            # We pass the aspect ratio in the prompt or config if supported by this specific Gemini variant
-            response = client.models.generate_content(
-                model=model_id,
-                contents=f"Generate a professional infographic image. Style: {prompt}. Aspect Ratio: {aspect_ratio}"
-            )
-
-            # Extract image bytes from the response parts
             image_bytes = None
-            if response.candidates and response.candidates[0].content.parts:
-                for part in response.candidates[0].content.parts:
-                    if part.inline_data:
-                        image_bytes = part.inline_data.data
-                        break
-                    elif hasattr(part, 'data') and part.data:
-                        image_bytes = part.data
-                        break
+            max_retries = 3
+            
+            for attempt in range(max_retries):
+                try:
+                    response = client.models.generate_content(
+                        model=model_id,
+                        contents=f"Generate a professional infographic image. Style: {prompt}. Aspect Ratio: {aspect_ratio}"
+                    )
+
+                    if response.candidates and response.candidates[0].content.parts:
+                        for part in response.candidates[0].content.parts:
+                            if part.inline_data:
+                                image_bytes = part.inline_data.data
+                                break
+                            elif hasattr(part, 'data') and part.data:
+                                image_bytes = part.data
+                                break
+                    
+                    if image_bytes:
+                        break # Success!
+                    else:
+                        logger.warning(f"Attempt {attempt+1}/{max_retries} failed: No image data returned.")
+                except Exception as api_err:
+                    logger.warning(f"Attempt {attempt+1}/{max_retries} API Error: {api_err}")
+                    time.sleep(2 ** attempt) # Exponential Backoff (1, 2, 4 seconds)
 
             if not image_bytes:
-                return f"Error: Model {model_id} returned no image data."
+                return f"Error: Model {model_id} failed after {max_retries} attempts."
 
             filename = f"infographic_{uuid.uuid4().hex}.png"
 

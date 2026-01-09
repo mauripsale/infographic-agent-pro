@@ -74,7 +74,14 @@ export default function App() {
     // RESET LOGIC
     if (targetPhase === "script") {
         setPhase("review");
-        setScript(null);
+        // Immediate Feedback: Create Skeleton Script
+        setScript({
+            slides: Array.from({ length: numSlides }).map((_, i) => ({
+                id: `loading_${i}`,
+                title: "Generating...",
+                image_prompt: "..."
+            }))
+        });
         setSurfaceState({ components: {}, dataModel: {} });
     } else {
         setPhase("graphics");
