@@ -136,20 +136,22 @@ async def agent_stream(request: Request):
                 slides = script.get("slides", [])
                 ar = script.get("global_settings", {}).get("aspect_ratio", "16:9")
                 
-                # Setup Grid
-                children_ids = [f"c_{s['id']}" for s in slides]
-                card_comps = [{"id": f"c_{s['id']}", "component": "Text", "text": f"Waiting: {s['title']}..."} for s in slides]
-                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["status", "grid"]}, {"id": "status", "component": "Text", "text": "🎨 Starting production..."}, {"id": "grid", "component": "Column", "children": children_ids}] + card_comps}}) + "\n"
+                # Setup Grid - Use consistent IDs: card_{id}
+                children_ids = [f"card_{s['id']}" for s in slides]
+                # Initialize cards with waiting state
+                card_comps = [{"id": f"card_{s['id']}", "component": "Text", "text": "Waiting in queue...", "status": "waiting"} for s in slides]
+                
+                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["status", "grid"]}, {"id": "status", "component": "Text", "text": "🎨 Starting production pipeline..."}, {"id": "grid", "component": "Column", "children": children_ids}] + card_comps}}) + "\n"
 
                 # Tool Execution
                 img_tool = ImageGenerationTool(api_key=api_key)
                 
-                # Serial Execution (Robustness)
+                # Serial Execution
                 for idx, slide in enumerate(slides):
                     sid = slide['id']
                     # STATUS: GENERATING
                     yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
-                        {"id": f"c_{sid}", "component": "Text", "text": f"🖌️ Nano Banana is drawing {slide['title']}...", "status": "generating"}
+                        {"id": f"card_{sid}", "component": "Text", "text": f"🖌️ Nano Banana is sketching {slide['title']}...", "status": "generating"}
                     ]}}) + "\n"
                     
                     # Call the Tool
@@ -158,17 +160,17 @@ async def agent_stream(request: Request):
                     if "Error" not in img_url:
                         # STATUS: SUCCESS
                         yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
-                            {"id": f"c_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"},
+                            {"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"img_{sid}"], "status": "success"},
                             {"id": f"t_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, 
-                            {"id": f"i_{sid}", "component": "Image", "src": img_url}
+                            {"id": f"img_{sid}", "component": "Image", "src": img_url} # Matched ID: img_{sid}
                         ]}}) + "\n"
                     else:
                         # STATUS: ERROR
                         yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
-                            {"id": f"c_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}
+                            {"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}
                         ]}}) + "\n"
 
-                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✨ Production Complete!"}]}}) + "\n"
+                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✨ All infographics ready!"}]}}) + "\n"
 
         return StreamingResponse(event_generator(), media_type="application/x-ndjson")
 
