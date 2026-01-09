@@ -145,19 +145,28 @@ async def agent_stream(request: Request):
                 img_tool = ImageGenerationTool(api_key=api_key)
                 
                 # Serial Execution (Robustness)
-                # Note: We could parallelize with asyncio.gather here for speed, 
-                # but streaming updates one-by-one is better UX for "Watching it paint".
                 for idx, slide in enumerate(slides):
                     sid = slide['id']
-                    yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"c_{sid}", "component": "Text", "text": f"🖌️ Nano Banana is drawing {slide['title']}..."}]}}) + "\n"
+                    # STATUS: GENERATING
+                    yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
+                        {"id": f"c_{sid}", "component": "Text", "text": f"🖌️ Nano Banana is drawing {slide['title']}...", "status": "generating"}
+                    ]}}) + "\n"
                     
                     # Call the Tool
                     img_url = img_tool.generate_and_save(slide['image_prompt'], aspect_ratio=ar)
                     
                     if "Error" not in img_url:
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"c_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"]}, {"id": f"t_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, {"id": f"i_{sid}", "component": "Image", "src": img_url}]}}) + "\n"
+                        # STATUS: SUCCESS
+                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
+                            {"id": f"c_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"},
+                            {"id": f"t_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, 
+                            {"id": f"i_{sid}", "component": "Image", "src": img_url}
+                        ]}}) + "\n"
                     else:
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"c_{sid}", "component": "Text", "text": f"⚠️ {img_url}"}]}}) + "\n"
+                        # STATUS: ERROR
+                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
+                            {"id": f"c_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}
+                        ]}}) + "\n"
 
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✨ Production Complete!"}]}}) + "\n"
 
