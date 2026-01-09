@@ -5,7 +5,7 @@ import "./globals.css";
 
 // Icons
 const MonitorIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>;
-const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
+const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
 const SparklesIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 7h4"/><path d="M3 3h4"/></svg>;
 
 // A2UI Renderer
@@ -24,8 +24,14 @@ export default function App() {
   const [apiKey, setApiKey] = useState("");
   const [query, setQuery] = useState("");
   const [modelType, setModelType] = useState<"flash" | "pro">("flash");
+  
+  // Settings
   const [numSlides, setNumSlides] = useState(5);
   const [style, setStyle] = useState("");
+  const [detailLevel, setDetailLevel] = useState("3 - Average");
+  const [aspectRatio, setAspectRatio] = useState("16:9");
+  const [language, setLanguage] = useState("English");
+  const [isParallel, setIsParallel] = useState(false);
   
   const [phase, setPhase] = useState<"input" | "review" | "graphics">("input");
   const [script, setScript] = useState<any>(null);
@@ -44,15 +50,37 @@ export default function App() {
     if (targetPhase === "script") setPhase("review");
     else setPhase("graphics");
 
-    // Auto-scroll to results
     setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
 
     const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
+    
+    // Inject settings into prompt for script generation phase
+    let effectiveQuery = query;
+    if (targetPhase === "script") {
+        effectiveQuery = `
+[GENERATION SETTINGS]
+Slides: ${numSlides}
+Style: ${style || "Professional"}
+Detail Level: ${detailLevel}
+Aspect Ratio: ${aspectRatio}
+Language: ${language}
+
+[USER REQUEST]
+${query}`;
+    }
+
+    // Ensure aspect ratio is passed in script settings for graphics phase
+    let payloadScript = currentScript;
+    if (targetPhase === "graphics" && payloadScript) {
+        if (!payloadScript.global_settings) payloadScript.global_settings = {};
+        payloadScript.global_settings.aspect_ratio = aspectRatio;
+    }
+
     try {
       const res = await fetch("https://infographic-agent-backend-218788847170.us-central1.run.app/agent/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey, "X-GenAI-Model": selectedModel },
-        body: JSON.stringify({ query, phase: targetPhase, script: currentScript, session_id: "s1" }),
+        body: JSON.stringify({ query: effectiveQuery, phase: targetPhase, script: payloadScript, session_id: "s1" }),
       });
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
@@ -65,17 +93,19 @@ export default function App() {
         buffer = lines.pop() || "";
         for (const line of lines) {
           if (!line.trim()) continue;
-          const msg = JSON.parse(line);
-          if (msg.updateComponents) {
-            setSurfaceState((prev: any) => {
-              const nextComps = { ...prev.components };
-              msg.updateComponents.components.forEach((c: any) => nextComps[c.id] = c);
-              return { ...prev, components: nextComps };
-            });
-          }
-          if (msg.updateDataModel && msg.updateDataModel.value?.script) {
-            setScript(msg.updateDataModel.value.script);
-          }
+          try {
+            const msg = JSON.parse(line);
+            if (msg.updateComponents) {
+                setSurfaceState((prev: any) => {
+                const nextComps = { ...prev.components };
+                msg.updateComponents.components.forEach((c: any) => nextComps[c.id] = c);
+                return { ...prev, components: nextComps };
+                });
+            }
+            if (msg.updateDataModel && msg.updateDataModel.value?.script) {
+                setScript(msg.updateDataModel.value.script);
+            }
+          } catch(e) { console.error("JSON Parse Error", e); }
         }
       }
     } catch (e) { console.error(e); } finally { setIsStreaming(false); }
@@ -111,21 +141,65 @@ export default function App() {
         {/* SECTION 1: INPUT */}
         <section className="grid grid-cols-12 gap-8">
           {/* Sidebar */}
-          <aside className="col-span-3 bg-[#111827] rounded-2xl border border-slate-800 p-6 flex flex-col gap-8 shadow-xl h-fit">
+          <aside className="col-span-3 bg-[#111827] rounded-2xl border border-slate-800 p-6 flex flex-col gap-6 shadow-xl h-fit">
             <div className="flex items-center gap-2 text-slate-100 font-semibold border-b border-slate-800 pb-4">
               <SettingsIcon /><span className="uppercase tracking-wider text-xs">Generation Settings</span>
             </div>
+            
+            {/* Slider */}
             <div>
               <div className="flex justify-between text-sm mb-3">
                 <span className="text-slate-400">Slides</span>
-                <span className="text-blue-400 font-bold">{numSlides}</span>
+                <span className="text-blue-400 font-bold bg-blue-900/30 px-2 py-0.5 rounded text-xs">{numSlides}</span>
               </div>
               <input type="range" min="1" max="30" value={numSlides} onChange={(e) => setNumSlides(Number(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg cursor-pointer accent-blue-600" />
+              <div className="flex justify-between text-[10px] text-slate-600 mt-1 px-1"><span>1</span><span>30</span></div>
             </div>
+
+            {/* Detail Level */}
+            <div>
+               <label className="block text-xs text-slate-500 mb-2 uppercase font-bold tracking-wider">Detail Level</label>
+               <select value={detailLevel} onChange={(e) => setDetailLevel(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm text-slate-300 outline-none">
+                  <option>1 - Super Simple</option>
+                  <option>2 - Basic</option>
+                  <option>3 - Average</option>
+                  <option>4 - Detailed</option>
+                  <option>5 - Super Detailed</option>
+               </select>
+            </div>
+
+            {/* Aspect Ratio */}
+            <div>
+               <label className="block text-xs text-slate-500 mb-2 uppercase font-bold tracking-wider">Aspect Ratio</label>
+               <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm text-slate-300 outline-none">
+                  <option value="16:9">16:9 (Widescreen)</option>
+                  <option value="4:3">4:3 (Standard)</option>
+               </select>
+            </div>
+
+            {/* Language */}
+            <div>
+               <label className="block text-xs text-slate-500 mb-2 uppercase font-bold tracking-wider">Language</label>
+               <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm text-slate-300 outline-none">
+                  <option>English</option>
+                  <option>Italian</option>
+               </select>
+            </div>
+
+            {/* Visual Style */}
             <div>
               <label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Visual Style</label>
               <input type="text" value={style} onChange={(e) => setStyle(e.target.value)} placeholder="e.g. Cyberpunk, Sketch..." className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none" />
             </div>
+
+            {/* Parallel Switch */}
+            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-800">
+              <span className="text-sm text-slate-300">Parallel Gen</span>
+              <div onClick={() => setIsParallel(!isParallel)} className={`w-10 h-5 rounded-full relative cursor-pointer border transition-colors ${isParallel ? "bg-blue-600/20 border-blue-500" : "bg-slate-800 border-slate-700"}`}>
+                <div className={`w-3 h-3 rounded-full absolute top-1 transition-all ${isParallel ? "right-1 bg-blue-500" : "left-1 bg-slate-500"}`}></div>
+              </div>
+            </div>
+
           </aside>
 
           {/* Main Area */}
@@ -134,7 +208,7 @@ export default function App() {
               <textarea 
                 value={query} 
                 onChange={(e) => setQuery(e.target.value)} 
-                placeholder="Paste your source text here..." 
+                placeholder="Paste your source text here or a list of URLs..." 
                 className="w-full h-full bg-transparent resize-none outline-none text-slate-300 text-lg font-mono placeholder-slate-700"
               />
             </div>
