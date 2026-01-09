@@ -30,29 +30,33 @@ def generate_infographic_image_tool(prompt: str, aspect_ratio: str = "16:9") -> 
         if "image" not in model_name:
             model_name = "gemini-2.5-flash-image"
             
-        print(f"Nano Banana is generating image for: {prompt[:50]}... [AR: {aspect_ratio}]")
+        print(f"Nano Banana is generating image for: {prompt[:50]}... [Model: {model_name}, AR: {aspect_ratio}]")
         
-        # Use generate_content for multimodal output as per @context7_doc/python-genai.md
-        # Or generate_images if specific Imagen control is needed. 
-        # Using Imagen 3 for best quality in infographics.
-        response = client.models.generate_images(
-            model='imagen-3.0-generate-001',
-            prompt=f"A professional, high-quality infographic: {prompt}",
-            config=types.GenerateImagesConfig(
-                number_of_images=1,
-                aspect_ratio=aspect_ratio
+        # Use generate_content for Gemini models (Nano Banana)
+        response = client.models.generate_content(
+            model=model_name,
+            contents=f"Generate a professional infographic image. Description: {prompt}",
+            config=types.GenerateContentConfig(
+                response_mime_type="image/jpeg" 
             )
         )
         
-        if response.generated_images:
-            image_bytes = response.generated_images[0].image.image_bytes
+        # Extract image data from Gemini response
+        image_bytes = None
+        if response.candidates and response.candidates[0].content.parts:
+            for part in response.candidates[0].content.parts:
+                if part.inline_data:
+                    image_bytes = part.inline_data.data
+                    break
+        
+        if image_bytes:
             filename = f"infographic_{uuid.uuid4().hex}.png"
             filepath = STATIC_DIR / filename
             with open(filepath, "wb") as f:
                 f.write(image_bytes)
             return f"/static/{filename}"
         
-        return "Error: No image generated."
+        return "Error: No image generated from model."
     except Exception as e:
         return f"Error: {str(e)}"
 
