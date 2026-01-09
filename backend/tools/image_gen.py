@@ -85,7 +85,9 @@ class ImageGenerationTool:
             with open(filepath, "wb") as f:
                 f.write(image_bytes)
             
-            return f"/static/{filename}"
+            # Return absolute URL for the separate frontend
+            backend_url = "https://infographic-agent-backend-218788847170.us-central1.run.app"
+            return f"{backend_url}/static/{filename}"
 
         except Exception as e:
             logger.error(f"Generation Error: {e}")
