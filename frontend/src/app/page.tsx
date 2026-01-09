@@ -3,303 +3,261 @@
 import React, { useState, useEffect } from "react";
 import "./globals.css";
 
-// --- A2UI Types ---
-interface ComponentDef {
-  id: string;
-  component: string;
-  children?: string[] | { path: string; componentId: string };
-  child?: string;
-  text?: string | { path: string };
-  action?: { name: string; context?: any };
-  [key: string]: any;
-}
+// --- Icons (Lucide-React style using SVG) ---
+const MonitorIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>;
+const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
+const FileUpIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>;
+const SparklesIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 7h4"/><path d="M3 3h4"/></svg>;
 
-interface SurfaceState {
-  components: Record<string, ComponentDef>;
-  dataModel: any;
-}
+// --- A2UI Types & Renderer ---
+interface ComponentDef { id: string; component: string; children?: string[]; text?: any; action?: any; [key: string]: any; }
+interface SurfaceState { components: Record<string, ComponentDef>; dataModel: any; }
 
-// --- A2UI Renderer Component ---
-const A2UIRenderer = ({
-  surfaceState,
-  componentId,
-}: {
-  surfaceState: SurfaceState;
-  componentId: string;
-}) => {
+const A2UIRenderer = ({ surfaceState, componentId }: { surfaceState: SurfaceState; componentId: string }) => {
   const comp = surfaceState.components[componentId];
   if (!comp) return null;
 
-  const resolveText = (text: string | { path: string } | undefined) => {
-    if (!text) return "";
-    if (typeof text === "string") return text;
-    if (text.path && text.path.startsWith("/")) {
-        const key = text.path.substring(1); 
-        return surfaceState.dataModel[key] || "";
-    }
+  const resolveText = (text: any) => {
+    if (typeof text === 'string') return text;
+    if (text?.path && text.path.startsWith('/')) return surfaceState.dataModel[text.path.substring(1)] || "";
     return "";
   };
 
   switch (comp.component) {
     case "Column":
-      return (
-        <div className="flex flex-col space-y-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {comp.children && Array.isArray(comp.children) &&
-            comp.children.map((childId) => (
-              <A2UIRenderer
-                key={childId}
-                surfaceState={surfaceState}
-                componentId={childId}
-              />
-            ))}
-        </div>
-      );
+      return <div className="flex flex-col gap-8 w-full">{comp.children?.map(id => <A2UIRenderer key={id} surfaceState={surfaceState} componentId={id} />)}</div>;
     case "Text":
-      const isHeader = comp.id.includes("header") || comp.id.includes("title");
-      return (
-        <p className={`${isHeader ? "text-2xl font-bold text-slate-900" : "text-lg text-slate-600"} leading-relaxed`}>
-          {resolveText(comp.text)}
-        </p>
-      );
+      const isHeader = comp.id.includes("header");
+      return <p className={`${isHeader ? "text-xl font-bold text-white mb-2" : "text-slate-300 text-lg leading-relaxed"}`}>{resolveText(comp.text)}</p>;
+    case "Image":
+      return <div className="rounded-xl overflow-hidden border border-slate-700 shadow-2xl transition-all hover:ring-2 hover:ring-blue-500/50"><img src={comp.src} alt="Infographic" className="w-full h-auto object-cover" /></div>;
     case "Button":
       return (
-        <button
-          className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 transform hover:scale-105 active:scale-95"
-          onClick={() => {
-            if (comp.action && comp.action.name === "download") {
-                window.location.href = `https://infographic-agent-backend-218788847170.us-central1.run.app${comp.action.context.url}`;
-            }
-          }}
-        >
-          <A2UIRenderer
-            surfaceState={surfaceState}
-            componentId={comp.child!}
-          />
+        <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-blue-500/20"
+          onClick={() => { if(comp.action?.name === 'download') window.open(`https://infographic-agent-backend-218788847170.us-central1.run.app${comp.action.context.url}`, '_blank'); }}>
+          <A2UIRenderer surfaceState={surfaceState} componentId={comp.child} />
         </button>
       );
-    default:
-      return null;
+    default: return null;
   }
 };
 
 export default function App() {
+  // State
   const [query, setQuery] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash");
-  const [showSettings, setShowSettings] = useState(false);
+  const [modelType, setModelType] = useState<"flash" | "pro">("flash");
+  const [numSlides, setNumSlides] = useState(5);
+  const [style, setStyle] = useState("Modern");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [surfaceState, setSurfaceState] = useState<SurfaceState>({
-    components: {},
-    dataModel: {},
-  });
+  const [activeTab, setActiveTab] = useState<"input" | "results">("input");
+  
+  // A2UI State
+  const [surfaceState, setSurfaceState] = useState<SurfaceState>({ components: {}, dataModel: {} });
   const [rootComponentId, setRootComponentId] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedKey = localStorage.getItem("google_api_key");
-    if (storedKey) setApiKey(storedKey);
-    else setShowSettings(true); 
-    
-    const storedModel = localStorage.getItem("selected_model");
-    if (storedModel) setSelectedModel(storedModel);
+    const key = localStorage.getItem("google_api_key");
+    if (key) setApiKey(key);
   }, []);
 
-  const handleSaveKey = (e: React.FormEvent) => {
-    e.preventDefault();
-    localStorage.setItem("google_api_key", apiKey);
-    localStorage.setItem("selected_model", selectedModel);
-    setShowSettings(false);
+  const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setApiKey(e.target.value);
+    localStorage.setItem("google_api_key", e.target.value);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!apiKey) {
-      setShowSettings(true);
-      return;
-    }
+  const handleGenerate = async () => {
+    if (!apiKey) { alert("Please enter API Key (top right)"); return; }
     setIsStreaming(true);
+    setActiveTab("results");
     setSurfaceState({ components: {}, dataModel: {} });
     setRootComponentId(null);
 
+    // Prepare prompt with settings
+    const fullQuery = `${query}\n\n[Settings: ${numSlides} slides, Style: ${style}]`;
+    const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
+
     try {
-      const response = await fetch("https://infographic-agent-backend-218788847170.us-central1.run.app/agent/stream", {
+      const res = await fetch("https://infographic-agent-backend-218788847170.us-central1.run.app/agent/stream", {
         method: "POST",
-        headers: { 
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey,
-            "X-GenAI-Model": selectedModel
-        },
-        body: JSON.stringify({ query, session_id: "session-" + Date.now() }),
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey, "X-GenAI-Model": selectedModel },
+        body: JSON.stringify({ query: fullQuery, session_id: "sess-" + Date.now() }),
       });
-
-      if (!response.body) throw new Error("No response body");
-
-      const reader = response.body.getReader();
+      if (!res.body) throw new Error("No body");
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
-        for (const line of lines) {
-          if (line.trim()) {
-              try {
-                processA2UIMessage(JSON.parse(line));
-              } catch (e) {
-                console.error("Error parsing message", e);
-              }
-          }
-        }
+        for (const line of lines) if (line.trim()) processMsg(JSON.parse(line));
       }
-    } catch (error) {
-      console.error("Stream error:", error);
-    } finally {
-      setIsStreaming(false);
-    }
+    } catch (e) { console.error(e); } finally { setIsStreaming(false); }
   };
 
-  const processA2UIMessage = (msg: any) => {
+  const processMsg = (msg: any) => {
     if (msg.updateComponents) {
-      setSurfaceState((prev) => {
-        const nextComponents = { ...prev.components };
-        msg.updateComponents.components.forEach((c: any) => {
-          nextComponents[c.id] = c;
-          if (c.id === "root") setRootComponentId("root");
-        });
-        return { ...prev, components: nextComponents };
+      setSurfaceState(prev => {
+        const next = { ...prev.components };
+        msg.updateComponents.components.forEach((c: any) => { next[c.id] = c; if (c.id === "root") setRootComponentId("root"); });
+        return { ...prev, components: next };
       });
     }
-    if (msg.updateDataModel && msg.updateDataModel.path === "/") {
-      setSurfaceState(prev => ({...prev, dataModel: msg.updateDataModel.value}));
-    }
+    if (msg.updateDataModel && msg.updateDataModel.path === "/") setSurfaceState(prev => ({ ...prev, dataModel: msg.updateDataModel.value }));
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100">
-      {/* Header / Navbar */}
-      <nav className="w-full border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-indigo-200 shadow-lg">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-            </div>
-            <span className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700">
-                INFO<span className="text-indigo-600">AGENT</span> PRO
-            </span>
-          </div>
-          <button 
-            onClick={() => setShowSettings(!showSettings)}
-            className="text-sm font-semibold text-slate-600 hover:text-indigo-600 transition flex items-center gap-2 px-4 py-2 rounded-full hover:bg-indigo-50 border border-transparent hover:border-indigo-100"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-            {apiKey ? "Manage API Key" : "Add API Key"}
-          </button>
+    <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-500/30">
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 h-16 border-b border-slate-800 bg-[#030712]/90 backdrop-blur-md z-50 flex items-center justify-between px-6">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white"><MonitorIcon /></div>
+          <span className="text-lg font-bold text-slate-50 tracking-tight">Infographic Agent Pro</span>
         </div>
-      </nav>
+        
+        <div className="flex items-center gap-4">
+          <div className="bg-slate-900 p-1 rounded-full border border-slate-800 flex">
+            <button onClick={() => setModelType("flash")} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${modelType === "flash" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"}`}>2.5 Flash</button>
+            <button onClick={() => setModelType("pro")} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${modelType === "pro" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"}`}>3 Pro</button>
+          </div>
+          
+          <input 
+            type="password" 
+            placeholder="API Key" 
+            value={apiKey} 
+            onChange={handleApiKeyChange}
+            className="bg-slate-900 border border-slate-800 rounded-full px-4 py-1.5 text-xs text-slate-300 w-32 focus:w-64 transition-all focus:border-blue-500 outline-none placeholder-slate-600"
+          />
+        </div>
+      </header>
 
-      <main className="max-w-3xl mx-auto px-6 py-12">
-        {/* Settings Modal-ish Panel */}
-        {showSettings && (
-            <div className="mb-8 p-6 bg-indigo-50 border border-indigo-100 rounded-2xl animate-in fade-in zoom-in duration-300">
-                <h2 className="text-sm font-bold text-indigo-900 uppercase tracking-widest mb-4">Configuration</h2>
-                <form onSubmit={handleSaveKey} className="space-y-4">
-                    <div className="flex flex-col space-y-2">
-                        <label className="text-xs font-bold text-indigo-700/60 uppercase ml-1">Google Gemini API Key</label>
-                        <input
-                            type="password"
-                            value={apiKey}
-                            onChange={(e) => setApiKey(e.target.value)}
-                            placeholder="Enter your API Key"
-                            className="w-full p-3 bg-white border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm"
-                        />
-                    </div>
-                    
-                    <div className="flex flex-col space-y-2">
-                        <label className="text-xs font-bold text-indigo-700/60 uppercase ml-1">AI Model Strategy</label>
-                        <select
-                            value={selectedModel}
-                            onChange={(e) => setSelectedModel(e.target.value)}
-                            className="w-full p-3 bg-white border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm cursor-pointer"
-                        >
-                            <optgroup label="Fast (Text Only)">
-                                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                                <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
-                            </optgroup>
-                            <optgroup label="Creative (Images + High Quality)">
-                                <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image</option>
-                                <option value="gemini-3-pro-preview">Gemini 3 Pro Preview</option>
-                                <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image Preview</option>
-                            </optgroup>
-                        </select>
-                    </div>
+      <div className="pt-24 pb-12 px-6 max-w-7xl mx-auto grid grid-cols-12 gap-8 h-[calc(100vh-6rem)]">
+        
+        {/* Sidebar Left - Settings */}
+        <aside className="col-span-12 lg:col-span-3 bg-[#111827] rounded-2xl border border-slate-800 p-6 flex flex-col h-full shadow-xl">
+          <div className="flex items-center gap-2 mb-6 text-slate-100 font-semibold border-b border-slate-800 pb-4">
+            <SettingsIcon /><span className="uppercase tracking-wider text-xs">Generation Settings</span>
+          </div>
 
-                    <div className="flex justify-end pt-2">
-                        <button type="submit" className="bg-indigo-600 text-white px-8 py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-md shadow-indigo-200 transition-all active:scale-95">
-                            Apply Changes
-                        </button>
-                    </div>
-                </form>
-            </div>
-        )}
-
-        {/* Hero / Hero Input */}
-        <section className="mb-12 text-center">
-            <h2 className="text-3xl font-extrabold text-slate-900 mb-4 tracking-tight">What do you want to present today?</h2>
-            <form onSubmit={handleSubmit} className="relative group">
-                <input
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="E.g. The history of space exploration in 5 slides..."
-                    className="w-full p-6 pr-40 bg-white border border-slate-200 rounded-2xl shadow-xl shadow-slate-200/50 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-lg text-slate-800 placeholder-slate-400"
-                    disabled={isStreaming}
-                />
-                <button
-                    type="submit"
-                    disabled={isStreaming || !apiKey}
-                    className="absolute right-3 top-3 bottom-3 bg-indigo-600 text-white px-8 rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 disabled:opacity-50 transition-all"
-                >
-                    {isStreaming ? "Thinking..." : "Generate"}
-                </button>
-            </form>
-        </section>
-
-        {/* Results Area */}
-        <section className="bg-white border border-slate-200 rounded-3xl p-8 min-h-[400px] shadow-sm">
-          {rootComponentId ? (
-            <div className="animate-fade-in-up">
-                <A2UIRenderer
-                surfaceState={surfaceState}
-                componentId={rootComponentId}
-                />
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-[350px] text-slate-400">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                    <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                </div>
-                <p className="font-medium">Waiting for your brilliant idea...</p>
-                <p className="text-sm opacity-60 mt-1 text-center max-w-[250px]">Your dynamic UI will be streamed here as it's generated.</p>
-            </div>
-          )}
-          {isStreaming && !rootComponentId && (
-              <div className="flex flex-col items-center gap-4 mt-10">
-                  <div className="flex space-x-2">
-                    <div className="w-3 h-3 bg-indigo-600 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                    <div className="w-3 h-3 bg-indigo-600 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                    <div className="w-3 h-3 bg-indigo-600 rounded-full animate-bounce"></div>
-                  </div>
-                  <span className="text-indigo-600 font-bold text-sm animate-pulse uppercase tracking-widest">Waking up the agent...</span>
+          <div className="space-y-8 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+            {/* Slider */}
+            <div>
+              <div className="flex justify-between text-sm mb-3">
+                <span className="text-slate-400">Number of Slides</span>
+                <span className="text-blue-400 font-bold bg-blue-900/30 px-2 py-0.5 rounded text-xs">{numSlides} Slides</span>
               </div>
-          )}
-        </section>
-      </main>
+              <input type="range" min="1" max="15" value={numSlides} onChange={(e) => setNumSlides(Number(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+            </div>
 
-      <footer className="py-10 text-center text-slate-400 text-xs">
-          Powered by Google ADK & A2UI Protocol • Built with Gemini 2.5
-      </footer>
+            {/* Selects */}
+            <div className="space-y-5">
+              <div>
+                <label className="block text-xs text-slate-500 mb-2 uppercase font-bold tracking-wider">Visual Style</label>
+                <div className="relative">
+                    <select value={style} onChange={(e) => setStyle(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-300 focus:border-blue-500 outline-none appearance-none">
+                    <option>Modern Minimalist</option>
+                    <option>Cyberpunk Neon</option>
+                    <option>Corporate Professional</option>
+                    <option>Hand Drawn Sketch</option>
+                    <option>Futuristic 3D</option>
+                    </select>
+                    <div className="absolute right-3 top-3.5 pointer-events-none text-slate-500">▼</div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-2 uppercase font-bold tracking-wider">Aspect Ratio</label>
+                <div className="relative">
+                    <select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-300 focus:border-blue-500 outline-none appearance-none">
+                    <option>16:9 (Landscape)</option>
+                    <option>4:3 (Standard)</option>
+                    <option>1:1 (Square)</option>
+                    <option>9:16 (Portrait)</option>
+                    </select>
+                    <div className="absolute right-3 top-3.5 pointer-events-none text-slate-500">▼</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Switch */}
+            <div className="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl border border-slate-800">
+              <span className="text-sm text-slate-300 font-medium">Parallel Generation</span>
+              <div className="w-10 h-5 bg-blue-900/30 rounded-full relative cursor-pointer border border-blue-500/30">
+                <div className="w-3 h-3 bg-blue-500 rounded-full absolute top-1 right-1 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content Area */}
+        <main className="col-span-12 lg:col-span-9 flex flex-col h-full gap-6">
+          
+          {/* Tabs */}
+          <div className="flex border-b border-slate-800">
+            <button onClick={() => setActiveTab("input")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === "input" ? "border-blue-500 text-blue-400" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
+              <FileUpIcon /> 1. Source Content
+            </button>
+            <button onClick={() => setActiveTab("results")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === "results" ? "border-blue-500 text-blue-400" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
+              <SparklesIcon /> 2. Review Results {isStreaming && <span className="flex h-2 w-2 relative ml-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span></span>}
+            </button>
+          </div>
+
+          <div className="flex-1 bg-[#0f172a] rounded-xl border border-slate-800 p-6 relative overflow-hidden shadow-inner">
+            {activeTab === "input" ? (
+              <textarea
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Paste your source text here or a list of URLs to analyze for your infographic..."
+                className="w-full h-full bg-transparent resize-none outline-none text-slate-300 placeholder-slate-700 text-lg leading-relaxed font-mono custom-scrollbar"
+              />
+            ) : (
+              <div className="h-full overflow-y-auto pr-4 custom-scrollbar">
+                {rootComponentId ? (
+                  <div className="max-w-4xl mx-auto py-4">
+                     <A2UIRenderer surfaceState={surfaceState} componentId={rootComponentId} />
+                  </div>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-600 gap-6">
+                    <div className="w-24 h-24 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center animate-pulse">
+                      <SparklesIcon />
+                    </div>
+                    <div className="text-center">
+                        <p className="text-lg font-medium text-slate-500">Generated content will appear here</p>
+                        <p className="text-sm text-slate-700 mt-2">Start by entering content in the Source tab</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Footer Actions */}
+          <div className="flex gap-4 h-16">
+            <button className="w-[20%] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-medium rounded-xl flex items-center justify-center gap-2 transition-all hover:border-slate-600 text-sm">
+              <FileUpIcon /> Upload Doc
+            </button>
+            <button 
+              onClick={handleGenerate}
+              disabled={isStreaming || !query}
+              className="w-[80%] bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 transition-all flex items-center justify-center gap-2 text-base hover:scale-[1.01] active:scale-[0.99]"
+            >
+              {isStreaming ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-blue-200" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                  Processing Request...
+                </>
+              ) : (
+                <>
+                  <SparklesIcon /> Generate Infographics
+                </>
+              )}
+            </button>
+          </div>
+
+        </main>
+      </div>
     </div>
   );
 }
