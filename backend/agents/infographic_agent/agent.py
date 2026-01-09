@@ -1,191 +1,120 @@
 from google.adk.agents import LlmAgent, SequentialAgent
-from google.adk.tools import FunctionTool, google_search
+from google.adk.tools import FunctionTool
 import io
 import os
 import sys
 import time
 import json
+import uuid
 from pathlib import Path
-from bs4 import BeautifulSoup
-import requests
-from pptx import Presentation
-from pptx.util import Inches
-
-# Robust import for google.genai
-try:
-    from google import genai
-    from google.genai import types
-    HAS_GENAI = True
-except ImportError:
-    print("Warning: google.genai module not found. Image generation will be disabled.")
-    HAS_GENAI = False
+from google import genai
+from google.genai import types
 
 # Robust import for context
 try:
-    # Try importing context assuming it's in the python path (root)
     import context
     model_context = context.model_context
 except ImportError:
-    print("Warning: Could not import context. Using fallback ContextVar.")
     from contextvars import ContextVar
-    model_context = ContextVar("model_context", default="gemini-2.5-flash")
+    model_context = ContextVar("model_context", default="gemini-2.5-flash-image")
 
 STATIC_DIR = Path("static")
+STATIC_DIR.mkdir(exist_ok=True)
 
-class DynamicLlmAgent(LlmAgent):
-    """An agent that selects its model dynamically from context."""
-    @property
-    def model(self):
-        return model_context.get()
-    
-    @model.setter
-    def model(self, value):
-        # Ignore setting model to fixed value, rely on context
-        pass
-
-def get_webpage_content(url: str) -> str:
-    """Fetches and extracts the main text content from a URL."""
+def generate_infographic_image(prompt: str) -> str:
+    """
+    Generates an infographic image using Nano Banana models and saves it as PNG.
+    Returns the public URL path.
+    """
     try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, 'lxml')
-        # This is a simple heuristic, might need refinement
-        main_content = soup.find('main') or soup.find('article') or soup.find('body')
-        if main_content:
-            return ' '.join(p.get_text() for p in main_content.find_all('p'))
-        return "Could not extract main content."
-    except requests.RequestException as e:
-        return f"Error fetching URL: {e}"
-
-def generate_image(prompt: str) -> io.BytesIO:
-    """Generates an image using Gemini multimodal models exclusively."""
-    if not HAS_GENAI:
-        return None
-    try:
-        # API Key is expected to be set in os.environ by the factory/middleware
         client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
         
-        # Determine which image model to use based on user selection
-        current_model = model_context.get()
+        # Get model from context (Nano Banana or Nano Banana Pro)
+        model_name = model_context.get()
         
-        # Mapping logic: if user is using a 'pro' model, use the pro image model.
-        # Otherwise, default to the 2.5 flash image model.
-        if "pro" in current_model.lower():
-            model_to_use = "gemini-3-pro-image-preview"
-        else:
-            model_to_use = "gemini-2.5-flash-image"
+        # Ensure we are using an image-capable model
+        if "image" not in model_name:
+            model_name = "gemini-2.5-flash-image" # Default to Nano Banana
             
-        print(f"Generating image with model '{model_to_use}' for prompt: {prompt}")
+        print(f"Nano Banana is drawing: {prompt[:50]}... using {model_name}")
         
+        # Generate content (Multimodal Image Output)
         response = client.models.generate_content(
-            model=model_to_use,
-            contents=prompt
+            model=model_name,
+            contents=f"Generate a high-quality, professional infographic image based on this description: {prompt}. The image should be clear, modern, and suitable for a professional presentation."
         )
         
-        # Extract image bytes from the response candidates
+        # Extract image bytes
+        image_data = None
         for part in response.candidates[0].content.parts:
             if part.inline_data:
-                return io.BytesIO(part.inline_data.data)
+                image_data = part.inline_data.data
+                break
             try:
                 if hasattr(part, 'image_bytes') and part.image_bytes:
-                    return io.BytesIO(part.image_bytes)
+                    image_data = part.image_bytes
+                    break
             except:
                 pass
         
-        return None
-    except Exception as e:
-        print(f"Image generation failed with {model_to_use}: {e}")
-        return None
-
-def create_presentation_file(json_content: str) -> str:
-    """Creates a .pptx presentation file from a JSON structure."""
-    try:
-        slides_data = json.loads(json_content)
-        prs = Presentation()
+        if image_data:
+            filename = f"infographic_{uuid.uuid4().hex}.png"
+            filepath = STATIC_DIR / filename
+            with open(filepath, "wb") as f:
+                f.write(image_data)
+            return f"/static/{filename}"
         
-        for slide_info in slides_data:
-            # Use a blank layout or Title/Content. 
-            # Layout 1 is Title + Content. Layout 5 is Title Only. Layout 6 is Blank.
-            # Let's use Layout 1 and resize content if image exists, or add image on side.
-            slide_layout = prs.slide_layouts[1] 
-            slide = prs.slides.add_slide(slide_layout)
-            
-            # Title
-            title = slide.shapes.title
-            title.text = slide_info.get("title", "No Title")
-            
-            # Content (Bullet points)
-            content_placeholder = slide.placeholders[1]
-            content_placeholder.text = ""
-            for point in slide_info.get("bullet_points", []):
-                p = content_placeholder.text_frame.add_paragraph()
-                p.text = point
-                p.level = 0 # Top level bullet
-            
-            # Image Generation
-            image_prompt = slide_info.get("image_prompt")
-            if image_prompt:
-                print(f"Generating image for slide: {title.text}")
-                image_stream = generate_image(image_prompt)
-                if image_stream:
-                    # Resize text box to left half, put image on right half.
-                    content_placeholder.width = Inches(4.5)
-                    # Add picture at Left=5.5 inches, Top=2 inches
-                    slide.shapes.add_picture(image_stream, Inches(5), Inches(2), width=Inches(4.5))
-
-        filename = STATIC_DIR / f"presentation_{int(time.time())}.pptx"
-        prs.save(filename)
-        return f"/static/{filename.name}"
+        return "Error: No image data returned from model."
     except Exception as e:
-        # Log full error for debugging
-        import traceback
-        traceback.print_exc()
-        return f"Error creating presentation file: {str(e)}"
+        print(f"Nano Banana failed: {e}")
+        return f"Error: {str(e)}"
 
-def create_presentation_pipeline(api_key: str = None):
+def create_infographic_pipeline(api_key: str = None):
     """
-    Factory function to create the agent pipeline with a specific API key.
-    This ensures that the agent is initialized with the correct credentials
-    for the current request.
+    Factory to create the Infographic generation pipeline.
     """
     if api_key:
         os.environ["GOOGLE_API_KEY"] = api_key
 
-    # --- Agent 1: Script Generator ---
-    script_generator = DynamicLlmAgent(
-        name="ScriptGenerator",
-        model="gemini-2.5-flash", # Default, will be overridden by property
-        description="Analyzes content from text or URLs and generates a presentation script.",
-        instruction="""You are an expert content creator. Your task is to analyze the user's input (which can be plain text or a URL). If the input is a URL, use the `get_webpage_content` tool to fetch the text.
-Synthesize the content into a structure for a slide presentation.
-Generate a valid JSON output containing a list of slides. 
-Each slide MUST have:
-1. "title": A clear title.
-2. "bullet_points": A list of strings (key points).
-3. "image_prompt": A descriptive prompt for an AI image generator to create a visual relevant to the slide's content. Be creative and visual (e.g., "A futuristic city skyline with flying cars, neon lights, digital art style").
-
-Output ONLY the JSON block. Do not add any conversational text before or after the JSON.""",
-        tools=[FunctionTool(get_webpage_content)],
-        output_key="slide_script"
+    # --- Agent 1: Script Generator (The Conceptualizer) ---
+    # Task: Analyze input and create detailed visual prompts.
+    script_generator = LlmAgent(
+        name="Conceptualizer",
+        model="gemini-2.5-flash", # Use standard flash for reasoning/text
+        description="Analyzes content and creates visual prompts for infographics.",
+        instruction="""You are a professional Infographic Designer. 
+Your task is to analyze the user's input (text, topics, or URLs) and break it down into a series of visual concepts.
+For each concept, generate a highly detailed 'image_prompt' for an AI image generator (Nano Banana).
+The prompt should describe: layout, color scheme (modern, professional), specific icons, charts, and text labels to be included in the image.
+Generate a valid JSON output containing a list of objects.
+Example format:
+[
+  {"title": "Overview", "image_prompt": "A professional infographic showing a 3-step process for AI adoption, using indigo and teal colors, flat design, clean typography..."},
+  {"title": "Data Trends", "image_prompt": "A complex dashboard infographic with 3D bar charts and glowing nodes representing global data flow..."}
+]
+Output ONLY the JSON block. Do not add any conversational text.""",
+        output_key="infographic_scripts"
     )
 
-    # --- Agent 2: Slide Builder ---
-    slide_builder = DynamicLlmAgent(
-        name="SlideBuilder",
-        model="gemini-2.5-flash", # Default
-        description="Generates a .pptx file from a presentation script.",
-        instruction="""You are a presentation designer.
-Take the JSON content provided in `slide_script` from the previous step.
-Call the `create_presentation_file` tool with this JSON content.
-Return the path to the generated .pptx file. Return ONLY the path, no other text.
+    # --- Agent 2: Infographic Artist (The Creator) ---
+    # Task: Take prompts and generate actual images.
+    artist = LlmAgent(
+        name="Artist",
+        model="gemini-2.5-flash", # Orchestrator
+        description="Uses Nano Banana to generate the final images.",
+        instruction="""You are an AI Artist coordinator. 
+Take the JSON list of prompts provided in 'infographic_scripts'.
+For each prompt, call the 'generate_infographic_image' tool.
+Collect all the returned image URLs.
+Return a final JSON list of the generated image URLs.
+Example: ["/static/img1.png", "/static/img2.png"]
 """,
-        tools=[FunctionTool(create_presentation_file)],
-        output_key="pptx_file_path"
+        tools=[FunctionTool(generate_infographic_image)],
+        output_key="image_urls"
     )
 
-    # --- Coordinator Agent: Sequential Pipeline ---
     return SequentialAgent(
-        name="InfographicAgent",
-        description="A pipeline that transforms content into a presentation file.",
-        sub_agents=[script_generator, slide_builder]
+        name="InfographicFactory",
+        description="Transforms ideas into PNG infographics.",
+        sub_agents=[script_generator, artist]
     )
