@@ -25,6 +25,7 @@ except ImportError:
 
 from agents.infographic_agent.agent import create_infographic_agent
 from tools.image_gen import ImageGenerationTool
+from tools.export_tool import ExportTool
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,6 +48,29 @@ STATIC_DIR = Path("static")
 STATIC_DIR.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 session_service = InMemorySessionService()
+
+@app.post("/agent/export")
+async def export_assets(request: Request):
+    try:
+        data = await request.json()
+        images = data.get("images", [])
+        fmt = data.get("format", "zip")
+        
+        tool = ExportTool()
+        if fmt == "pdf":
+            url = tool.create_pdf(images)
+        else:
+            url = tool.create_zip(images)
+            
+        if not url:
+            return JSONResponse(status_code=500, content={"error": "Export failed"})
+            
+        # Make URL absolute for frontend
+        base_url = "https://infographic-agent-backend-218788847170.us-central1.run.app"
+        return {"url": f"{base_url}{url}"}
+    except Exception as e:
+        logger.error(f"Export Error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/stream")
 async def agent_stream(request: Request):
