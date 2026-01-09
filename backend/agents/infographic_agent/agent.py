@@ -3,7 +3,7 @@ from google.adk.tools import FunctionTool
 import os
 import json
 from google import genai
-from backend.tools.image_gen import ImageGenerationTool
+from tools.image_gen import ImageGenerationTool
 
 # --- TOOLS ---
 def generate_draft_script(topic: str, slide_count: int, style: str) -> dict:

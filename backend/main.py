@@ -24,7 +24,7 @@ except ImportError:
     model_context = ContextVar("model_context", default="gemini-2.5-flash-image")
 
 from agents.infographic_agent.agent import create_infographic_agent
-from backend.tools.image_gen import ImageGenerationTool
+from tools.image_gen import ImageGenerationTool
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
