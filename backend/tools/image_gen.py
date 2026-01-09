@@ -71,7 +71,7 @@ class ImageGenerationTool:
                         logger.warning(f"Attempt {attempt+1}/{max_retries} failed: No image data returned.")
                 except Exception as api_err:
                     logger.warning(f"Attempt {attempt+1}/{max_retries} API Error: {api_err}")
-                    time.sleep(1) # Backoff
+                    time.sleep(2 ** attempt) # Exponential Backoff (1, 2, 4 seconds)
 
             if not image_bytes:
                 return f"Error: Model {model_id} failed after {max_retries} attempts."

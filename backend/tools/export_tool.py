@@ -37,6 +37,8 @@ class ExportTool:
             
             if files_added == 0:
                 logger.error("No files were added to the ZIP archive.")
+                if zip_path.exists():
+                    os.remove(zip_path)
                 return ""
                 
             return f"/static/{zip_filename}"
