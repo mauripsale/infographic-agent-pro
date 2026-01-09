@@ -3,6 +3,26 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./globals.css";
 
+// Constants
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://infographic-agent-backend-218788847170.us-central1.run.app";
+
+// Interfaces
+interface Slide {
+  id: string;
+  title: string;
+  image_prompt: string;
+  description?: string;
+}
+
+interface A2UIComponent {
+  id: string;
+  component: string;
+  src?: string;
+  text?: string;
+  children?: string[];
+  [key: string]: any;
+}
+
 // Icons
 const MonitorIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>;
 const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
@@ -85,7 +105,7 @@ ${query}`;
     }
 
     try {
-      const res = await fetch("https://infographic-agent-backend-218788847170.us-central1.run.app/agent/stream", {
+      const res = await fetch(`${BACKEND_URL}/agent/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey, "X-GenAI-Model": selectedModel },
         body: JSON.stringify({ query: effectiveQuery, phase: targetPhase, script: payloadScript, session_id: "s1" }),
@@ -135,7 +155,7 @@ ${query}`;
     // Extract Image URLs from current state
     const imgUrls = Object.values(surfaceState.components)
         .filter((c: any) => c.component === "Image")
-        .map((c: any) => c.src.replace("https://infographic-agent-backend-218788847170.us-central1.run.app", "")); 
+        .map((c: A2UIComponent) => c.src?.replace(BACKEND_URL, "")); 
 
     if (imgUrls.length === 0) {
         alert("No images generated yet.");
@@ -144,7 +164,7 @@ ${query}`;
     }
 
     try {
-        const res = await fetch("https://infographic-agent-backend-218788847170.us-central1.run.app/agent/export", {
+        const res = await fetch(`${BACKEND_URL}/agent/export`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
             body: JSON.stringify({ images: imgUrls, format: fmt })
@@ -159,7 +179,7 @@ ${query}`;
   const handleSlideChange = (id: string, field: string, value: string) => {
     setScript((prev: any) => ({
       ...prev,
-      slides: prev.slides.map((s: any) => s.id === id ? { ...s, [field]: value } : s)
+      slides: prev.slides.map((s: Slide) => s.id === id ? { ...s, [field]: value } : s)
     }));
   };
 
@@ -171,7 +191,7 @@ ${query}`;
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] backdrop-blur-sm animate-fade-in">
             <div className="bg-[#1e293b] border border-slate-700 p-8 rounded-2xl max-w-md w-full shadow-2xl">
                 <h3 className="text-xl font-bold text-white mb-2">Start New Presentation?</h3>
-                <p className="text-slate-400 mb-6">Current results will be cleared. Export your images first if you want to keep them.</p>
+                <p className="text-slate-400 mb-6">You have unsaved content. Starting a new generation will clear your current script and images.</p>
                 <div className="flex gap-3 justify-end">
                     <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-slate-300 hover:text-white font-medium">Cancel</button>
                     <button onClick={() => { setShowConfirm(false); handleStream("script"); }} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold">Start New</button>
@@ -274,7 +294,7 @@ ${query}`;
             </div>
             
             <div className="flex gap-4">
-              <button className="w-[20%] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-medium py-4 rounded-xl flex items-center justify-center gap-2 transition-all">
+              <button onClick={() => alert("Document Analysis Coming Soon!")} className="w-[20%] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-medium py-4 rounded-xl flex items-center justify-center gap-2 transition-all">
                 <FileUpIcon /> Upload Doc
               </button>
               <button 
@@ -313,7 +333,7 @@ ${query}`;
             {/* Script Review Editor */}
             {phase === "review" && script && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {script.slides.map((s: any) => (
+                {script.slides.map((s: Slide) => (
                   <div key={s.id} className="bg-[#111827] border border-slate-800 rounded-xl p-4 flex flex-col gap-3 shadow-xl">
                     <div className="flex justify-between items-center border-b border-slate-800 pb-2">
                       <span className="text-xs font-bold text-blue-500 uppercase">{s.id}</span>

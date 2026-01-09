@@ -52,6 +52,11 @@ session_service = InMemorySessionService()
 @app.post("/agent/export")
 async def export_assets(request: Request):
     try:
+        # Authentication Check
+        api_key = request.headers.get("x-goog-api-key")
+        if not api_key:
+            return JSONResponse(status_code=401, content={"error": "Missing API Key"})
+
         data = await request.json()
         images = data.get("images", [])
         fmt = data.get("format", "zip")
@@ -65,8 +70,8 @@ async def export_assets(request: Request):
         if not url:
             return JSONResponse(status_code=500, content={"error": "Export failed"})
             
-        # Make URL absolute for frontend
-        base_url = "https://infographic-agent-backend-218788847170.us-central1.run.app"
+        # Dynamic Backend URL
+        base_url = os.environ.get("BACKEND_URL", "https://infographic-agent-backend-218788847170.us-central1.run.app")
         return {"url": f"{base_url}{url}"}
     except Exception as e:
         logger.error(f"Export Error: {e}")

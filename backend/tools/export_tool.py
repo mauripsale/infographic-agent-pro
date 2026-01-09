@@ -1,5 +1,6 @@
 import os
 import zipfile
+import uuid
 from fpdf import FPDF
 from pathlib import Path
 import logging
@@ -14,14 +15,14 @@ class ExportTool:
     def create_zip(self, file_paths: list[str]) -> str:
         """Creates a ZIP file from a list of local file paths."""
         try:
-            zip_filename = f"presentation_export.zip"
+            zip_filename = f"presentation_export_{uuid.uuid4().hex}.zip"
             zip_path = self.static_dir / zip_filename
             
             with zipfile.ZipFile(zip_path, 'w') as zipf:
                 for file_path in file_paths:
                     # Expecting file_path to be relative static url like "/static/infographic_..."
-                    # Convert to local path
-                    local_name = file_path.split("/")[-1]
+                    # Convert to local path safely
+                    local_name = os.path.basename(file_path)
                     local_path = self.static_dir / local_name
                     if local_path.exists():
                         zipf.write(local_path, arcname=local_name)
@@ -40,7 +41,7 @@ class ExportTool:
             pdf.set_auto_page_break(0)
             
             for file_path in file_paths:
-                local_name = file_path.split("/")[-1]
+                local_name = os.path.basename(file_path)
                 local_path = self.static_dir / local_name
                 
                 if local_path.exists():
@@ -50,7 +51,7 @@ class ExportTool:
                 else:
                     logger.warning(f"File not found for pdf: {local_path}")
 
-            pdf_filename = f"presentation_export.pdf"
+            pdf_filename = f"presentation_export_{uuid.uuid4().hex}.pdf"
             pdf_path = self.static_dir / pdf_filename
             pdf.output(str(pdf_path))
             
