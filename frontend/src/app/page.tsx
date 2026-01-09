@@ -48,9 +48,9 @@ export default function App() {
   const [apiKey, setApiKey] = useState("");
   const [modelType, setModelType] = useState<"flash" | "pro">("flash");
   
-  // New Settings State
+  // Settings State
   const [numSlides, setNumSlides] = useState(5);
-  const [style, setStyle] = useState(""); // Optional text input
+  const [style, setStyle] = useState(""); 
   const [detailLevel, setDetailLevel] = useState("3 - Average");
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [language, setLanguage] = useState("English");
@@ -68,13 +68,23 @@ export default function App() {
     if (key) setApiKey(key);
     else setShowSettings(true); 
     
-    const storedModel = localStorage.getItem("selected_model");
-    if (storedModel) setSelectedModel(storedModel);
+    // Fix: Load model type correctly
+    const storedModelType = localStorage.getItem("model_type");
+    if (storedModelType === "flash" || storedModelType === "pro") {
+        setModelType(storedModelType);
+    }
   }, []);
 
   const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setApiKey(e.target.value);
     localStorage.setItem("google_api_key", e.target.value);
+  };
+
+  const handleSaveKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem("google_api_key", apiKey);
+    localStorage.setItem("model_type", modelType); // Fix: Save model type
+    setShowSettings(false);
   };
 
   const handleGenerate = async () => {
@@ -94,6 +104,8 @@ export default function App() {
 - Visual Style (User Request): ${style || "Modern Professional (Default)"}
 `;
     const fullQuery = `${settingsContext}\n\n[USER REQUEST]\n${query}`;
+    
+    // Fix: Calculate model string from modelType state
     const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
 
     try {
