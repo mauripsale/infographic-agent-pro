@@ -1,94 +1,84 @@
 from google.adk.agents import LlmAgent
 from google.adk.tools import FunctionTool
-import io
 import os
 import json
-import uuid
-from pathlib import Path
 from google import genai
-from google.genai import types
+from backend.tools.image_gen import ImageGenerationTool
 
-# Documentation Reference: https://ai.google.dev/gemini-api/docs/models
-try:
-    from context import model_context
-except ImportError:
-    from contextvars import ContextVar
-    model_context = ContextVar("model_context", default="gemini-2.5-flash-image")
-
-STATIC_DIR = Path("static")
-STATIC_DIR.mkdir(exist_ok=True)
-
-def generate_infographic_image_tool(prompt: str, aspect_ratio: str = "16:9") -> str:
+# --- TOOLS ---
+def generate_draft_script(topic: str, slide_count: int, style: str) -> dict:
     """
-    Generates a single infographic image using the correct Gemini Image models (Nano Banana).
-    Supported IDs: gemini-2.5-flash-image, gemini-3-pro-image-preview.
+    Generates a draft script for the infographic presentation.
+    This is a 'Thinking' tool that prepares the content.
     """
-    try:
-        client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
-        model_name = model_context.get()
-        
-        # Ensure we are using a valid image-capable model ID from the documentation
-        if "image" not in model_name:
-            model_name = "gemini-2.5-flash-image"
-            
-        print(f"Nano Banana [Model: {model_name}] is generating visual for: {prompt[:50]}...")
-        
-        # Correct multimodal call for Gemini Image models
-        response = client.models.generate_content(
-            model=model_name,
-            contents=f"Generate a professional, high-quality infographic image. Style: {prompt}. Aspect Ratio: {aspect_ratio}",
-            config=types.GenerateContentConfig(
-                # The model will return image bytes in the response parts
-            )
-        )
-        
-        # Extract image bytes from response parts
-        image_bytes = None
-        if response.candidates and response.candidates[0].content.parts:
-            for part in response.candidates[0].content.parts:
-                if part.inline_data:
-                    image_bytes = part.inline_data.data
-                    break
-                elif hasattr(part, 'data') and part.data:
-                    image_bytes = part.data
-                    break
-        
-        if image_bytes:
-            filename = f"infographic_{uuid.uuid4().hex}.png"
-            filepath = STATIC_DIR / filename
-            with open(filepath, "wb") as f:
-                f.write(image_bytes)
-            return f"/static/{filename}"
-        
-        return f"Error: Model {model_name} did not return image data. Check if prompt is valid."
-    except Exception as e:
-        print(f"❌ Generation failed: {e}")
-        return f"Error: {str(e)}"
+    # Note: In a pure agentic loop, the LLM itself does this reasoning. 
+    # But to enforce structure, we can wrap a specialized LLM call here if needed,
+    # or just let the main agent do it via prompt. 
+    # For ADK best practice, let's allow the main agent to 'think' and produce this output directly,
+    # but we provide a tool to 'validate' or 'format' it if necessary.
+    pass 
 
-def get_script_agent(api_key: str = None):
-    """Creates the agent responsible for script generation."""
+# Since the main agent IS the script writer, we don't need a separate tool for writing text.
+# We need tools for the "Side Effects" (Image Generation).
+
+def create_infographic_agent(api_key: str = None):
     if api_key: os.environ["GOOGLE_API_KEY"] = api_key
     
-    return LlmAgent(
-        name="InfographicPlanner",
-        model="gemini-2.5-flash",
-        instruction="""You are a professional Infographic Script Writer.
-Analyze the user's input and generate a structured script for a presentation.
-For each slide, provide a clear title, a description of the content, and a detailed 'image_prompt' for Nano Banana (Gemini 2.5/3 Image models).
-The 'image_prompt' must describe the exact visual layout, icons, and text elements.
+    # Tool Instance
+    img_tool = ImageGenerationTool(api_key=api_key)
+    
+    def generate_images_batch(script_json: str, parallel: bool = False) -> str:
+        """
+        Takes a JSON string representing the approved script and generates images for all slides.
+        Returns a JSON string with the results (image URLs).
+        """
+        try:
+            data = json.loads(script_json)
+            slides = data.get("slides", [])
+            aspect_ratio = data.get("global_settings", {}).get("aspect_ratio", "16:9")
+            
+            results = []
+            # Note: For true parallelism in Python ADK, we would use asyncio.gather here.
+            # For simplicity and reliability in this specific environment, we'll loop.
+            # If 'parallel' is True, we could spawn threads, but let's keep it robust.
+            for slide in slides:
+                prompt = slide.get("image_prompt", "")
+                url = img_tool.generate_and_save(prompt, aspect_ratio=aspect_ratio)
+                results.append({"id": slide['id'], "url": url, "title": slide['title']})
+            
+            return json.dumps(results)
+        except Exception as e:
+            return f"Error executing batch: {e}"
 
-OUTPUT FORMAT:
-Generate a valid JSON object:
+    # The "Director" Agent
+    return LlmAgent(
+        name="InfographicDirector",
+        model="gemini-2.5-flash", # Orchestrator logic is fine on Flash
+        tools=[FunctionTool(generate_images_batch)],
+        instruction="""You are the Creative Director of an Infographic Agency.
+Your goal is to take a user request and turn it into a visual presentation.
+
+**WORKFLOW:**
+
+**PHASE 1: DRAFTING**
+If the user provides a raw topic or URL:
+1. Analyze the request.
+2. Create a structured JSON plan containing 'slides'.
+3. OUTPUT the JSON plan inside a code block.
+4. STOP and ask the user to "Review and Approve" this plan.
+
+**PHASE 2: PRODUCTION**
+If the user provides a JSON structure (which means they approved/edited it):
+1. Call the `generate_images_batch` tool with this JSON.
+2. The tool will return the list of image URLs.
+3. Present the final results to the user.
+
+**JSON FORMAT for Script:**
 {
+  "global_settings": {"aspect_ratio": "16:9"},
   "slides": [
-    {
-      "id": "slide_1",
-      "title": "...",
-      "description": "...",
-      "image_prompt": "..."
-    }
+    {"id": "s1", "title": "Title", "image_prompt": "Detailed visual description..."}
   ]
 }
-Output ONLY the JSON block.
 """
     )

@@ -1,8 +1,9 @@
-google-adk
+google-adk>=0.1.0
 fastapi
 uvicorn
-python-pptx
-beautifulsoup4
-requests
-lxml
-gunicorn
+python-multipart
+google-genai
+# Google Cloud Integrations
+google-cloud-storage
+google-api-python-client
+google-auth
