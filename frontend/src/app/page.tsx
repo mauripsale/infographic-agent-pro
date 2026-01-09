@@ -85,6 +85,7 @@ const A2UIRenderer = ({
 export default function App() {
   const [query, setQuery] = useState("");
   const [apiKey, setApiKey] = useState("");
+  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash");
   const [showSettings, setShowSettings] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [surfaceState, setSurfaceState] = useState<SurfaceState>({
@@ -96,12 +97,16 @@ export default function App() {
   useEffect(() => {
     const storedKey = localStorage.getItem("google_api_key");
     if (storedKey) setApiKey(storedKey);
-    else setShowSettings(true); // Show settings if no key
+    else setShowSettings(true); 
+    
+    const storedModel = localStorage.getItem("selected_model");
+    if (storedModel) setSelectedModel(storedModel);
   }, []);
 
   const handleSaveKey = (e: React.FormEvent) => {
     e.preventDefault();
     localStorage.setItem("google_api_key", apiKey);
+    localStorage.setItem("selected_model", selectedModel);
     setShowSettings(false);
   };
 
@@ -120,7 +125,8 @@ export default function App() {
         method: "POST",
         headers: { 
             "Content-Type": "application/json",
-            "x-goog-api-key": apiKey 
+            "x-goog-api-key": apiKey,
+            "X-GenAI-Model": selectedModel
         },
         body: JSON.stringify({ query, session_id: "session-" + Date.now() }),
       });
@@ -198,17 +204,42 @@ export default function App() {
         {showSettings && (
             <div className="mb-8 p-6 bg-indigo-50 border border-indigo-100 rounded-2xl animate-in fade-in zoom-in duration-300">
                 <h2 className="text-sm font-bold text-indigo-900 uppercase tracking-widest mb-4">Configuration</h2>
-                <form onSubmit={handleSaveKey} className="flex gap-3">
-                    <input
-                        type="password"
-                        value={apiKey}
-                        onChange={(e) => setApiKey(e.target.value)}
-                        placeholder="Enter your Google Gemini API Key"
-                        className="flex-1 p-3 bg-white border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                    />
-                    <button type="submit" className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-md transition">
-                        Save Key
-                    </button>
+                <form onSubmit={handleSaveKey} className="space-y-4">
+                    <div className="flex flex-col space-y-2">
+                        <label className="text-xs font-bold text-indigo-700/60 uppercase ml-1">Google Gemini API Key</label>
+                        <input
+                            type="password"
+                            value={apiKey}
+                            onChange={(e) => setApiKey(e.target.value)}
+                            placeholder="Enter your API Key"
+                            className="w-full p-3 bg-white border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm"
+                        />
+                    </div>
+                    
+                    <div className="flex flex-col space-y-2">
+                        <label className="text-xs font-bold text-indigo-700/60 uppercase ml-1">AI Model Strategy</label>
+                        <select
+                            value={selectedModel}
+                            onChange={(e) => setSelectedModel(e.target.value)}
+                            className="w-full p-3 bg-white border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm cursor-pointer"
+                        >
+                            <optgroup label="Fast (Text Only)">
+                                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
+                            </optgroup>
+                            <optgroup label="Creative (Images + High Quality)">
+                                <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image</option>
+                                <option value="gemini-3-pro-preview">Gemini 3 Pro Preview</option>
+                                <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image Preview</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                        <button type="submit" className="bg-indigo-600 text-white px-8 py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-700 shadow-md shadow-indigo-200 transition-all active:scale-95">
+                            Apply Changes
+                        </button>
+                    </div>
                 </form>
             </div>
         )}
