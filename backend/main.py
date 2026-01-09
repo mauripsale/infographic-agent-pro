@@ -149,20 +149,20 @@ async def agent_stream(request: Request):
                 # Serial Execution
                 for idx, slide in enumerate(slides):
                     sid = slide['id']
-                    # STATUS: GENERATING
+                    # STATUS: GENERATING - Use "drawing" as suggested to maintain compatibility
                     yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
-                        {"id": f"card_{sid}", "component": "Text", "text": f"🖌️ Nano Banana is sketching {slide['title']}...", "status": "generating"}
+                        {"id": f"card_{sid}", "component": "Text", "text": f"🖌️ Nano Banana is drawing {slide['title']}...", "status": "generating"}
                     ]}}) + "\n"
                     
                     # Call the Tool
                     img_url = img_tool.generate_and_save(slide['image_prompt'], aspect_ratio=ar)
                     
                     if "Error" not in img_url:
-                        # STATUS: SUCCESS
+                        # STATUS: SUCCESS - Use descriptive ID for title
                         yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
-                            {"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"img_{sid}"], "status": "success"},
-                            {"id": f"t_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, 
-                            {"id": f"img_{sid}", "component": "Image", "src": img_url} # Matched ID: img_{sid}
+                            {"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"},
+                            {"id": f"title_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, 
+                            {"id": f"img_{sid}", "component": "Image", "src": img_url}
                         ]}}) + "\n"
                     else:
                         # STATUS: ERROR
