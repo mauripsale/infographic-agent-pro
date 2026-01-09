@@ -337,26 +337,65 @@ ${query}`;
               </div>
             </div>
 
-            {/* Script Review Editor */}
-            {phase === "review" && script && (
+            {/* Unified Results Grid (Script & Graphics) */}
+            {script && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {script.slides.map((s: Slide) => (
-                  <div key={s.id} className="bg-[#111827] border border-slate-800 rounded-xl p-4 flex flex-col gap-3 shadow-xl">
-                    <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                      <span className="text-xs font-bold text-blue-500 uppercase">{s.id}</span>
-                      <button className="text-slate-500 hover:text-white"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
-                    </div>
-                    <input value={s.title} onChange={(e) => handleSlideChange(s.id, "title", e.target.value)} className="bg-transparent font-bold text-white outline-none border-b border-transparent focus:border-blue-500" />
-                    <textarea value={s.image_prompt} onChange={(e) => handleSlideChange(s.id, "image_prompt", e.target.value)} className="bg-slate-900/50 p-2 text-xs text-slate-400 rounded outline-none h-24 resize-none border border-transparent focus:border-blue-500" />
-                  </div>
-                ))}
-              </div>
-            )}
+                {script.slides.map((s: any) => {
+                  // Find if we have an image for this slide in the A2UI state
+                  const relatedComp = Object.values(surfaceState.components).find((c: any) => c.id === `img_${s.id}` || (c.src && c.src.includes(s.id))); // Heuristic matching or direct ID
+                  // Actually, let's look for specific ID pattern from backend: `img_{s.id}`
+                  // Backend currently emits: `card_{s.id}` -> children `img_{s.id}`
+                  // Let's check if the image component exists
+                  const imageComponent = surfaceState.components[`img_${s.id}`] as A2UIComponent;
+                  const isGenerating = surfaceState.components[`card_${s.id}`]?.text?.includes("Drawing");
+                  const hasError = surfaceState.components[`card_${s.id}`]?.text?.includes("Error");
 
-            {/* Graphics Rendering Area (A2UI) */}
-            {phase === "graphics" && (
-              <div className="bg-[#0f172a] rounded-2xl border border-slate-800 p-8 shadow-2xl">
-                <A2UIRenderer surfaceState={surfaceState} componentId="root" />
+                  return (
+                  <div key={s.id} className={`bg-[#111827] border border-slate-800 rounded-xl p-4 flex flex-col gap-3 shadow-xl transition-all relative overflow-hidden ${isGenerating ? "ring-2 ring-blue-500/50" : ""}`}>
+                    
+                    {/* Header */}
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-2 z-10 relative">
+                      <span className="text-xs font-bold text-blue-500 uppercase">{s.id}</span>
+                      {imageComponent && (
+                          <button onClick={() => { /* Toggle prompt visibility logic could go here */ }} className="text-slate-500 hover:text-white text-xs flex items-center gap-1">
+                              <span className="text-[10px] uppercase tracking-wide">Prompt</span>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          </button>
+                      )}
+                    </div>
+
+                    {/* Content Logic */}
+                    {imageComponent ? (
+                        <div className="relative group min-h-[200px] bg-slate-900 rounded-lg overflow-hidden animate-fade-in">
+                            <img src={imageComponent.src?.replace(BACKEND_URL, "")} className="w-full h-full object-cover" alt={s.title} />
+                            {/* Hover overlay to see/edit prompt? For now just static image */}
+                        </div>
+                    ) : (
+                        // Edit Mode
+                        <>
+                            <input value={s.title} onChange={(e) => handleSlideChange(s.id, "title", e.target.value)} className="bg-transparent font-bold text-white outline-none border-b border-transparent focus:border-blue-500 z-10 relative" />
+                            <textarea value={s.image_prompt} onChange={(e) => handleSlideChange(s.id, "image_prompt", e.target.value)} className="bg-slate-900/50 p-2 text-xs text-slate-400 rounded outline-none h-32 resize-none border border-transparent focus:border-blue-500 z-10 relative" />
+                        </>
+                    )}
+
+                    {/* Loading Overlay */}
+                    {isGenerating && (
+                        <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-20 animate-pulse">
+                            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                            <span className="text-xs font-bold text-blue-400 tracking-wider">GENERATING...</span>
+                        </div>
+                    )}
+                    
+                    {/* Error State */}
+                    {hasError && (
+                         <div className="absolute inset-0 bg-red-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-20">
+                            <span className="text-xs font-bold text-red-200">GENERATION FAILED</span>
+                            <button className="mt-2 text-[10px] underline text-white">Retry</button>
+                        </div>
+                    )}
+
+                  </div>
+                )})}
               </div>
             )}
           </section>
