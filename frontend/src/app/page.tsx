@@ -47,12 +47,15 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [modelType, setModelType] = useState<"flash" | "pro">("flash");
+  
+  // New Settings State
   const [numSlides, setNumSlides] = useState(5);
-  const [style, setStyle] = useState("Modern Minimalist");
-  const [detailLevel, setDetailLevel] = useState("Standard");
+  const [style, setStyle] = useState(""); // Optional text input
+  const [detailLevel, setDetailLevel] = useState("3 - Average");
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [language, setLanguage] = useState("English");
   
+  const [showSettings, setShowSettings] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeTab, setActiveTab] = useState<"input" | "results">("input");
   
@@ -63,6 +66,10 @@ export default function App() {
   useEffect(() => {
     const key = localStorage.getItem("google_api_key");
     if (key) setApiKey(key);
+    else setShowSettings(true); 
+    
+    const storedModel = localStorage.getItem("selected_model");
+    if (storedModel) setSelectedModel(storedModel);
   }, []);
 
   const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,14 +84,14 @@ export default function App() {
     setSurfaceState({ components: {}, dataModel: {} });
     setRootComponentId(null);
 
-    // Prepare prompt with settings
+    // Prepare prompt with detailed settings context for the LLM
     const settingsContext = `
 [GENERATION SETTINGS]
 - Target Slide Count: ${numSlides}
-- Visual Style: ${style}
 - Detail Level: ${detailLevel}
 - Aspect Ratio: ${aspectRatio}
 - Output Language: ${language}
+- Visual Style (User Request): ${style || "Modern Professional (Default)"}
 `;
     const fullQuery = `${settingsContext}\n\n[USER REQUEST]\n${query}`;
     const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
@@ -105,7 +112,13 @@ export default function App() {
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
-        for (const line of lines) if (line.trim()) processMsg(JSON.parse(line));
+        for (const line of lines) if (line.trim()) {
+            try {
+                processMsg(JSON.parse(line));
+            } catch (e) {
+                console.error("Parse error", e);
+            }
+        }
       }
     } catch (e) { console.error(e); } finally { setIsStreaming(false); }
   };
@@ -161,32 +174,26 @@ export default function App() {
                 <span className="text-slate-400">Number of Slides</span>
                 <span className="text-blue-400 font-bold bg-blue-900/30 px-2 py-0.5 rounded text-xs">{numSlides} Slides</span>
               </div>
-              <input type="range" min="1" max="15" value={numSlides} onChange={(e) => setNumSlides(Number(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+              <input type="range" min="1" max="30" value={numSlides} onChange={(e) => setNumSlides(Number(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+              <div className="flex justify-between text-[10px] text-slate-600 mt-1 px-1">
+                  <span>1</span>
+                  <span>15</span>
+                  <span>30</span>
+              </div>
             </div>
 
             {/* Selects */}
             <div className="space-y-5">
-              <div>
-                <label className="block text-xs text-slate-500 mb-2 uppercase font-bold tracking-wider">Visual Style</label>
-                <div className="relative">
-                    <select value={style} onChange={(e) => setStyle(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-300 focus:border-blue-500 outline-none appearance-none">
-                    <option>Modern Minimalist</option>
-                    <option>Cyberpunk Neon</option>
-                    <option>Corporate Professional</option>
-                    <option>Hand Drawn Sketch</option>
-                    <option>Futuristic 3D</option>
-                    </select>
-                    <div className="absolute right-3 top-3.5 pointer-events-none text-slate-500">▼</div>
-                </div>
-              </div>
-
+              
                <div>
                 <label className="block text-xs text-slate-500 mb-2 uppercase font-bold tracking-wider">Detail Level</label>
                 <div className="relative">
                     <select value={detailLevel} onChange={(e) => setDetailLevel(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-300 focus:border-blue-500 outline-none appearance-none">
-                    <option>Standard</option>
-                    <option>High Detail</option>
-                    <option>Simplified</option>
+                    <option value="1 - Super Simple">1 - Super Simple</option>
+                    <option value="2 - Basic">2 - Basic</option>
+                    <option value="3 - Average">3 - Average</option>
+                    <option value="4 - Detailed">4 - Detailed</option>
+                    <option value="5 - Super Detailed">5 - Super Detailed</option>
                     </select>
                     <div className="absolute right-3 top-3.5 pointer-events-none text-slate-500">▼</div>
                 </div>
@@ -196,10 +203,8 @@ export default function App() {
                 <label className="block text-xs text-slate-500 mb-2 uppercase font-bold tracking-wider">Aspect Ratio</label>
                 <div className="relative">
                     <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-300 focus:border-blue-500 outline-none appearance-none">
-                    <option value="16:9">16:9 (Landscape)</option>
+                    <option value="16:9">16:9 (Widescreen)</option>
                     <option value="4:3">4:3 (Standard)</option>
-                    <option value="1:1">1:1 (Square)</option>
-                    <option value="9:16">9:16 (Portrait)</option>
                     </select>
                     <div className="absolute right-3 top-3.5 pointer-events-none text-slate-500">▼</div>
                 </div>
@@ -211,13 +216,22 @@ export default function App() {
                     <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-300 focus:border-blue-500 outline-none appearance-none">
                     <option>English</option>
                     <option>Italian</option>
-                    <option>Spanish</option>
-                    <option>French</option>
-                    <option>German</option>
                     </select>
                     <div className="absolute right-3 top-3.5 pointer-events-none text-slate-500">▼</div>
                 </div>
               </div>
+
+              <div>
+                <label className="block text-xs text-slate-500 mb-2 uppercase font-bold tracking-wider">Visual Style <span className="text-slate-600 font-normal lowercase">(optional)</span></label>
+                <input 
+                    type="text" 
+                    value={style} 
+                    onChange={(e) => setStyle(e.target.value)} 
+                    placeholder="e.g. Cyberpunk, Sketch..."
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-300 focus:border-blue-500 outline-none placeholder-slate-600"
+                />
+              </div>
+
             </div>
 
             {/* Switch */}
