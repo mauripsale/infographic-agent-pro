@@ -3,7 +3,7 @@ fastapi
 uvicorn
 python-multipart
 google-genai
-# Google Cloud Integrations
 google-cloud-storage
 google-api-python-client
 google-auth
+fpdf
