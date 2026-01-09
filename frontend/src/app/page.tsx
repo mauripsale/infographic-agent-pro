@@ -48,7 +48,11 @@ export default function App() {
   const [apiKey, setApiKey] = useState("");
   const [modelType, setModelType] = useState<"flash" | "pro">("flash");
   const [numSlides, setNumSlides] = useState(5);
-  const [style, setStyle] = useState("Modern");
+  const [style, setStyle] = useState("Modern Minimalist");
+  const [detailLevel, setDetailLevel] = useState("Standard");
+  const [aspectRatio, setAspectRatio] = useState("16:9");
+  const [language, setLanguage] = useState("English");
+  
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeTab, setActiveTab] = useState<"input" | "results">("input");
   
@@ -74,7 +78,15 @@ export default function App() {
     setRootComponentId(null);
 
     // Prepare prompt with settings
-    const fullQuery = `${query}\n\n[Settings: ${numSlides} slides, Style: ${style}]`;
+    const settingsContext = `
+[GENERATION SETTINGS]
+- Target Slide Count: ${numSlides}
+- Visual Style: ${style}
+- Detail Level: ${detailLevel}
+- Aspect Ratio: ${aspectRatio}
+- Output Language: ${language}
+`;
+    const fullQuery = `${settingsContext}\n\n[USER REQUEST]\n${query}`;
     const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
 
     try {
@@ -167,14 +179,41 @@ export default function App() {
                     <div className="absolute right-3 top-3.5 pointer-events-none text-slate-500">▼</div>
                 </div>
               </div>
+
+               <div>
+                <label className="block text-xs text-slate-500 mb-2 uppercase font-bold tracking-wider">Detail Level</label>
+                <div className="relative">
+                    <select value={detailLevel} onChange={(e) => setDetailLevel(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-300 focus:border-blue-500 outline-none appearance-none">
+                    <option>Standard</option>
+                    <option>High Detail</option>
+                    <option>Simplified</option>
+                    </select>
+                    <div className="absolute right-3 top-3.5 pointer-events-none text-slate-500">▼</div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs text-slate-500 mb-2 uppercase font-bold tracking-wider">Aspect Ratio</label>
                 <div className="relative">
-                    <select className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-300 focus:border-blue-500 outline-none appearance-none">
-                    <option>16:9 (Landscape)</option>
-                    <option>4:3 (Standard)</option>
-                    <option>1:1 (Square)</option>
-                    <option>9:16 (Portrait)</option>
+                    <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-300 focus:border-blue-500 outline-none appearance-none">
+                    <option value="16:9">16:9 (Landscape)</option>
+                    <option value="4:3">4:3 (Standard)</option>
+                    <option value="1:1">1:1 (Square)</option>
+                    <option value="9:16">9:16 (Portrait)</option>
+                    </select>
+                    <div className="absolute right-3 top-3.5 pointer-events-none text-slate-500">▼</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-500 mb-2 uppercase font-bold tracking-wider">Language</label>
+                <div className="relative">
+                    <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm text-slate-300 focus:border-blue-500 outline-none appearance-none">
+                    <option>English</option>
+                    <option>Italian</option>
+                    <option>Spanish</option>
+                    <option>French</option>
+                    <option>German</option>
                     </select>
                     <div className="absolute right-3 top-3.5 pointer-events-none text-slate-500">▼</div>
                 </div>
