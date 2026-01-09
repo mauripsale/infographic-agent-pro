@@ -477,3 +477,4 @@ xlsxwriter==3.2.9
     # via python-pptx
 zipp==3.23.0
     # via importlib-metadata
+fpdf==1.7.2
