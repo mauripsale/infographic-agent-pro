@@ -155,7 +155,7 @@ ${query}`;
     // Extract Image URLs from current state
     const imgUrls = Object.values(surfaceState.components)
         .filter((c: any) => c.component === "Image")
-        .map((c: A2UIComponent) => c.src?.replace(BACKEND_URL, "")); 
+        .map((c: any) => (c as A2UIComponent).src?.replace(BACKEND_URL, "")); 
 
     if (imgUrls.length === 0) {
         alert("No images generated yet.");
