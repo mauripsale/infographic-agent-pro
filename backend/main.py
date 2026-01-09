@@ -21,7 +21,7 @@ except ImportError:
     from contextvars import ContextVar
     model_context = ContextVar("model_context", default="gemini-2.5-flash")
 
-from agents.infographic_agent.agent import presentation_pipeline
+from agents.infographic_agent.agent import create_presentation_pipeline
 
 # Configurazione Logging
 logging.basicConfig(level=logging.INFO)
@@ -88,13 +88,8 @@ async def agent_stream(request: Request):
         # Extract API Key from headers
         api_key = request.headers.get("x-goog-api-key")
         if not api_key:
-            # Fallback to env var or raise error (for now just log warning)
-            logger.warning("No API Key provided in headers, relying on server environment.")
-        else:
-            # Set API key for this request context (Note: This is not thread-safe in multi-threaded envs
-            # but standard Cloud Run instances often handle one request at a time per thread or use process workers.
-            # For a more robust solution, we'd pass auth config to ADK components directly.)
-            os.environ["GOOGLE_API_KEY"] = api_key
+            logger.warning("No API Key provided in headers.")
+            return JSONResponse(status_code=401, content={"error": "Missing API Key"})
 
         data = await request.json()
         query = data.get("query", "")
@@ -123,9 +118,13 @@ async def agent_stream(request: Request):
                 }
             }) + "\n"
 
-            # 3. Run the Agent (ADK Runner)
+            # 3. Create Agent Pipeline with User's API Key
+            # This factory call sets up the environment and creates a fresh agent instance
+            agent_pipeline = create_presentation_pipeline(api_key=api_key)
+
+            # 4. Run the Agent (ADK Runner)
             runner = Runner(
-                agent=presentation_pipeline,
+                agent=agent_pipeline,
                 app_name="infographic-agent",
                 session_service=session_service
             )
@@ -146,11 +145,7 @@ async def agent_stream(request: Request):
                         if part.text:
                             agent_response_text += part.text
             
-            # 4. Update UI with Agent Response
-            # Here we dynamically build the UI based on the agent's output.
-            # Assuming the agent returns the JSON for the slide script or a file path.
-            
-            # Simple heuristic: if it looks like a path, show a download button
+            # 5. Update UI with Agent Response
             components = [
                 {"id": "root", "component": "Column", "children": ["response_text"]}
             ]

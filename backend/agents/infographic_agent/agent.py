@@ -62,6 +62,7 @@ def generate_image(prompt: str) -> io.BytesIO:
     if not HAS_GENAI:
         return None
     try:
+        # API Key is expected to be set in os.environ by the factory/middleware
         client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
         
         # Determine which image model to use based on user selection
@@ -141,12 +142,21 @@ def create_presentation_file(json_content: str) -> str:
         traceback.print_exc()
         return f"Error creating presentation file: {str(e)}"
 
-# --- Agent 1: Script Generator ---
-script_generator = DynamicLlmAgent(
-    name="ScriptGenerator",
-    model="gemini-2.5-flash", # Default, will be overridden by property
-    description="Analyzes content from text or URLs and generates a presentation script.",
-    instruction="""You are an expert content creator. Your task is to analyze the user's input (which can be plain text or a URL). If the input is a URL, use the `get_webpage_content` tool to fetch the text.
+def create_presentation_pipeline(api_key: str = None):
+    """
+    Factory function to create the agent pipeline with a specific API key.
+    This ensures that the agent is initialized with the correct credentials
+    for the current request.
+    """
+    if api_key:
+        os.environ["GOOGLE_API_KEY"] = api_key
+
+    # --- Agent 1: Script Generator ---
+    script_generator = DynamicLlmAgent(
+        name="ScriptGenerator",
+        model="gemini-2.5-flash", # Default, will be overridden by property
+        description="Analyzes content from text or URLs and generates a presentation script.",
+        instruction="""You are an expert content creator. Your task is to analyze the user's input (which can be plain text or a URL). If the input is a URL, use the `get_webpage_content` tool to fetch the text.
 Synthesize the content into a structure for a slide presentation.
 Generate a valid JSON output containing a list of slides. 
 Each slide MUST have:
@@ -155,27 +165,27 @@ Each slide MUST have:
 3. "image_prompt": A descriptive prompt for an AI image generator to create a visual relevant to the slide's content. Be creative and visual (e.g., "A futuristic city skyline with flying cars, neon lights, digital art style").
 
 Output ONLY the JSON block. Do not add any conversational text before or after the JSON.""",
-    tools=[FunctionTool(get_webpage_content)],
-    output_key="slide_script"
-)
+        tools=[FunctionTool(get_webpage_content)],
+        output_key="slide_script"
+    )
 
-# --- Agent 2: Slide Builder ---
-slide_builder = DynamicLlmAgent(
-    name="SlideBuilder",
-    model="gemini-2.5-flash", # Default
-    description="Generates a .pptx file from a presentation script.",
-    instruction="""You are a presentation designer.
+    # --- Agent 2: Slide Builder ---
+    slide_builder = DynamicLlmAgent(
+        name="SlideBuilder",
+        model="gemini-2.5-flash", # Default
+        description="Generates a .pptx file from a presentation script.",
+        instruction="""You are a presentation designer.
 Take the JSON content provided in `slide_script` from the previous step.
 Call the `create_presentation_file` tool with this JSON content.
 Return the path to the generated .pptx file. Return ONLY the path, no other text.
 """,
-    tools=[FunctionTool(create_presentation_file)],
-    output_key="pptx_file_path"
-)
+        tools=[FunctionTool(create_presentation_file)],
+        output_key="pptx_file_path"
+    )
 
-# --- Coordinator Agent: Sequential Pipeline ---
-presentation_pipeline = SequentialAgent(
-    name="InfographicAgent",
-    description="A pipeline that transforms content into a presentation file.",
-    sub_agents=[script_generator, slide_builder]
-)
+    # --- Coordinator Agent: Sequential Pipeline ---
+    return SequentialAgent(
+        name="InfographicAgent",
+        description="A pipeline that transforms content into a presentation file.",
+        sub_agents=[script_generator, slide_builder]
+    )
