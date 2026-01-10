@@ -3,7 +3,9 @@ import uuid
 import logging
 import json
 import time
+import io
 from pathlib import Path
+from PIL import Image
 from google import genai
 from google.genai import types
 
@@ -75,6 +77,24 @@ class ImageGenerationTool:
 
             if not image_bytes:
                 return f"Error: Model {model_id} failed after {max_retries} attempts."
+
+            # --- FORCE VALID PNG CONVERSION ---
+            try:
+                # Open bytes as image
+                img = Image.open(io.BytesIO(image_bytes))
+                # Convert to RGB (standard for PDF/Web, removes complex alpha issues if any)
+                # or RGBA if transparency is crucial, but RGB is safer for FPDF
+                if img.mode not in ('RGB', 'RGBA'):
+                    img = img.convert('RGB')
+                
+                # Save to new bytes buffer as pure PNG
+                output_buffer = io.BytesIO()
+                img.save(output_buffer, format="PNG")
+                image_bytes = output_buffer.getvalue()
+            except Exception as pil_err:
+                logger.error(f"PIL Conversion Error: {pil_err}")
+                return f"Error processing image: {str(pil_err)}"
+            # ----------------------------------
 
             filename = f"infographic_{uuid.uuid4().hex}.png"
 
