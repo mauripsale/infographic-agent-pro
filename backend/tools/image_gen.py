@@ -82,8 +82,8 @@ class ImageGenerationTool:
             try:
                 # Open bytes as image
                 img = Image.open(io.BytesIO(image_bytes))
-                # Convert to RGB (standard for PDF/Web, removes complex alpha issues if any)
-                if img.mode not in ('RGB', 'RGBA'):
+                # Convert to RGB (strips alpha channel for PDF compatibility)
+                if img.mode != 'RGB':
                     img = img.convert('RGB')
                 
                 # Save to new bytes buffer as pure PNG
