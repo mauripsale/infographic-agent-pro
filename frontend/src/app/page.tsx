@@ -389,7 +389,12 @@ ${query}`;
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Format</label><select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option value="16:9">16:9 (Wide)</option><option value="4:3">4:3 (Standard)</option></select></div>
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Lang</label><select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option>English</option><option>Italian</option></select></div>
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Style</label><input type="text" value={style} onChange={(e) => setStyle(e.target.value)} placeholder="e.g. Minimalist" className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none" /></div>
-            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-800"><span className="text-sm text-slate-300">Parallel Gen</span><div onClick={() => setIsParallel(!isParallel)} className={`w-10 h-5 rounded-full relative cursor-pointer border transition-colors ${isParallel ? "bg-blue-600/20 border-blue-500" : "bg-slate-800 border-slate-700"}`><div className={`w-3 h-3 rounded-full absolute top-1 transition-all ${isParallel ? "right-1 bg-blue-500" : "left-1 bg-slate-500"}`}></div></div></div>
+            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-800">
+              <span className="text-sm text-slate-300">Parallel Gen</span>
+              <div onClick={() => setIsParallel(!isParallel)} className={`w-10 h-5 rounded-full relative cursor-pointer border transition-colors ${isParallel ? "bg-blue-600/20 border-blue-500" : "bg-slate-800 border-slate-700"}`}>
+                <div className={`w-3 h-3 rounded-full absolute top-1 transition-all ${isParallel ? "right-1 bg-blue-500" : "left-1 bg-slate-500"}`}></div>
+              </div>
+            </div>
           </aside>
 
           <div className="col-span-9 flex flex-col gap-6">
