@@ -13,7 +13,7 @@ class ExportTool:
         self.static_dir = STATIC_DIR
 
     def create_zip(self, file_paths: list[str]) -> str:
-        """Creates a ZIP file from a list of local file paths or URLs."""
+        """Creates a ZIP file from a list of local file paths or URLs, preserving order in filenames."""
         try:
             if not file_paths:
                 return ""
@@ -23,14 +23,22 @@ class ExportTool:
             
             files_added = 0
             with zipfile.ZipFile(zip_path, 'w') as zipf:
-                for file_path in file_paths:
+                for idx, file_path in enumerate(file_paths):
                     # Robust filename extraction: works for /static/img.png or https://.../img.png
-                    filename = os.path.basename(file_path.split("?")[0]) # Remove query params if any
-                    local_path = self.static_dir / filename
+                    original_filename = os.path.basename(file_path.split("?")[0]) # Remove query params if any
+                    local_path = self.static_dir / original_filename
+                    
+                    # Create a sequential filename for the ZIP: slide_01_originalhash.png
+                    # We keep the hash part to avoid collisions if somehow generating duplicates, 
+                    # but prefix with slide_XX for sorting.
+                    ext = os.path.splitext(original_filename)[1]
+                    clean_name = os.path.splitext(original_filename)[0]
+                    # arcname is the name INSIDE the zip
+                    arcname = f"slide_{idx+1:02d}_{clean_name[-8:]}{ext}" 
                     
                     if local_path.exists():
-                        logger.info(f"Adding to ZIP: {local_path}")
-                        zipf.write(local_path, arcname=filename)
+                        logger.info(f"Adding to ZIP: {local_path} as {arcname}")
+                        zipf.write(local_path, arcname=arcname)
                         files_added += 1
                     else:
                         logger.warning(f"File missing for ZIP: {local_path} (from {file_path})")
