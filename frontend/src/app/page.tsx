@@ -61,6 +61,7 @@ export default function App() {
   const [surfaceState, setSurfaceState] = useState<any>({ components: {}, dataModel: {} });
   
   const resultsRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   
@@ -72,7 +73,76 @@ export default function App() {
     if (key) setApiKey(key);
   }, []);
 
+  const handleStop = () => {
+      if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          setIsStreaming(false);
+      }
+  };
+
+  const retrySlide = async (slideId: string) => {
+      const slide = script.slides.find((s: Slide) => s.id === slideId);
+      if (!slide) return;
+      
+      setSurfaceState((prev: any) => ({
+          ...prev,
+          components: {
+              ...prev.components,
+              [`card_${slideId}`]: { ...prev.components[`card_${slideId}`], status: "generating", text: "Retrying..." }
+          }
+      }));
+
+      try {
+          const res = await fetch(`${BACKEND_URL}/agent/regenerate_slide`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+              body: JSON.stringify({ 
+                  slide_id: slideId, 
+                  image_prompt: slide.image_prompt,
+                  aspect_ratio: aspectRatio 
+              })
+          });
+          
+          const reader = res.body!.getReader();
+          const decoder = new TextDecoder();
+          
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split("\n");
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const msg = JSON.parse(line);
+                    if (msg.updateComponents) {
+                        setSurfaceState((prev: any) => {
+                            const nextComps = { ...prev.components };
+                            msg.updateComponents.components.forEach((c: any) => nextComps[c.id] = c);
+                            return { ...prev, components: nextComps };
+                        });
+                    }
+                } catch(e) {}
+            }
+          }
+      } catch (e) {
+          console.error("Retry failed", e);
+          setSurfaceState((prev: any) => ({
+              ...prev,
+              components: {
+                  ...prev.components,
+                  [`card_${slideId}`]: { ...prev.components[`card_${slideId}`], status: "error", text: "Retry Failed" }
+              }
+          }));
+      }
+  };
+
   const handleStream = async (targetPhase: "script" | "graphics", currentScript?: any) => {
+    // Cancel any previous request
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     setIsStreaming(true);
     
     // RESET LOGIC
@@ -121,6 +191,7 @@ ${query}`;
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey, "X-GenAI-Model": selectedModel },
         body: JSON.stringify({ query: effectiveQuery, phase: targetPhase, script: payloadScript, session_id: "s1" }),
+        signal: abortController.signal
       });
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
@@ -148,7 +219,12 @@ ${query}`;
           } catch(e) { console.error("JSON Parse Error", e); }
         }
       }
-    } catch (e) { console.error(e); } finally { setIsStreaming(false); }
+    } catch (e: any) { 
+        if (e.name !== 'AbortError') console.error(e); 
+    } finally { 
+        setIsStreaming(false); 
+        abortControllerRef.current = null;
+    }
   };
 
   const startScriptGen = () => {
@@ -197,11 +273,6 @@ ${query}`;
 
   const togglePrompt = (id: string) => {
       setVisiblePrompts(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  // Retry logic (placeholder, requires backend support for single slide regen)
-  const retrySlide = (id: string) => {
-      alert(`Retry for slide ${id} will be implemented in next iteration.`);
   };
 
   return (
@@ -335,6 +406,11 @@ ${query}`;
               <h2 className="text-2xl font-bold text-white">Final Presentation</h2>
               
               <div className="flex gap-4">
+                {isStreaming && (
+                     <button onClick={handleStop} className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded-lg font-bold text-sm shadow-lg animate-pulse flex items-center gap-2">
+                        <span className="w-2 h-2 bg-white rounded-full animate-ping"></span> STOP
+                     </button>
+                )}
                 {phase === "graphics" && !isStreaming && (
                     <>
                         <button onClick={() => handleExport("zip")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2">
@@ -355,14 +431,11 @@ ${query}`;
             {script && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {script.slides.map((s: Slide) => {
-                  // Find if we have an image for this slide in the A2UI state
                   const cardComp = surfaceState.components[`card_${s.id}`] as A2UIComponent | undefined;
                   const imageComponent = surfaceState.components[`img_${s.id}`] as A2UIComponent | undefined;
                   
-                  // Use explicit status from backend for robust state management
                   const isGenerating = cardComp?.status === "generating";
                   const hasError = cardComp?.status === "error";
-                  
                   const isLoadingScript = s.id.startsWith("loading_");
                   const showPrompt = visiblePrompts[s.id] || !imageComponent;
 
