@@ -78,7 +78,7 @@ async def export_assets(request: Request):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/regenerate_slide")
-def generate_slide(request: Request):
+async def regenerate_slide(request: Request):
     """Regenerates a single slide image on demand."""
     try:
         api_key = request.headers.get("x-goog-api-key")
