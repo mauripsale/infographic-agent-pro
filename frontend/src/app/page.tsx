@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./globals.css";
 
 // Constants
@@ -102,6 +102,14 @@ export default function App() {
   }, []);
 
   // --- Keyboard Nav for Lightbox ---
+  const navigateLightbox = useCallback((dir: number) => {
+      if (!script || lightboxIndex === null) return;
+      const newIndex = lightboxIndex + dir;
+      if (newIndex >= 0 && newIndex < script.slides.length) {
+          setLightboxIndex(newIndex);
+      }
+  }, [script, lightboxIndex]);
+
   useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
           if (lightboxIndex === null) return;
@@ -111,15 +119,7 @@ export default function App() {
       };
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [lightboxIndex]);
-
-  const navigateLightbox = (dir: number) => {
-      if (!script || lightboxIndex === null) return;
-      const newIndex = lightboxIndex + dir;
-      if (newIndex >= 0 && newIndex < script.slides.length) {
-          setLightboxIndex(newIndex);
-      }
-  };
+  }, [lightboxIndex, navigateLightbox]); // Added navigateLightbox dependency
 
   const handleStop = () => {
       if (abortControllerRef.current) {
@@ -261,7 +261,7 @@ ${query}`;
     setIsExporting(true);
     const imgUrls = Object.values(surfaceState.components)
         .filter((c: any) => c.component === "Image")
-        .map((c: any) => (c as A2UIComponent).src?.replace(BACKEND_URL, "")); 
+        .map((c: any) => (c as A2UIComponent).src);
 
     if (imgUrls.length === 0) {
         alert("No images generated yet.");
@@ -317,7 +317,7 @@ ${query}`;
                       const imgComp = surfaceState.components[`img_${slide.id}`] as A2UIComponent;
                       return imgComp ? (
                           <div className="relative w-full h-full max-w-7xl flex items-center justify-center group">
-                              <img src={imgComp.src?.replace(BACKEND_URL, "")} className="max-w-full max-h-full object-contain shadow-2xl rounded-lg" alt={slide.title} />
+                              <img src={imgComp.src} className="max-w-full max-h-full object-contain shadow-2xl rounded-lg" alt={slide.title} />
                               <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-4 md:p-6 backdrop-blur-md translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                                   <h2 className="text-xl md:text-2xl font-bold text-white mb-2">{slide.title}</h2>
                                   <p className="text-sm text-slate-300 max-w-4xl line-clamp-3">{slide.description || slide.image_prompt}</p>
@@ -379,7 +379,7 @@ ${query}`;
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Format</label><select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option value="16:9">16:9 (Wide)</option><option value="4:3">4:3 (Standard)</option></select></div>
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Lang</label><select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option>English</option><option>Italian</option></select></div>
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Style</label><input type="text" value={style} onChange={(e) => setStyle(e.target.value)} placeholder="e.g. Minimalist" className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none" /></div>
-            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-800"><span className="text-sm text-slate-300">Parallel Gen</span><div onClick={() => setIsParallel(!isParallel)} className={`w-10 h-5 rounded-full relative cursor-pointer border transition-colors ${isParallel ? "bg-blue-600/20 border-blue-500" : "bg-slate-800 border-slate-700"}`}><div className={`w-3 h-3 rounded-full absolute top-1 transition-all ${isParallel ? "right-1 bg-blue-500" : "left-1 bg-slate-500"}`}></div></div></div>
+            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-800"><span className="text-sm text-slate-300">Parallel Gen</span><div onClick={() => setIsParallel(!isParallel)} className={`w-10 h-5 rounded-full relative cursor-pointer border transition-colors ${isParallel ? "bg-blue-600/20 border-blue-500" : "bg-slate-800 border-slate-700"}`}></div ></div>
           </aside>
 
           <div className="col-span-9 flex flex-col gap-6">
@@ -427,7 +427,7 @@ ${query}`;
                     <div className="flex-1 flex flex-col gap-3">
                         {imageComponent && !visiblePrompts[s.id] ? (
                             <div className="relative group min-h-[200px] bg-slate-900 rounded-lg overflow-hidden animate-fade-in flex items-center justify-center cursor-pointer" onClick={() => setLightboxIndex(idx)}>
-                                <img src={imageComponent.src?.replace(BACKEND_URL, "")} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={s.title} />
+                                <img src={imageComponent.src} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={s.title} />
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                     <EyeIcon /> <span className="ml-2 font-bold text-white">View</span>
                                 </div>

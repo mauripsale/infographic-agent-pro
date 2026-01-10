@@ -17,7 +17,7 @@ def create_infographic_agent(api_key: str = None):
     # The "Director" Agent
     return LlmAgent(
         name="InfographicDirector",
-        model="gemini-2.0-flash", 
+        model="gemini-2.5-flash", 
         tools=[FunctionTool(generate_images_batch)],
         instruction="""You are the Creative Director and Visual Data Architect of a University Press.
 Your goal is to generate a structured presentation script based on the user's topic and settings.
