@@ -83,7 +83,6 @@ class ImageGenerationTool:
                 # Open bytes as image
                 img = Image.open(io.BytesIO(image_bytes))
                 # Convert to RGB (standard for PDF/Web, removes complex alpha issues if any)
-                # or RGBA if transparency is crucial, but RGB is safer for FPDF
                 if img.mode not in ('RGB', 'RGBA'):
                     img = img.convert('RGB')
                 
@@ -91,9 +90,12 @@ class ImageGenerationTool:
                 output_buffer = io.BytesIO()
                 img.save(output_buffer, format="PNG")
                 image_bytes = output_buffer.getvalue()
-            except Exception as pil_err:
+            except (Image.UnidentifiedImageError, IOError) as pil_err:
                 logger.error(f"PIL Conversion Error: {pil_err}")
-                return f"Error processing image: {str(pil_err)}"
+                return f"Error processing image data: {str(pil_err)}"
+            except Exception as e:
+                logger.error(f"Unexpected image processing error: {e}")
+                return f"Unexpected error during image processing: {str(e)}"
             # ----------------------------------
 
             filename = f"infographic_{uuid.uuid4().hex}.png"
