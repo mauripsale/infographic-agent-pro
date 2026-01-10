@@ -5,80 +5,54 @@ import json
 from google import genai
 from tools.image_gen import ImageGenerationTool
 
-# --- TOOLS ---
-def generate_draft_script(topic: str, slide_count: int, style: str) -> dict:
-    """
-    Generates a draft script for the infographic presentation.
-    This is a 'Thinking' tool that prepares the content.
-    """
-    # Note: In a pure agentic loop, the LLM itself does this reasoning. 
-    # But to enforce structure, we can wrap a specialized LLM call here if needed,
-    # or just let the main agent do it via prompt. 
-    # For ADK best practice, let's allow the main agent to 'think' and produce this output directly,
-    # but we provide a tool to 'validate' or 'format' it if necessary.
-    pass 
-
-# Since the main agent IS the script writer, we don't need a separate tool for writing text.
-# We need tools for the "Side Effects" (Image Generation).
-
 def create_infographic_agent(api_key: str = None):
     if api_key: os.environ["GOOGLE_API_KEY"] = api_key
     
-    # Tool Instance
     img_tool = ImageGenerationTool(api_key=api_key)
     
-    def generate_images_batch(script_json: str, parallel: bool = False) -> str:
-        """
-        Takes a JSON string representing the approved script and generates images for all slides.
-        Returns a JSON string with the results (image URLs).
-        """
-        try:
-            data = json.loads(script_json)
-            slides = data.get("slides", [])
-            aspect_ratio = data.get("global_settings", {}).get("aspect_ratio", "16:9")
-            
-            results = []
-            # Note: For true parallelism in Python ADK, we would use asyncio.gather here.
-            # For simplicity and reliability in this specific environment, we'll loop.
-            # If 'parallel' is True, we could spawn threads, but let's keep it robust.
-            for slide in slides:
-                prompt = slide.get("image_prompt", "")
-                url = img_tool.generate_and_save(prompt, aspect_ratio=aspect_ratio)
-                results.append({"id": slide['id'], "url": url, "title": slide['title']})
-            
-            return json.dumps(results)
-        except Exception as e:
-            return f"Error executing batch: {e}"
+    def generate_images_batch(script_json: str) -> str:
+        """Helper tool if needed by agent logic, but mainly controlled by Runner loop."""
+        return "Batch execution handled by Runner."
 
     # The "Director" Agent
     return LlmAgent(
         name="InfographicDirector",
         model="gemini-2.5-flash", # Orchestrator logic is fine on Flash
         tools=[FunctionTool(generate_images_batch)],
-        instruction="""You are the Creative Director of an Infographic Agency.
-Your goal is to take a user request and turn it into a visual presentation.
+        instruction="""You are the Creative Director and Content Strategist of an Infographic Agency.
+Your goal is to generate a structured presentation script based on the user's topic and settings.
 
-**WORKFLOW:**
+**CRITICAL INSTRUCTION ON DETAIL LEVELS:**
+You must adapt your writing style, depth, and visual complexity based on the 'Detail Level' setting provided in the prompt.
 
-**PHASE 1: DRAFTING**
-If the user provides a raw topic or URL:
-1. Analyze the request.
-2. Create a structured JSON plan containing 'slides'.
-3. OUTPUT the JSON plan inside a code block.
-4. STOP and ask the user to "Review and Approve" this plan.
+**LEVEL 1-2 (SUPER SIMPLE / BASIC):**
+- **Content:** Minimalist. Use simple, plain language. Max 1-2 sentences per section. Focus on "Key Takeaways". Avoid jargon.
+- **Visuals:** Single, bold metaphors. Flat design. High contrast. Uncluttered.
+- **Structure:** Title + One clear concept per slide.
 
-**PHASE 2: PRODUCTION**
-If the user provides a JSON structure (which means they approved/edited it):
-1. Call the `generate_images_batch` tool with this JSON.
-2. The tool will return the list of image URLs.
-3. Present the final results to the user.
+**LEVEL 3 (AVERAGE):**
+- **Content:** Professional standard. Balanced mix of text and visual data. 
+- **Visuals:** Modern corporate style. Icons + Charts.
+- **Structure:** Title + Bullet points + Context.
 
-**JSON FORMAT for Script:**
+**LEVEL 4-5 (DETAILED / SUPER DETAILED):**
+- **Content:** Academic/Technical depth. Use specialized terminology, philosophical references, and comprehensive explanations. Multi-paragraph descriptions.
+- **Visuals:** Hyper-complex. Layered compositions (e.g., "Wireframe brain with glowing neural networks"). Specific artistic directions (lighting, texture, camera angle).
+- **Structure:** Deep dive. Title + Subtitle + detailed "Body Sections" (definitions, nuances, implications).
+
+**OUTPUT FORMAT:**
+Generate a valid JSON object:
 {
   "global_settings": {"aspect_ratio": "16:9"},
   "slides": [
-    {"id": "s1", "title": "Title", "image_prompt": "Detailed visual description..."}
+    {
+      "id": "s1",
+      "title": "Slide Title",
+      "description": "The text content for the user to read/present (adapted to detail level).",
+      "image_prompt": "The detailed visual description for the AI artist (adapted to detail level)."
+    }
   ]
 }
+Output ONLY the JSON block.
 """
     )

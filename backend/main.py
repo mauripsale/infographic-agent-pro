@@ -83,7 +83,7 @@ async def agent_stream(request: Request):
         api_key = request.headers.get("x-goog-api-key")
         if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key"})
         
-        # Inject API Key into env for tools (Tool context support coming in ADK v0.2)
+        # Inject API Key into env for tools
         os.environ["GOOGLE_API_KEY"] = api_key 
         
         data = await request.json()
@@ -126,7 +126,7 @@ async def agent_stream(request: Request):
                             {"id": "review_header", "component": "Text", "text": "✅ Plan Ready. Please review below."}
                         ]}}) + "\n"
                     else:
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Text", "text": "Agent failed to produce valid JSON. Raw output:\n" + agent_output[:200]}]}}) + "\n"
+                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["err"]}, {"id": "err", "component": "Text", "text": "Agent failed to produce valid JSON."}]}}) + "\n"
                 except Exception as parse_err:
                     yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Text", "text": f"Error parsing agent output: {str(parse_err)}"}]}}) + "\n"
 
@@ -136,9 +136,8 @@ async def agent_stream(request: Request):
                 slides = script.get("slides", [])
                 ar = script.get("global_settings", {}).get("aspect_ratio", "16:9")
                 
-                # Setup Grid - Use consistent IDs: card_{id}
+                # Setup Grid - FIXED f-strings
                 children_ids = [f"card_{s['id']}" for s in slides]
-                # Initialize cards with waiting state
                 card_comps = [{"id": f"card_{s['id']}", "component": "Text", "text": "Waiting in queue...", "status": "waiting"} for s in slides]
                 
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["status", "grid"]}, {"id": "status", "component": "Text", "text": "🎨 Starting production pipeline..."}, {"id": "grid", "component": "Column", "children": children_ids}] + card_comps}}) + "\n"
@@ -149,19 +148,18 @@ async def agent_stream(request: Request):
                 # Serial Execution
                 for idx, slide in enumerate(slides):
                     sid = slide['id']
-                    # STATUS: GENERATING
+                    # STATUS: GENERATING - FIXED f-string
                     msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
                         {"id": f"card_{sid}", "component": "Text", "text": f"🖌️ Nano Banana is drawing {slide['title']}...", "status": "generating"}
                     ]}})
-                    # Padding to force flush through proxies
                     yield msg + "\n" + " " * 2048 + "\n"
-                    await asyncio.sleep(0.05) # Force IO switch
+                    await asyncio.sleep(0.05)
                     
                     # Call the Tool
                     img_url = img_tool.generate_and_save(slide['image_prompt'], aspect_ratio=ar)
                     
                     if "Error" not in img_url:
-                        # STATUS: SUCCESS
+                        # STATUS: SUCCESS - FIXED f-strings
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
                             {"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"},
                             {"id": f"title_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, 
@@ -169,7 +167,7 @@ async def agent_stream(request: Request):
                         ]}})
                         yield msg + "\n" + " " * 2048 + "\n"
                     else:
-                        # STATUS: ERROR
+                        # STATUS: ERROR - FIXED f-string
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
                             {"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}
                         ]}})
