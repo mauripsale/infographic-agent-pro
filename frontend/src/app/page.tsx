@@ -119,7 +119,7 @@ export default function App() {
       };
       window.addEventListener("keydown", handleKeyDown);
       return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [lightboxIndex, navigateLightbox]); // Added navigateLightbox dependency
+  }, [lightboxIndex, navigateLightbox]); 
 
   const handleStop = () => {
       if (abortControllerRef.current) {
@@ -140,10 +140,17 @@ export default function App() {
           }
       }));
 
+      // Determine model based on current selection
+      const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
+
       try {
           const res = await fetch(`${BACKEND_URL}/agent/regenerate_slide`, {
               method: "POST",
-              headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+              headers: {
+                  "Content-Type": "application/json", 
+                  "x-goog-api-key": apiKey,
+                  "X-GenAI-Model": selectedModel // FIXED: Send selected model
+              },
               body: JSON.stringify({
                   slide_id: slideId, 
                   image_prompt: slide.image_prompt,
@@ -185,8 +192,8 @@ export default function App() {
         setScript({
             slides: Array.from({ length: numSlides }).map((_, i) => ({
                 id: `loading_${i}`,
-                title: "Generating...",
-                image_prompt: "..."
+                title: "Generating…",
+                image_prompt: "…"
             }))
         });
         setSurfaceState({ components: {}, dataModel: {} });
@@ -257,11 +264,14 @@ ${query}`;
   };
 
   const handleExport = async (fmt: "zip" | "pdf") => {
-    if (!surfaceState.components) return;
+    if (!surfaceState.components || !script) return; // Need script for ordering
     setIsExporting(true);
-    const imgUrls = Object.values(surfaceState.components)
-        .filter((c: any) => c.component === "Image")
-        .map((c: any) => (c as A2UIComponent).src);
+    
+    // FIXED: Build ordered list based on script slides
+    const imgUrls = script.slides.map((s: Slide) => {
+        const comp = surfaceState.components[`img_${s.id}`] as A2UIComponent;
+        return comp ? comp.src?.replace(BACKEND_URL, "") : null;
+    }).filter((url: string | null) => url !== null);
 
     if (imgUrls.length === 0) {
         alert("No images generated yet.");
@@ -379,7 +389,7 @@ ${query}`;
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Format</label><select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option value="16:9">16:9 (Wide)</option><option value="4:3">4:3 (Standard)</option></select></div>
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Lang</label><select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option>English</option><option>Italian</option></select></div>
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Style</label><input type="text" value={style} onChange={(e) => setStyle(e.target.value)} placeholder="e.g. Minimalist" className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none" /></div>
-            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-800"><span className="text-sm text-slate-300">Parallel Gen</span><div onClick={() => setIsParallel(!isParallel)} className={`w-10 h-5 rounded-full relative cursor-pointer border transition-colors ${isParallel ? "bg-blue-600/20 border-blue-500" : "bg-slate-800 border-slate-700"}`}></div ></div>
+            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-800"><span className="text-sm text-slate-300">Parallel Gen</span><div onClick={() => setIsParallel(!isParallel)} className={`w-10 h-5 rounded-full relative cursor-pointer border transition-colors ${isParallel ? "bg-blue-600/20 border-blue-500" : "bg-slate-800 border-slate-700"}`><div className={`w-3 h-3 rounded-full absolute top-1 transition-all ${isParallel ? "right-1 bg-blue-500" : "left-1 bg-slate-500"}`}></div></div></div>
           </aside>
 
           <div className="col-span-9 flex flex-col gap-6">
