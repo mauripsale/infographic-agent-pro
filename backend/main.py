@@ -149,26 +149,33 @@ async def agent_stream(request: Request):
                 # Serial Execution
                 for idx, slide in enumerate(slides):
                     sid = slide['id']
-                    # STATUS: GENERATING - Use "drawing" as suggested to maintain compatibility
-                    yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
+                    # STATUS: GENERATING
+                    msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
                         {"id": f"card_{sid}", "component": "Text", "text": f"🖌️ Nano Banana is drawing {slide['title']}...", "status": "generating"}
-                    ]}}) + "\n"
+                    ]}})
+                    # Padding to force flush through proxies
+                    yield msg + "\n" + " " * 2048 + "\n"
+                    await asyncio.sleep(0.05) # Force IO switch
                     
                     # Call the Tool
                     img_url = img_tool.generate_and_save(slide['image_prompt'], aspect_ratio=ar)
                     
                     if "Error" not in img_url:
-                        # STATUS: SUCCESS - Use descriptive ID for title
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
+                        # STATUS: SUCCESS
+                        msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
                             {"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"},
                             {"id": f"title_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, 
                             {"id": f"img_{sid}", "component": "Image", "src": img_url}
-                        ]}}) + "\n"
+                        ]}})
+                        yield msg + "\n" + " " * 2048 + "\n"
                     else:
                         # STATUS: ERROR
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
+                        msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
                             {"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}
-                        ]}}) + "\n"
+                        ]}})
+                        yield msg + "\n" + " " * 2048 + "\n"
+                    
+                    await asyncio.sleep(0.05)
 
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✨ All infographics ready!"}]}}) + "\n"
 
