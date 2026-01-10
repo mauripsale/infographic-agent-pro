@@ -137,9 +137,9 @@ async def agent_stream(request: Request):
                 ar = script.get("global_settings", {}).get("aspect_ratio", "16:9")
                 
                 # Setup Grid - Use consistent IDs: card_{id}
-                children_ids = [f"card_{s['id']}" for s in slides]
+                children_ids = [f"card_{{s['id']}}" for s in slides]
                 # Initialize cards with waiting state
-                card_comps = [{"id": f"card_{s['id']}", "component": "Text", "text": "Waiting in queue...", "status": "waiting"} for s in slides]
+                card_comps = [{"id": f"card_{{s['id']}}", "component": "Text", "text": "Waiting in queue...", "status": "waiting"} for s in slides]
                 
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["status", "grid"]}, {"id": "status", "component": "Text", "text": "🎨 Starting production pipeline..."}, {"id": "grid", "component": "Column", "children": children_ids}] + card_comps}}) + "\n"
 
@@ -151,7 +151,7 @@ async def agent_stream(request: Request):
                     sid = slide['id']
                     # STATUS: GENERATING
                     msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
-                        {"id": f"card_{sid}", "component": "Text", "text": f"🖌️ Nano Banana is drawing {slide['title']}...", "status": "generating"}
+                        {"id": f"card_{{sid}}", "component": "Text", "text": f"🖌️ Nano Banana is drawing {slide['title']}...", "status": "generating"}
                     ]}})
                     # Padding to force flush through proxies
                     yield msg + "\n" + " " * 2048 + "\n"
@@ -163,15 +163,15 @@ async def agent_stream(request: Request):
                     if "Error" not in img_url:
                         # STATUS: SUCCESS
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
-                            {"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"},
-                            {"id": f"title_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, 
-                            {"id": f"img_{sid}", "component": "Image", "src": img_url}
+                            {"id": f"card_{{sid}}", "component": "Column", "children": [f"title_{{sid}}", f"img_{{sid}}"], "status": "success"},
+                            {"id": f"title_{{sid}}", "component": "Text", "text": f"{idx+1}. {slide['title']}"},
+                            {"id": f"img_{{sid}}", "component": "Image", "src": img_url}
                         ]}})
                         yield msg + "\n" + " " * 2048 + "\n"
                     else:
                         # STATUS: ERROR
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
-                            {"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}
+                            {"id": f"card_{{sid}}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}
                         ]}})
                         yield msg + "\n" + " " * 2048 + "\n"
                     
