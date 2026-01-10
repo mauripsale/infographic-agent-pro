@@ -14,9 +14,10 @@ def create_infographic_agent(api_key: str = None):
         """Helper tool if needed by agent logic, but mainly controlled by Runner loop."""
         return "Batch execution handled by Runner."
 
+    # The "Director" Agent
     return LlmAgent(
         name="InfographicDirector",
-        model="gemini-2.0-flash", 
+        model="gemini-2.5-flash", # Orchestrator logic is fine on Flash
         tools=[FunctionTool(generate_images_batch)],
         instruction="""You are the Creative Director and Content Strategist of an Infographic Agency.
 Your goal is to generate a structured presentation script based on the user's topic and settings.
