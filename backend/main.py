@@ -77,105 +77,138 @@ async def export_assets(request: Request):
         logger.error(f"Export Error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@app.post("/agent/regenerate_slide")
+def generate_slide(request: Request):
+    """Regenerates a single slide image on demand."""
+    try:
+        api_key = request.headers.get("x-goog-api-key")
+        if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key"})
+        # REMOVED unsafe os.environ set
+        
+        data = await request.json()
+        slide_id = data.get("slide_id")
+        prompt = data.get("image_prompt")
+        aspect_ratio = data.get("aspect_ratio", "16:9")
+        surface_id = "infographic_workspace"
+
+        async def event_generator():
+            # Set state to generating
+            yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
+                {"id": f"card_{slide_id}", "component": "Text", "text": "🎨 Nano Banana is refining...", "status": "generating"}
+            ]}}) + "\n"
+            
+            img_tool = ImageGenerationTool(api_key=api_key)
+            img_url = img_tool.generate_and_save(prompt, aspect_ratio=aspect_ratio)
+            
+            if "Error" not in img_url:
+                # Success
+                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
+                    {"id": f"card_{slide_id}", "component": "Column", "children": [f"title_{slide_id}", f"img_{slide_id}"], "status": "success"},
+                    {"id": f"img_{slide_id}", "component": "Image", "src": img_url}
+                ]}}) + "\n"
+            else:
+                # Error
+                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
+                    {"id": f"card_{slide_id}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}
+                ]}}) + "\n"
+
+        return StreamingResponse(event_generator(), media_type="application/x-ndjson")
+    except Exception as e:
+        logger.error(f"Regenerate Slide Error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @app.post("/agent/stream")
 async def agent_stream(request: Request):
     try:
         api_key = request.headers.get("x-goog-api-key")
         if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key"})
-        
-        # Inject API Key into env for tools
-        os.environ["GOOGLE_API_KEY"] = api_key 
+        # REMOVED unsafe os.environ set
         
         data = await request.json()
         phase = data.get("phase", "script")
         
         async def event_generator():
             surface_id = "infographic_workspace"
-            
-            # Init Surface
             yield json.dumps({"createSurface": {"surfaceId": surface_id, "catalogId": "https://a2ui.dev/specification/0.9/standard_catalog_definition.json"}}) + "\n"
 
             if phase == "script":
-                # --- PHASE 1: AGENTIC DRAFTING ---
-                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["l"]}, {"id": "l", "component": "Text", "text": "🧠 Agent is analyzing your request..."}]}}) + "\n"
+                # --- SCRIPT GENERATION ---
+                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["l"]}, {"id": "l", "component": "Text", "text": "🧠 Agent is analyzing..."}]}}) + "\n"
                 
-                # We use the ADK Agent to 'Think' and 'Plan'
                 agent = create_infographic_agent(api_key=api_key)
+                
+                if await request.is_disconnected(): return
+
                 runner = Runner(agent=agent, app_name="infographic-pro", session_service=session_service)
-                session = await session_service.create_session(app_name="infographic-pro", user_id="u1", session_id=data.get("session_id", "s1"))
-                
-                # Construct a specialized prompt for the agent
-                prompt = data.get("query", "")
-                
-                content = types.Content(role="user", parts=[types.Part(text=prompt)])
+                try:
+                    session = await session_service.create_session(app_name="infographic-pro", user_id="u1", session_id=data.get("session_id", "s1"))
+                except Exception as sess_err:
+                    logger.warning(f"Session error, creating new: {sess_err}")
+                    session = await session_service.create_session(app_name="infographic-pro", user_id="u1", session_id=f"s1_{os.urandom(4).hex()}")
+
+                content = types.Content(role="user", parts=[types.Part(text=data.get("query", ""))])
                 agent_output = ""
+                
                 async for event in runner.run_async(session_id=session.id, user_id="u1", new_message=content):
+                    if await request.is_disconnected(): break 
                     if event.content and event.content.parts:
                         for part in event.content.parts:
                             if part.text: agent_output += part.text
                 
-                # Extract JSON Plan from Agent Output
+                if await request.is_disconnected(): return
+
+                # Parse & Send
                 try:
                     match = re.search(r'(\{.*\})', agent_output.replace("\n", ""), re.DOTALL)
                     if match:
                         script_data = json.loads(match.group(1))
-                        # Send to Frontend Editor
                         yield json.dumps({"updateDataModel": {"surfaceId": surface_id, "path": "/", "op": "replace", "value": {"script": script_data}}}) + "\n"
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
-                            {"id": "root", "component": "Column", "children": ["review_header"]},
-                            {"id": "review_header", "component": "Text", "text": "✅ Plan Ready. Please review below."}
-                        ]}}) + "\n"
+                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["review_header"]}, {"id": "review_header", "component": "Text", "text": "✅ Plan Ready."}]}}) + "\n"
                     else:
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["err"]}, {"id": "err", "component": "Text", "text": "Agent failed to produce valid JSON."}]}}) + "\n"
+                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Text", "text": "Agent failed to produce valid JSON."}]}}) + "\n"
                 except Exception as parse_err:
-                    yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Text", "text": f"Error parsing agent output: {str(parse_err)}"}]}}) + "\n"
+                    logger.error(f"JSON Parse Error: {parse_err}. Output was: {agent_output[:200]}...")
+                    yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Text", "text": "Error parsing agent output."}]}}) + "\n"
 
             elif phase == "graphics":
-                # --- PHASE 2: EXECUTION & ORCHESTRATION ---
+                # --- GRAPHICS ORCHESTRATION ---
                 script = data.get("script", {})
                 slides = script.get("slides", [])
                 ar = script.get("global_settings", {}).get("aspect_ratio", "16:9")
                 
-                # Setup Grid - FIXED f-strings
                 children_ids = [f"card_{s['id']}" for s in slides]
-                card_comps = [{"id": f"card_{s['id']}", "component": "Text", "text": "Waiting in queue...", "status": "waiting"} for s in slides]
-                
-                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["status", "grid"]}, {"id": "status", "component": "Text", "text": "🎨 Starting production pipeline..."}, {"id": "grid", "component": "Column", "children": children_ids}] + card_comps}}) + "\n"
+                card_comps = [{"id": f"card_{s['id']}", "component": "Text", "text": "Waiting...", "status": "waiting"} for s in slides]
+                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["status", "grid"]}, {"id": "status", "component": "Text", "text": "🎨 Starting production..."}, {"id": "grid", "component": "Column", "children": children_ids}] + card_comps}}) + "\n"
 
-                # Tool Execution
                 img_tool = ImageGenerationTool(api_key=api_key)
                 
-                # Serial Execution
                 for idx, slide in enumerate(slides):
+                    if await request.is_disconnected():
+                        logger.info("Client disconnected, stopping generation loop.")
+                        break
+
                     sid = slide['id']
-                    # STATUS: GENERATING - FIXED f-string
-                    msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
-                        {"id": f"card_{sid}", "component": "Text", "text": f"🖌️ Nano Banana is drawing {slide['title']}...", "status": "generating"}
-                    ]}})
+                    msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": "🖌️ Nano Banana is drawing...", "status": "generating"}]}})
                     yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
                     
-                    # Call the Tool
                     img_url = img_tool.generate_and_save(slide['image_prompt'], aspect_ratio=ar)
                     
                     if "Error" not in img_url:
-                        # STATUS: SUCCESS - FIXED f-strings
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
                             {"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"},
-                            {"id": f"title_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, 
+                            {"id": f"title_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"},
                             {"id": f"img_{sid}", "component": "Image", "src": img_url}
                         ]}})
-                        yield msg + "\n" + " " * 2048 + "\n"
                     else:
-                        # STATUS: ERROR - FIXED f-string
-                        msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
-                            {"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}
-                        ]}})
-                        yield msg + "\n" + " " * 2048 + "\n"
+                        msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}})
                     
+                    yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
 
-                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✨ All infographics ready!"}]}}) + "\n"
+                if not await request.is_disconnected():
+                    yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✨ Done!"}]}}) + "\n"
 
         return StreamingResponse(event_generator(), media_type="application/x-ndjson")
 
