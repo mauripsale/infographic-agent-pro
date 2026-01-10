@@ -63,9 +63,9 @@ async def export_assets(request: Request):
         
         tool = ExportTool()
         if fmt == "pdf":
-            url = tool.create_pdf(images)
+            url = await asyncio.to_thread(tool.create_pdf, images)
         else:
-            url = tool.create_zip(images)
+            url = await asyncio.to_thread(tool.create_zip, images)
             
         if not url:
             return JSONResponse(status_code=500, content={"error": "Export failed"})
@@ -79,11 +79,10 @@ async def export_assets(request: Request):
 
 @app.post("/agent/regenerate_slide")
 async def regenerate_slide(request: Request):
-    """Regenerates a single slide image on demand."""
+    """Regenerates a single slide image on demand without blocking the event loop."""
     try:
         api_key = request.headers.get("x-goog-api-key")
         if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key"})
-        # REMOVED unsafe os.environ set
         
         data = await request.json()
         slide_id = data.get("slide_id")
@@ -98,7 +97,8 @@ async def regenerate_slide(request: Request):
             ]}}) + "\n"
             
             img_tool = ImageGenerationTool(api_key=api_key)
-            img_url = img_tool.generate_and_save(prompt, aspect_ratio=aspect_ratio)
+            # FIXED: Run blocking tool in separate thread
+            img_url = await asyncio.to_thread(img_tool.generate_and_save, prompt, aspect_ratio=aspect_ratio)
             
             if "Error" not in img_url:
                 # Success
@@ -123,7 +123,6 @@ async def agent_stream(request: Request):
     try:
         api_key = request.headers.get("x-goog-api-key")
         if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key"})
-        # REMOVED unsafe os.environ set
         
         data = await request.json()
         phase = data.get("phase", "script")
@@ -193,7 +192,8 @@ async def agent_stream(request: Request):
                     yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
                     
-                    img_url = img_tool.generate_and_save(slide['image_prompt'], aspect_ratio=ar)
+                    # FIXED: Run blocking tool in separate thread
+                    img_url = await asyncio.to_thread(img_tool.generate_and_save, slide['image_prompt'], aspect_ratio=ar)
                     
                     if "Error" not in img_url:
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
