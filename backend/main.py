@@ -52,24 +52,38 @@ session_service = InMemorySessionService()
 @app.post("/agent/export")
 async def export_assets(request: Request):
     try:
+        # Authentication Check
         api_key = request.headers.get("x-goog-api-key")
-        if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key"})
+        if not api_key:
+            return JSONResponse(status_code=401, content={"error": "Missing API Key"})
+
         data = await request.json()
+        images = data.get("images", [])
+        fmt = data.get("format", "zip")
+        
         tool = ExportTool()
-        url = tool.create_pdf(data.get("images", [])) if data.get("format") == "pdf" else tool.create_zip(data.get("images", []))
-        if not url: return JSONResponse(status_code=500, content={"error": "Export failed"})
+        if fmt == "pdf":
+            url = tool.create_pdf(images)
+        else:
+            url = tool.create_zip(images)
+            
+        if not url:
+            return JSONResponse(status_code=500, content={"error": "Export failed"})
+            
+        # Dynamic Backend URL
         base_url = os.environ.get("BACKEND_URL", "https://infographic-agent-backend-218788847170.us-central1.run.app")
         return {"url": f"{base_url}{url}"}
     except Exception as e:
+        logger.error(f"Export Error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/regenerate_slide")
-async def regenerate_slide(request: Request):
+def generate_slide(request: Request):
     """Regenerates a single slide image on demand."""
     try:
         api_key = request.headers.get("x-goog-api-key")
         if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key"})
-        os.environ["GOOGLE_API_KEY"] = api_key 
+        # REMOVED unsafe os.environ set
         
         data = await request.json()
         slide_id = data.get("slide_id")
@@ -100,6 +114,7 @@ async def regenerate_slide(request: Request):
 
         return StreamingResponse(event_generator(), media_type="application/x-ndjson")
     except Exception as e:
+        logger.error(f"Regenerate Slide Error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
@@ -108,7 +123,7 @@ async def agent_stream(request: Request):
     try:
         api_key = request.headers.get("x-goog-api-key")
         if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key"})
-        os.environ["GOOGLE_API_KEY"] = api_key 
+        # REMOVED unsafe os.environ set
         
         data = await request.json()
         phase = data.get("phase", "script")
@@ -123,22 +138,20 @@ async def agent_stream(request: Request):
                 
                 agent = create_infographic_agent(api_key=api_key)
                 
-                # Check for disconnection
                 if await request.is_disconnected(): return
 
                 runner = Runner(agent=agent, app_name="infographic-pro", session_service=session_service)
-                # Ensure fresh session state if needed or handle existing
                 try:
                     session = await session_service.create_session(app_name="infographic-pro", user_id="u1", session_id=data.get("session_id", "s1"))
-                except:
-                    # Fallback for session error
+                except Exception as sess_err:
+                    logger.warning(f"Session error, creating new: {sess_err}")
                     session = await session_service.create_session(app_name="infographic-pro", user_id="u1", session_id=f"s1_{os.urandom(4).hex()}")
 
                 content = types.Content(role="user", parts=[types.Part(text=data.get("query", ""))])
                 agent_output = ""
                 
                 async for event in runner.run_async(session_id=session.id, user_id="u1", new_message=content):
-                    if await request.is_disconnected(): break # Stop if user disconnects
+                    if await request.is_disconnected(): break 
                     if event.content and event.content.parts:
                         for part in event.content.parts:
                             if part.text: agent_output += part.text
@@ -153,9 +166,10 @@ async def agent_stream(request: Request):
                         yield json.dumps({"updateDataModel": {"surfaceId": surface_id, "path": "/", "op": "replace", "value": {"script": script_data}}}) + "\n"
                         yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["review_header"]}, {"id": "review_header", "component": "Text", "text": "✅ Plan Ready."}]}}) + "\n"
                     else:
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Text", "text": "Failed to parse."}]}}) + "\n"
-                except:
-                    yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Text", "text": "Error parsing."}]}}) + "\n"
+                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Text", "text": "Agent failed to produce valid JSON."}]}}) + "\n"
+                except Exception as parse_err:
+                    logger.error(f"JSON Parse Error: {parse_err}. Output was: {agent_output[:200]}...")
+                    yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Text", "text": "Error parsing agent output."}]}}) + "\n"
 
             elif phase == "graphics":
                 # --- GRAPHICS ORCHESTRATION ---
@@ -170,7 +184,6 @@ async def agent_stream(request: Request):
                 img_tool = ImageGenerationTool(api_key=api_key)
                 
                 for idx, slide in enumerate(slides):
-                    # Check cancellation
                     if await request.is_disconnected():
                         logger.info("Client disconnected, stopping generation loop.")
                         break
@@ -201,7 +214,6 @@ async def agent_stream(request: Request):
 
     except Exception as e:
         logger.error(f"Stream Fatal: {e}")
-        # Only return JSON if not streaming yet/disconnected
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 if __name__ == "__main__":

@@ -42,6 +42,28 @@ const A2UIRenderer = ({ surfaceState, componentId }: { surfaceState: any; compon
   }
 };
 
+// --- Shared Stream Helper ---
+const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>, onMessage: (msg: any) => void) => {
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+                const msg = JSON.parse(line);
+                onMessage(msg);
+            } catch (e) {
+                console.error("JSON Parse Error in Stream:", e, "Line:", line);
+            }
+        }
+    }
+};
+
 export default function App() {
   const [apiKey, setApiKey] = useState("");
   const [query, setQuery] = useState("");
@@ -96,35 +118,23 @@ export default function App() {
           const res = await fetch(`${BACKEND_URL}/agent/regenerate_slide`, {
               method: "POST",
               headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-              body: JSON.stringify({ 
+              body: JSON.stringify({
                   slide_id: slideId, 
                   image_prompt: slide.image_prompt,
                   aspect_ratio: aspectRatio 
               })
           });
           
-          const reader = res.body!.getReader();
-          const decoder = new TextDecoder();
-          
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split("\n");
-            for (const line of lines) {
-                if (!line.trim()) continue;
-                try {
-                    const msg = JSON.parse(line);
-                    if (msg.updateComponents) {
-                        setSurfaceState((prev: any) => {
-                            const nextComps = { ...prev.components };
-                            msg.updateComponents.components.forEach((c: any) => nextComps[c.id] = c);
-                            return { ...prev, components: nextComps };
-                        });
-                    }
-                } catch(e) {}
-            }
-          }
+          await processStream(res.body!.getReader(), (msg) => {
+              if (msg.updateComponents) {
+                  setSurfaceState((prev: any) => {
+                      const nextComps = { ...prev.components };
+                      msg.updateComponents.components.forEach((c: any) => nextComps[c.id] = c);
+                      return { ...prev, components: nextComps };
+                  });
+              }
+          });
+
       } catch (e) {
           console.error("Retry failed", e);
           setSurfaceState((prev: any) => ({
@@ -138,7 +148,6 @@ export default function App() {
   };
 
   const handleStream = async (targetPhase: "script" | "graphics", currentScript?: any) => {
-    // Cancel any previous request
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
@@ -148,7 +157,6 @@ export default function App() {
     // RESET LOGIC
     if (targetPhase === "script") {
         setPhase("review");
-        // Immediate Feedback: Create Skeleton Script
         setScript({
             slides: Array.from({ length: numSlides }).map((_, i) => ({
                 id: `loading_${i}`,
@@ -193,34 +201,22 @@ ${query}`;
         body: JSON.stringify({ query: effectiveQuery, phase: targetPhase, script: payloadScript, session_id: "s1" }),
         signal: abortController.signal
       });
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const msg = JSON.parse(line);
-            if (msg.updateComponents) {
-                setSurfaceState((prev: any) => {
-                const nextComps = { ...prev.components };
-                msg.updateComponents.components.forEach((c: any) => nextComps[c.id] = c);
-                return { ...prev, components: nextComps };
-                });
-            }
-            if (msg.updateDataModel && msg.updateDataModel.value?.script) {
-                setScript(msg.updateDataModel.value.script);
-            }
-          } catch(e) { console.error("JSON Parse Error", e); }
-        }
-      }
+      
+      await processStream(res.body!.getReader(), (msg) => {
+          if (msg.updateComponents) {
+              setSurfaceState((prev: any) => {
+              const nextComps = { ...prev.components };
+              msg.updateComponents.components.forEach((c: any) => nextComps[c.id] = c);
+              return { ...prev, components: nextComps };
+              });
+          }
+          if (msg.updateDataModel && msg.updateDataModel.value?.script) {
+              setScript(msg.updateDataModel.value.script);
+          }
+      });
+
     } catch (e: any) { 
-        if (e.name !== 'AbortError') console.error(e); 
+        if (e.name !== 'AbortError') console.error("Stream error:", e); 
     } finally { 
         setIsStreaming(false); 
         abortControllerRef.current = null;
@@ -228,7 +224,6 @@ ${query}`;
   };
 
   const startScriptGen = () => {
-    // If we have content, ask for confirmation
     if (script || Object.keys(surfaceState.components).length > 0) {
         setShowConfirm(true);
     } else {
@@ -240,7 +235,6 @@ ${query}`;
     if (!surfaceState.components) return;
     setIsExporting(true);
     
-    // Extract Image URLs from current state
     const imgUrls = Object.values(surfaceState.components)
         .filter((c: any) => c.component === "Image")
         .map((c: any) => (c as A2UIComponent).src?.replace(BACKEND_URL, "")); 
@@ -260,7 +254,7 @@ ${query}`;
         const data = await res.json();
         if (data.url) window.open(data.url, "_blank");
         else alert("Export failed.");
-    } catch(e) { console.error(e); alert("Export error"); }
+    } catch(e) { console.error("Export error:", e); alert("Export error"); }
     finally { setIsExporting(false); }
   };
 
