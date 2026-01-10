@@ -199,6 +199,11 @@ ${query}`;
       setVisiblePrompts(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  // Retry logic (placeholder, requires backend support for single slide regen)
+  const retrySlide = (id: string) => {
+      alert(`Retry for slide ${id} will be implemented in next iteration.`);
+  };
+
   return (
     <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
       
@@ -350,11 +355,14 @@ ${query}`;
             {script && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {script.slides.map((s: Slide) => {
+                  // Find if we have an image for this slide in the A2UI state
                   const cardComp = surfaceState.components[`card_${s.id}`] as A2UIComponent | undefined;
                   const imageComponent = surfaceState.components[`img_${s.id}`] as A2UIComponent | undefined;
                   
+                  // Use explicit status from backend for robust state management
                   const isGenerating = cardComp?.status === "generating";
                   const hasError = cardComp?.status === "error";
+                  
                   const isLoadingScript = s.id.startsWith("loading_");
                   const showPrompt = visiblePrompts[s.id] || !imageComponent;
 
@@ -412,7 +420,7 @@ ${query}`;
                     {hasError && (
                          <div className="absolute inset-0 bg-red-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-20 animate-fade-in">
                             <span className="text-xs font-bold text-red-200">GENERATION FAILED</span>
-                            <button onClick={() => alert("Retrying logic implementation in progress")} className="mt-2 text-[10px] underline text-white font-bold hover:text-red-100 transition-colors">Retry Generation</button>
+                            <button onClick={() => retrySlide(s.id)} className="mt-2 text-[10px] underline text-white font-bold hover:text-red-100 transition-colors">Retry Generation</button>
                         </div>
                     )}
 
