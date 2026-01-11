@@ -59,9 +59,11 @@ jobs:
       uses: FirebaseExtended/action-hosting-deploy@v0
       with:
         repoToken: '${{ secrets.GITHUB_TOKEN }}'
-        firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_QWIKLABS_ASL_04_F9D4BA2925B9 }}'
+        # GENERIC SECRET NAME - Update this in GitHub Settings!
+        firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' 
         channelId: live
-        projectId: qwiklabs-asl-04-f9d4ba2925b9
+        # Uses the variable, allowing project switch without code change
+        projectId: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }} 
         entryPoint: frontend
 
   build-and-deploy-backend:
@@ -85,10 +87,8 @@ jobs:
         - name: Configure Docker
           run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
-        - name: List all files for debugging
-          run: ls -laR
-
         - name: Build and Push Docker image
+          # Uses GCP_PROJECT_ID secret
           run: |
             cd backend/
             docker build -f Dockerfile -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/infographic-agent-backend/infographic-agent-backend:${{ github.sha }} .
@@ -99,6 +99,6 @@ jobs:
           with:
             service: 'infographic-agent-backend'
             image: 'us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/infographic-agent-backend/infographic-agent-backend:${{ github.sha }}'
-            region: 'us-central1'
+            region: 'us-central1' # You could also make this a secret if region changes
             labels: 'managed-by=github-actions,commit-sha=${{ github.sha }}'
             flags: '--allow-unauthenticated'
