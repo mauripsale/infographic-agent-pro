@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./globals.css";
+import { useAuth } from "@/context/AuthContext";
 
 // Constants
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://infographic-agent-backend-218788847170.us-central1.run.app";
@@ -26,7 +27,7 @@ interface A2UIComponent {
 
 // Icons
 const MonitorIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>;
-const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
+const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
 const SparklesIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 7h4"/><path d="M3 3h4"/></svg>;
 const FileUpIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>;
 const RefreshIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>;
@@ -38,6 +39,7 @@ const MaximizeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" he
 const PaintBrushIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18.375 2.625a3.875 3.875 0 0 0-5.5 0l-9 9a3.875 3.875 0 0 0 0 5.5l3.375 3.375a3.875 3.875 0 0 0 5.5 0l9-9a3.875 3.875 0 0 0 0-5.5l-3.375-3.375Z"/><path d="M14.5 6.5 17.5 9.5"/><path d="m2 22 5-5"/></svg>;
 const EditIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>;
 const CheckIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
+const GoogleIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>;
 
 // --- Shared Stream Helper ---
 const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>, onMessage: (msg: any) => void) => {
@@ -74,6 +76,8 @@ const A2UIRenderer = ({ surfaceState, componentId }: { surfaceState: any; compon
 };
 
 export default function App() {
+  const { user, loading: authLoading, login, logout, getToken } = useAuth();
+  
   const [apiKey, setApiKey] = useState("");
   const [query, setQuery] = useState("");
   const [modelType, setModelType] = useState<"flash" | "pro">("flash");
@@ -164,6 +168,7 @@ export default function App() {
       }));
 
       const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
+      const token = await getToken();
 
       try {
           const res = await fetch(`${BACKEND_URL}/agent/regenerate_slide`, {
@@ -171,7 +176,8 @@ export default function App() {
               headers: {
                   "Content-Type": "application/json", 
                   "x-goog-api-key": apiKey,
-                  "X-GenAI-Model": selectedModel 
+                  "X-GenAI-Model": selectedModel,
+                  "Authorization": `Bearer ${token}`
               },
               body: JSON.stringify({
                   slide_id: slideId, 
@@ -208,6 +214,7 @@ export default function App() {
     abortControllerRef.current = abortController;
 
     setIsStreaming(true);
+    const token = await getToken();
     
     if (targetPhase === "script") {
         setPhase("review");
@@ -238,30 +245,26 @@ export default function App() {
         try {
             const uploadRes = await fetch(`${BACKEND_URL}/agent/upload`, {
                 method: "POST",
-                headers: { "x-goog-api-key": apiKey },
+                headers: {
+                    "x-goog-api-key": apiKey,
+                    "Authorization": `Bearer ${token}`
+                },
                 body: formData
             });
             const uploadData = await uploadRes.json();
             if (uploadData.file_id) {
                 fileContentId = uploadData.file_id;
+            } else {
+                throw new Error("Upload failed");
             }
         } catch (e) {
             console.error("Upload failed", e);
-            alert("Document upload failed. Proceeding with text only.");
+            alert("Document upload failed. Proceeding with text only."); // ADDED FEEDBACK
         }
     }
 
     if (targetPhase === "script") {
-        effectiveQuery = `
-[GENERATION SETTINGS]
-Slides: ${numSlides}
-Style: ${style || "Professional"}
-Detail Level: ${detailLevel}
-Aspect Ratio: ${aspectRatio}
-Language: ${language}
-
-[USER REQUEST]
-${query}`;
+        effectiveQuery = `[GENERATION SETTINGS] Slides: ${numSlides}, Style: ${style || "Professional"}, Detail: ${detailLevel}, AR: ${aspectRatio}, Lang: ${language}\n\n[USER REQUEST]\n${query}`;
     }
 
     let payloadScript = currentScript;
@@ -273,7 +276,12 @@ ${query}`;
     try {
       const res = await fetch(`${BACKEND_URL}/agent/stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey, "X-GenAI-Model": selectedModel },
+        headers: {
+            "Content-Type": "application/json", 
+            "x-goog-api-key": apiKey, 
+            "X-GenAI-Model": selectedModel,
+            "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
             query: effectiveQuery, 
             phase: targetPhase, 
@@ -316,6 +324,7 @@ ${query}`;
   const handleExport = async (fmt: "zip" | "pdf") => {
     if (!surfaceState.components || !script) return;
     setIsExporting(true);
+    const token = await getToken();
     
     const imgUrls = script.slides.map((s: Slide) => {
         const comp = surfaceState.components[`img_${s.id}`] as A2UIComponent;
@@ -331,13 +340,20 @@ ${query}`;
     try {
         const res = await fetch(`${BACKEND_URL}/agent/export`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+            headers: {
+                "Content-Type": "application/json", 
+                "x-goog-api-key": apiKey,
+                "Authorization": `Bearer ${token}`
+            },
             body: JSON.stringify({ images: imgUrls, format: fmt })
         });
         const data = await res.json();
         if (data.url) window.open(data.url, "_blank");
-        else alert("Export failed.");
-    } catch(e) { console.error("Export error:", e); alert("Export error"); }
+        else alert("Export failed. Please check server logs."); // IMPROVED FEEDBACK
+    } catch(e) { 
+        console.error("Export error:", e);
+        alert("Network error during export. Try again."); // ADDED FEEDBACK
+    }
     finally { setIsExporting(false); }
   };
 
@@ -351,6 +367,26 @@ ${query}`;
   const togglePrompt = (id: string) => {
       setVisiblePrompts(prev => ({ ...prev, [id]: !prev[id] }));
   };
+
+  if (authLoading) return <div className="min-h-screen bg-[#030712] flex items-center justify-center text-white font-bold animate-pulse">Loading Identity...</div>;
+  
+  if (!user) {
+      return (
+          <div className="min-h-screen bg-[#030712] flex items-center justify-center p-6">
+              <div className="max-w-md w-full bg-[#111827] border border-slate-800 p-10 rounded-3xl shadow-2xl text-center flex flex-col gap-8 animate-fade-in">
+                  <div className="mx-auto w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/40"><MonitorIcon /></div>
+                  <div>
+                      <h1 className="text-3xl font-bold text-white mb-2">Infographic Agent</h1>
+                      <p className="text-slate-400 text-sm">Sign in to start creating professional infographics with Nano Banana.</p>
+                  </div>
+                  <button onClick={login} className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-xl">
+                      <GoogleIcon /> Sign in with Google
+                  </button>
+                  <p className="text-[10px] text-slate-600 uppercase tracking-widest">Powered by Google ADK & Gemini</p>
+              </div>
+          </div>
+      );
+  }
 
   return (
     <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
@@ -401,7 +437,7 @@ ${query}`;
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm animate-fade-in">
             <div className="bg-[#1e293b] border border-slate-700 p-8 rounded-2xl max-w-md w-full shadow-2xl">
                 <h3 className="text-xl font-bold text-white mb-2">Start New Presentation?</h3>
-                <p className="text-slate-400 mb-6">You have unsaved content. Starting a new generation will clear your current script and images.</p>
+                <p className="text-slate-400 mb-6">Current content will be cleared.</p>
                 <div className="flex gap-3 justify-end">
                     <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-slate-300 hover:text-white font-medium">Cancel</button>
                     <button onClick={() => { setShowConfirm(false); handleStream("script"); }} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold">Start New</button>
@@ -416,6 +452,11 @@ ${query}`;
           <span className="text-lg font-bold text-slate-50 tracking-tight">Infographic Agent Pro</span>
         </div>
         <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 mr-4">
+              <img src={user.photoURL || ""} className="w-8 h-8 rounded-full border border-slate-700" alt="Avatar" />
+              <span className="text-xs font-semibold text-slate-300 hidden md:block">{user.displayName}</span>
+              <button onClick={logout} className="text-[10px] uppercase font-bold text-slate-500 hover:text-white transition-colors">Logout</button>
+          </div>
           <div className="bg-slate-900 p-1 rounded-full border border-slate-800 flex">
             <button onClick={() => setModelType("flash")} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${modelType === "flash" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"}`}>2.5 Flash</button>
             <button onClick={() => setModelType("pro")} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${modelType === "pro" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"}`}>3 Pro</button>
@@ -452,9 +493,7 @@ ${query}`;
             </div>
             <div className="flex gap-4">
               <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".pdf,.txt,.md" />
-              <button onClick={() => fileInputRef.current?.click()} className={`w-[20%] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-medium py-4 rounded-xl flex items-center justify-center gap-2 transition-all ${uploadedFile ? "border-green-500 text-green-400 bg-green-900/10" : ""}`}>
-                  {uploadedFile ? <><CheckIcon /> {uploadedFile.name.slice(0, 10)}...</> : <><FileUpIcon /> Upload Doc</>}
-              </button>
+              <button onClick={() => fileInputRef.current?.click()} className={`w-[20%] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-medium py-4 rounded-xl flex items-center justify-center gap-2 transition-all ${uploadedFile ? "border-green-500 text-green-400 bg-green-900/10" : ""}`}>{uploadedFile ? <><CheckIcon /> {uploadedFile.name.slice(0, 10)}...</> : <><FileUpIcon /> Upload Doc</>}</button>
               <button onClick={startScriptGen} disabled={isStreaming || (!query && !uploadedFile)} className="w-[80%] bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold text-white shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2">{isStreaming && phase === "review" ? "Generating..." : <><SparklesIcon /> Generate Script</>}</button>
             </div>
           </div>
@@ -505,9 +544,7 @@ ${query}`;
                         {imageComponent && !visiblePrompts[s.id] ? (
                             <div className="relative group min-h-[200px] bg-slate-900 rounded-lg overflow-hidden animate-fade-in flex items-center justify-center cursor-pointer" onClick={() => setLightboxIndex(idx)}>
                                 <img src={imageComponent.src} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={s.title} />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <EyeIcon /> <span className="ml-2 font-bold text-white">View</span>
-                                </div>
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><EyeIcon /> <span className="ml-2 font-bold text-white">View</span></div>
                             </div>
                         ) : (
                             <div className="flex flex-col gap-3 h-full">
@@ -516,16 +553,9 @@ ${query}`;
                             </div>
                         )}
                     </div>
-                    {isGenerating && <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center z-20 animate-pulse"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div><span className="text-xs font-bold text-blue-400">DRAWING...</span></div>}
+                    {isGenerating && <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center z-20 animate-pulse"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div><span className="text-xs font-bold text-blue-400 uppercase">Drawing...</span></div>}
                     {hasError && <div className="absolute inset-0 bg-red-900/80 flex flex-col items-center justify-center z-20"><span className="text-xs font-bold text-red-200">FAILED</span><button onClick={() => retrySlide(s.id)} className="mt-2 text-[10px] underline text-white">Retry</button></div>}
-                    
-                    {imageComponent && !visiblePrompts[s.id] && (
-                        <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-4 right-4 z-10">
-                            <button onClick={(e) => { e.stopPropagation(); retrySlide(s.id); }} className="bg-slate-800 p-2 rounded-full hover:bg-white/10 text-white transition-colors" title="Regenerate">
-                                <RefreshIcon />
-                            </button>
-                        </div>
-                    )}
+                    {imageComponent && !visiblePrompts[s.id] && (<div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-4 right-4 z-10"><button onClick={(e) => { e.stopPropagation(); retrySlide(s.id); }} className="bg-slate-800 p-2 rounded-full hover:bg-white/10 text-white transition-colors" title="Regenerate"><RefreshIcon /></button></div>)}
                   </div>
                 )})
               }
