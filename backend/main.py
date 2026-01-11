@@ -5,6 +5,7 @@ import asyncio
 import re
 import tempfile
 from pathlib import Path
+
 from fastapi import FastAPI, Request, UploadFile, File, Depends, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,7 +31,7 @@ except ImportError:
 from agents.infographic_agent.agent import create_infographic_agent
 from tools.image_gen import ImageGenerationTool
 from tools.export_tool import ExportTool
-from services.security import security_service
+from tools.security_tool import security_service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
