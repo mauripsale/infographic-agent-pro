@@ -203,7 +203,7 @@ async def upload_document(request: Request, file: UploadFile = File(...), user_i
 async def agent_stream(request: Request, user_id: str = Depends(get_user_id)):
     try:
         api_key = request.headers.get("x-goog-api-key") or get_decrypted_api_key(user_id) or os.environ.get("GOOGLE_API_KEY")
-        if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key. Please configure it in settings."})))
+        if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key. Please configure it in settings."})
         
         data = await request.json()
         phase = data.get("phase", "script")
