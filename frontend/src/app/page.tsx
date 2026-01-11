@@ -37,6 +37,7 @@ const XIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="2
 const MaximizeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>;
 const PaintBrushIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18.375 2.625a3.875 3.875 0 0 0-5.5 0l-9 9a3.875 3.875 0 0 0 0 5.5l3.375 3.375a3.875 3.875 0 0 0 5.5 0l9-9a3.875 3.875 0 0 0 0-5.5l-3.375-3.375Z"/><path d="M14.5 6.5 17.5 9.5"/><path d="m2 22 5-5"/></svg>;
 const EditIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>;
+const CheckIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
 
 // --- Shared Stream Helper ---
 const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>, onMessage: (msg: any) => void) => {
@@ -93,8 +94,10 @@ export default function App() {
   const resultsRef = useRef<HTMLDivElement>(null);
   const lightboxRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   
   // UX State
   const [visiblePrompts, setVisiblePrompts] = useState<Record<string, boolean>>({});
@@ -141,6 +144,13 @@ export default function App() {
       }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          setUploadedFile(e.target.files[0]);
+          if (!query) setQuery(`Summarize ${e.target.files[0].name} into an infographic presentation.`);
+      }
+  };
+
   const retrySlide = async (slideId: string) => {
       const slide = script.slides.find((s: Slide) => s.id === slideId);
       if (!slide) return;
@@ -153,7 +163,6 @@ export default function App() {
           }
       }));
 
-      // Determine model based on current selection
       const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
 
       try {
@@ -220,6 +229,28 @@ export default function App() {
     const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
     
     let effectiveQuery = query;
+    let fileContentId = null;
+
+    if (targetPhase === "script" && uploadedFile) {
+        const formData = new FormData();
+        formData.append("file", uploadedFile);
+        
+        try {
+            const uploadRes = await fetch(`${BACKEND_URL}/agent/upload`, {
+                method: "POST",
+                headers: { "x-goog-api-key": apiKey },
+                body: formData
+            });
+            const uploadData = await uploadRes.json();
+            if (uploadData.file_id) {
+                fileContentId = uploadData.file_id;
+            }
+        } catch (e) {
+            console.error("Upload failed", e);
+            alert("Document upload failed. Proceeding with text only.");
+        }
+    }
+
     if (targetPhase === "script") {
         effectiveQuery = `
 [GENERATION SETTINGS]
@@ -243,7 +274,13 @@ ${query}`;
       const res = await fetch(`${BACKEND_URL}/agent/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey, "X-GenAI-Model": selectedModel },
-        body: JSON.stringify({ query: effectiveQuery, phase: targetPhase, script: payloadScript, session_id: "s1" }),
+        body: JSON.stringify({
+            query: effectiveQuery, 
+            phase: targetPhase, 
+            script: payloadScript, 
+            session_id: "s1",
+            file_id: fileContentId
+        }),
         signal: abortController.signal
       });
       
@@ -277,10 +314,9 @@ ${query}`;
   };
 
   const handleExport = async (fmt: "zip" | "pdf") => {
-    if (!surfaceState.components || !script) return; // Need script for ordering
+    if (!surfaceState.components || !script) return;
     setIsExporting(true);
     
-    // FIXED: Build ordered list based on script slides
     const imgUrls = script.slides.map((s: Slide) => {
         const comp = surfaceState.components[`img_${s.id}`] as A2UIComponent;
         return comp ? comp.src : null;
@@ -319,7 +355,6 @@ ${query}`;
   return (
     <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
       
-      {/* Lightbox Modal */}
       {lightboxIndex !== null && script && (
           <div ref={lightboxRef} className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center backdrop-blur-xl animate-fade-in focus:outline-none overflow-hidden">
               <div className="absolute top-6 right-6 z-20 flex gap-4">
@@ -357,13 +392,11 @@ ${query}`;
                   })()}
               </div>
               
-              {/* Mobile Swipe Hints (Invisible touch areas) */}
               <div className="absolute inset-y-0 left-0 w-24 md:hidden z-10" onClick={() => navigateLightbox(-1)}></div>
               <div className="absolute inset-y-0 right-0 w-24 md:hidden z-10" onClick={() => navigateLightbox(1)}></div>
           </div>
       )}
 
-      {/* Confirmation Modal */}
       {showConfirm && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm animate-fade-in">
             <div className="bg-[#1e293b] border border-slate-700 p-8 rounded-2xl max-w-md w-full shadow-2xl">
@@ -377,7 +410,6 @@ ${query}`;
         </div>
       )}
 
-      {/* Header */}
       <header className="sticky top-0 h-16 border-b border-slate-800 bg-[#030712]/90 backdrop-blur-md z-40 flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white"><MonitorIcon /></div>
@@ -392,7 +424,6 @@ ${query}`;
         </div>
       </header>
 
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 pt-10 flex flex-col gap-12">
         <section className="grid grid-cols-12 gap-8">
           <aside className="col-span-3 bg-[#111827] rounded-2xl border border-slate-800 p-6 flex flex-col gap-6 shadow-xl h-fit">
@@ -407,21 +438,24 @@ ${query}`;
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Format</label><select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option value="16:9">16:9 (Wide)</option><option value="4:3">4:3 (Standard)</option></select></div>
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Lang</label><select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option>English</option><option>Italian</option></select></div>
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Style</label><input type="text" value={style} onChange={(e) => setStyle(e.target.value)} placeholder="e.g. Minimalist" className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none" /></div>
-            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-800">
-              <span className="text-sm text-slate-300">Parallel Gen</span>
-              <div onClick={() => setIsParallel(!isParallel)} className={`w-10 h-5 rounded-full relative cursor-pointer border transition-colors ${isParallel ? "bg-blue-600/20 border-blue-500" : "bg-slate-800 border-slate-700"}`}>
-                <div className={`w-3 h-3 rounded-full absolute top-1 transition-all ${isParallel ? "right-1 bg-blue-500" : "left-1 bg-slate-500"}`}></div>
-              </div>
+            
+            <div className="flex items-center justify-between p-3 bg-slate-900/20 rounded-lg border border-slate-800/50 opacity-50 cursor-not-allowed group relative">
+              <span className="text-sm text-slate-500">Parallel Gen</span>
+              <div className="w-10 h-5 rounded-full bg-slate-800 border border-slate-700 relative"><div className="w-3 h-3 rounded-full absolute top-1 left-1 bg-slate-600"></div></div>
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Coming Soon</div>
             </div>
           </aside>
 
           <div className="col-span-9 flex flex-col gap-6">
             <div className="bg-[#0f172a] rounded-xl border border-slate-800 p-6 shadow-inner min-h-[300px]">
-              <textarea value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Describe your topic..." className="w-full h-full bg-transparent resize-none outline-none text-slate-300 text-lg font-mono placeholder-slate-700" />
+              <textarea value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Describe your topic or upload a file..." className="w-full h-full bg-transparent resize-none outline-none text-slate-300 text-lg font-mono placeholder-slate-700" />
             </div>
             <div className="flex gap-4">
-              <button onClick={() => alert("Soon!")} className="w-[20%] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-medium py-4 rounded-xl flex items-center justify-center gap-2 transition-all"><FileUpIcon /> Upload</button>
-              <button onClick={startScriptGen} disabled={isStreaming || !query} className="w-[80%] bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold text-white shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2">{isStreaming && phase === "review" ? "Generating..." : <><SparklesIcon /> Generate Script</>}</button>
+              <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".pdf,.txt,.md" />
+              <button onClick={() => fileInputRef.current?.click()} className={`w-[20%] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-medium py-4 rounded-xl flex items-center justify-center gap-2 transition-all ${uploadedFile ? "border-green-500 text-green-400 bg-green-900/10" : ""}`}>
+                  {uploadedFile ? <><CheckIcon /> {uploadedFile.name.slice(0, 10)}...</> : <><FileUpIcon /> Upload Doc</>}
+              </button>
+              <button onClick={startScriptGen} disabled={isStreaming || (!query && !uploadedFile)} className="w-[80%] bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold text-white shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2">{isStreaming && phase === "review" ? "Generating..." : <><SparklesIcon /> Generate Script</>}</button>
             </div>
           </div>
         </section>
@@ -457,7 +491,7 @@ ${query}`;
                       <span className="text-xs font-bold text-blue-500 uppercase">{s.id}</span>
                       {imageComponent ? (
                           <div className="flex gap-2">
-                              <button onClick={() => setSurfaceState((prev: any) => { 
+                              <button onClick={() => setSurfaceState((prev: any) => {
                                   const { [`img_${s.id}`]: _, ...restComps } = prev.components;
                                   return { ...prev, components: restComps };
                               })} className="text-slate-500 hover:text-white text-[10px] flex items-center gap-1"><EditIcon /> Edit Text</button>
@@ -485,7 +519,6 @@ ${query}`;
                     {isGenerating && <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center z-20 animate-pulse"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div><span className="text-xs font-bold text-blue-400">DRAWING...</span></div>}
                     {hasError && <div className="absolute inset-0 bg-red-900/80 flex flex-col items-center justify-center z-20"><span className="text-xs font-bold text-red-200">FAILED</span><button onClick={() => retrySlide(s.id)} className="mt-2 text-[10px] underline text-white">Retry</button></div>}
                     
-                    {/* Hover Footer */}
                     {imageComponent && !visiblePrompts[s.id] && (
                         <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-4 right-4 z-10">
                             <button onClick={(e) => { e.stopPropagation(); retrySlide(s.id); }} className="bg-slate-800 p-2 rounded-full hover:bg-white/10 text-white transition-colors" title="Regenerate">
