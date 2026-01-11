@@ -15,8 +15,8 @@ from starlette.responses import JSONResponse
 # ADK Core
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
-from google import genai
 from google.genai import types
+from google import genai
 
 # Project Components
 try:
@@ -48,6 +48,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
 # Static & Tools
 STATIC_DIR = Path("static")
 STATIC_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static") # RESTORED
 session_service = InMemorySessionService()
 
 @app.post("/agent/export")
@@ -64,7 +65,7 @@ async def export_assets(request: Request):
         base_url = os.environ.get("BACKEND_URL", "https://infographic-agent-backend-218788847170.us-central1.run.app")
         return {"url": f"{base_url}{url}"}
     except Exception as e:
-        logger.error(f"Export Error: {e}")
+        logger.error(f"Export Error: {e}") # RESTORED LOGGING
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/regenerate_slide")
@@ -96,7 +97,7 @@ async def regenerate_slide(request: Request):
                 ]}}) + "\n"
         return StreamingResponse(event_generator(), media_type="application/x-ndjson")
     except Exception as e:
-        logger.error(f"Regen Error: {e}")
+        logger.error(f"Regenerate Slide Error: {e}") # RESTORED LOGGING
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/upload")
@@ -108,18 +109,20 @@ async def upload_document(file: UploadFile = File(...), request: Request = None)
         
         client = genai.Client(api_key=api_key)
         
-        # Save temp file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp:
-            tmp.write(await file.read())
-            tmp_path = tmp.name
+        # FIXED: Corrected scoping and cleanup of temporary file
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp:
+                tmp.write(await file.read())
+                tmp_path = tmp.name
             
-try:
             # Upload to Gemini
             gemini_file = client.files.upload(path=tmp_path)
             logger.info(f"Uploaded file {gemini_file.name} (URI: {gemini_file.uri})")
             return {"file_id": gemini_file.name, "uri": gemini_file.uri}
-finally:
-            os.remove(tmp_path)
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.remove(tmp_path)
             
     except Exception as e:
         logger.error(f"Upload Error: {e}")
@@ -146,19 +149,15 @@ async def agent_stream(request: Request):
                 runner = Runner(agent=agent, app_name="infographic-pro", session_service=session_service)
                 try:
                     session = await session_service.create_session(app_name="infographic-pro", user_id="u1", session_id=data.get("session_id", "s1"))
-                except: 
+                except Exception as sess_err: # FIXED bare except
+                    logger.warning(f"Session error, creating new: {sess_err}")
                     session = await session_service.create_session(app_name="infographic-pro", user_id="u1", session_id=f"s1_{os.urandom(4).hex()}")
 
                 # Construct Content: Text Prompt + Optional File
                 prompt_parts = [types.Part(text=data.get("query", ""))]
                 
-                # Check for file_id (Gemini File API Name)
                 file_id = data.get("file_id")
                 if file_id:
-                    # Retrieve file metadata to confirm (optional but good practice) or just use name
-                    # Note: ADK/GenAI client usually expects Part.from_uri or similar.
-                    # Assuming we can pass a Part referring to the uploaded file.
-                    # With google-genai v0.3+, we can reference files.
                     try:
                         client = genai.Client(api_key=api_key)
                         g_file = client.files.get(name=file_id)
@@ -188,11 +187,10 @@ async def agent_stream(request: Request):
                     else:
                         yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Text", "text": "Agent failed to produce valid JSON."}]}}) + "\n"
                 except Exception as parse_err:
-                    logger.error(f"Parse Error: {parse_err}")
+                    logger.error(f"Parse Error: {parse_err}. Output was: {agent_output[:200]}...") # IMPROVED LOGGING
                     yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Text", "text": "Error parsing agent output."}]}}) + "\n"
 
             elif phase == "graphics":
-                # --- GRAPHICS ORCHESTRATION (Same as before) ---
                 script = data.get("script", {})
                 slides = script.get("slides", [])
                 ar = script.get("global_settings", {}).get("aspect_ratio", "16:9")
