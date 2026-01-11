@@ -34,6 +34,9 @@ const EyeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height=
 const ChevronLeft = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>;
 const ChevronRight = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>;
 const XIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
+const MaximizeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>;
+const PaintBrushIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18.375 2.625a3.875 3.875 0 0 0-5.5 0l-9 9a3.875 3.875 0 0 0 0 5.5l3.375 3.375a3.875 3.875 0 0 0 5.5 0l9-9a3.875 3.875 0 0 0 0-5.5l-3.375-3.375Z"/><path d="M14.5 6.5 17.5 9.5"/><path d="m2 22 5-5"/></svg>;
+const EditIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>;
 
 // --- Shared Stream Helper ---
 const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>, onMessage: (msg: any) => void) => {
@@ -57,18 +60,6 @@ const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>, on
     }
 };
 
-// --- A2UI Renderer ---
-const A2UIRenderer = ({ surfaceState, componentId }: { surfaceState: any; componentId: string }) => {
-  const comp = surfaceState.components[componentId];
-  if (!comp) return null;
-  switch (comp.component) {
-    case "Column": return <div className="flex flex-col gap-4 w-full">{comp.children?.map((id: string) => <A2UIRenderer key={id} surfaceState={surfaceState} componentId={id} />)}</div>;
-    case "Text": return <p className="text-slate-300">{comp.text}</p>;
-    case "Image": return <img src={comp.src} className="rounded-lg border border-slate-700 w-full shadow-2xl" alt="Generated" />;
-    default: return null;
-  }
-};
-
 export default function App() {
   const [apiKey, setApiKey] = useState("");
   const [query, setQuery] = useState("");
@@ -88,6 +79,7 @@ export default function App() {
   const [surfaceState, setSurfaceState] = useState<any>({ components: {}, dataModel: {} });
   
   const resultsRef = useRef<HTMLDivElement>(null);
+  const lightboxRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -121,6 +113,15 @@ export default function App() {
       return () => window.removeEventListener("keydown", handleKeyDown);
   }, [lightboxIndex, navigateLightbox]); 
 
+  const toggleFullscreen = () => {
+      if (!lightboxRef.current) return;
+      if (!document.fullscreenElement) {
+          lightboxRef.current.requestFullscreen().catch(err => console.error(err));
+      } else {
+          document.exitFullscreen();
+      }
+  };
+
   const handleStop = () => {
       if (abortControllerRef.current) {
           abortControllerRef.current.abort();
@@ -136,7 +137,7 @@ export default function App() {
           ...prev,
           components: {
               ...prev.components,
-              [`card_${slideId}`]: { ...prev.components[`card_${slideId}`], status: "generating", text: "Retrying..." }
+              [`card_${slideId}`]: { ...prev.components[`card_${slideId}`], status: "generating", text: "Generating..." }
           }
       }));
 
@@ -149,7 +150,7 @@ export default function App() {
               headers: {
                   "Content-Type": "application/json", 
                   "x-goog-api-key": apiKey,
-                  "X-GenAI-Model": selectedModel // FIXED: Send selected model
+                  "X-GenAI-Model": selectedModel 
               },
               body: JSON.stringify({
                   slide_id: slideId, 
@@ -308,10 +309,15 @@ ${query}`;
       
       {/* Lightbox Modal */}
       {lightboxIndex !== null && script && (
-          <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center backdrop-blur-xl animate-fade-in focus:outline-none">
-              <button onClick={() => setLightboxIndex(null)} className="absolute top-6 right-6 text-white/50 hover:text-white p-2 rounded-full hover:bg-white/10 transition-all z-20">
-                  <XIcon />
-              </button>
+          <div ref={lightboxRef} className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center backdrop-blur-xl animate-fade-in focus:outline-none overflow-hidden">
+              <div className="absolute top-6 right-6 z-20 flex gap-4">
+                  <button onClick={toggleFullscreen} className="text-white/50 hover:text-white p-2 rounded-full hover:bg-white/10 transition-all">
+                      <MaximizeIcon />
+                  </button>
+                  <button onClick={() => setLightboxIndex(null)} className="text-white/50 hover:text-white p-2 rounded-full hover:bg-white/10 transition-all">
+                      <XIcon />
+                  </button>
+              </div>
               
               <button onClick={() => navigateLightbox(-1)} className="absolute left-6 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 rounded-full hover:bg-white/10 transition-all z-20 hidden md:block">
                   <ChevronLeft />
@@ -389,12 +395,7 @@ ${query}`;
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Format</label><select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option value="16:9">16:9 (Wide)</option><option value="4:3">4:3 (Standard)</option></select></div>
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Lang</label><select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option>English</option><option>Italian</option></select></div>
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Style</label><input type="text" value={style} onChange={(e) => setStyle(e.target.value)} placeholder="e.g. Minimalist" className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none" /></div>
-            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-800">
-              <span className="text-sm text-slate-300">Parallel Gen</span>
-              <div onClick={() => setIsParallel(!isParallel)} className={`w-10 h-5 rounded-full relative cursor-pointer border transition-colors ${isParallel ? "bg-blue-600/20 border-blue-500" : "bg-slate-800 border-slate-700"}`}>
-                <div className={`w-3 h-3 rounded-full absolute top-1 transition-all ${isParallel ? "right-1 bg-blue-500" : "left-1 bg-slate-500"}`}></div>
-              </div>
-            </div>
+            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-800"><span className="text-sm text-slate-300">Parallel Gen</span><div onClick={() => setIsParallel(!isParallel)} className={`w-10 h-5 rounded-full relative cursor-pointer border transition-colors ${isParallel ? "bg-blue-600/20 border-blue-500" : "bg-slate-800 border-slate-700"}`}></div ></div>
           </aside>
 
           <div className="col-span-9 flex flex-col gap-6">
@@ -437,7 +438,14 @@ ${query}`;
                   <div key={s.id} className={`bg-[#111827] border border-slate-800 rounded-xl p-4 flex flex-col gap-3 shadow-xl transition-all relative overflow-hidden group ${isGenerating ? "ring-2 ring-blue-500" : ""}`}>
                     <div className="flex justify-between items-center border-b border-slate-800 pb-2 z-10 relative">
                       <span className="text-xs font-bold text-blue-500 uppercase">{s.id}</span>
-                      {imageComponent && <button onClick={() => togglePrompt(s.id)} className="text-slate-500 hover:text-white text-[10px] uppercase">Prompt</button>}
+                      {imageComponent ? (
+                          <div className="flex gap-2">
+                              <button onClick={() => setSurfaceState((prev: any) => { const n = {...prev}; delete n.components[`img_${s.id}`]; return n; })} className="text-slate-500 hover:text-white text-[10px] flex items-center gap-1"><EditIcon /> Edit Text</button>
+                              <button onClick={() => togglePrompt(s.id)} className="text-slate-500 hover:text-white text-[10px] uppercase">Prompt</button>
+                          </div>
+                      ) : (
+                          <button onClick={() => retrySlide(s.id)} className="text-green-500 hover:text-green-400 text-[10px] uppercase font-bold flex items-center gap-1 bg-green-900/20 px-2 py-1 rounded"><PaintBrushIcon /> Generate</button>
+                      )}
                     </div>
                     <div className="flex-1 flex flex-col gap-3">
                         {imageComponent && !visiblePrompts[s.id] ? (
