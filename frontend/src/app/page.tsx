@@ -27,7 +27,7 @@ interface A2UIComponent {
 
 // Icons
 const MonitorIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>;
-const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
+const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
 const SparklesIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 7h4"/><path d="M3 3h4"/></svg>;
 const FileUpIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>;
 const RefreshIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>;
@@ -61,6 +61,18 @@ const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>, on
             }
         }
     }
+};
+
+// --- A2UI Renderer ---
+const A2UIRenderer = ({ surfaceState, componentId }: { surfaceState: any; componentId: string }) => {
+  const comp = surfaceState.components[componentId];
+  if (!comp) return null;
+  switch (comp.component) {
+    case "Column": return <div className="flex flex-col gap-4 w-full">{comp.children?.map((id: string) => <A2UIRenderer key={id} surfaceState={surfaceState} componentId={id} />)}</div>;
+    case "Text": return <p className="text-slate-300">{comp.text}</p>;
+    case "Image": return <img src={comp.src} className="rounded-lg border border-slate-700 w-full shadow-2xl" alt="Generated" />;
+    default: return null;
+  }
 };
 
 export default function App() {
@@ -165,7 +177,7 @@ export default function App() {
                   "Content-Type": "application/json", 
                   "x-goog-api-key": apiKey,
                   "X-GenAI-Model": selectedModel,
-                  "Authorization": `Bearer ${token}` // ADDED AUTH
+                  "Authorization": `Bearer ${token}`
               },
               body: JSON.stringify({
                   slide_id: slideId, 
@@ -235,16 +247,19 @@ export default function App() {
                 method: "POST",
                 headers: {
                     "x-goog-api-key": apiKey,
-                    "Authorization": `Bearer ${token}` // ADDED AUTH
+                    "Authorization": `Bearer ${token}`
                 },
                 body: formData
             });
             const uploadData = await uploadRes.json();
             if (uploadData.file_id) {
                 fileContentId = uploadData.file_id;
+            } else {
+                throw new Error("Upload failed");
             }
         } catch (e) {
             console.error("Upload failed", e);
+            alert("Document upload failed. Proceeding with text only."); // ADDED FEEDBACK
         }
     }
 
@@ -265,7 +280,7 @@ export default function App() {
             "Content-Type": "application/json", 
             "x-goog-api-key": apiKey, 
             "X-GenAI-Model": selectedModel,
-            "Authorization": `Bearer ${token}` // ADDED AUTH
+            "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
             query: effectiveQuery, 
@@ -298,6 +313,14 @@ export default function App() {
     }
   };
 
+  const startScriptGen = () => {
+    if (script || Object.keys(surfaceState.components).length > 0) {
+        setShowConfirm(true);
+    } else {
+        handleStream("script");
+    }
+  };
+
   const handleExport = async (fmt: "zip" | "pdf") => {
     if (!surfaceState.components || !script) return;
     setIsExporting(true);
@@ -320,14 +343,17 @@ export default function App() {
             headers: {
                 "Content-Type": "application/json", 
                 "x-goog-api-key": apiKey,
-                "Authorization": `Bearer ${token}` // ADDED AUTH
+                "Authorization": `Bearer ${token}`
             },
             body: JSON.stringify({ images: imgUrls, format: fmt })
         });
         const data = await res.json();
         if (data.url) window.open(data.url, "_blank");
-        else alert("Export failed.");
-    } catch(e) { console.error("Export error:", e); }
+        else alert("Export failed. Please check server logs."); // IMPROVED FEEDBACK
+    } catch(e) { 
+        console.error("Export error:", e);
+        alert("Network error during export. Try again."); // ADDED FEEDBACK
+    }
     finally { setIsExporting(false); }
   };
 
@@ -342,7 +368,6 @@ export default function App() {
       setVisiblePrompts(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // --- Login Screen ---
   if (authLoading) return <div className="min-h-screen bg-[#030712] flex items-center justify-center text-white font-bold animate-pulse">Loading Identity...</div>;
   
   if (!user) {
@@ -365,7 +390,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
-      {/* Lightbox, Confirmation, etc (Already updated in previous turns) */}
+      
       {lightboxIndex !== null && script && (
           <div ref={lightboxRef} className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center backdrop-blur-xl animate-fade-in focus:outline-none overflow-hidden">
               <div className="absolute top-6 right-6 z-20 flex gap-4">
@@ -402,6 +427,9 @@ export default function App() {
                       );
                   })()}
               </div>
+              
+              <div className="absolute inset-y-0 left-0 w-24 md:hidden z-10" onClick={() => navigateLightbox(-1)}></div>
+              <div className="absolute inset-y-0 right-0 w-24 md:hidden z-10" onClick={() => navigateLightbox(1)}></div>
           </div>
       )}
 
@@ -440,7 +468,9 @@ export default function App() {
       <div className="max-w-7xl mx-auto px-6 pt-10 flex flex-col gap-12">
         <section className="grid grid-cols-12 gap-8">
           <aside className="col-span-3 bg-[#111827] rounded-2xl border border-slate-800 p-6 flex flex-col gap-6 shadow-xl h-fit">
-            <div className="flex items-center gap-2 text-slate-100 font-semibold border-b border-slate-800 pb-4"><SettingsIcon /><span className="uppercase tracking-wider text-xs">Settings</span></div>
+            <div className="flex items-center gap-2 text-slate-100 font-semibold border-b border-slate-800 pb-4">
+              <SettingsIcon /><span className="uppercase tracking-wider text-xs">Settings</span>
+            </div>
             <div>
               <div className="flex justify-between text-sm mb-3"><span className="text-slate-400">Slides</span><span className="text-blue-400 font-bold bg-blue-900/30 px-2 py-0.5 rounded text-xs">{numSlides}</span></div>
               <input type="range" min="1" max="30" value={numSlides} onChange={(e) => setNumSlides(Number(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg cursor-pointer accent-blue-600" />
@@ -449,7 +479,12 @@ export default function App() {
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Format</label><select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option value="16:9">16:9 (Wide)</option><option value="4:3">4:3 (Standard)</option></select></div>
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Lang</label><select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option>English</option><option>Italian</option></select></div>
             <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Style</label><input type="text" value={style} onChange={(e) => setStyle(e.target.value)} placeholder="e.g. Minimalist" className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none" /></div>
-            <div className="flex items-center justify-between p-3 bg-slate-900/20 rounded-lg border border-slate-800/50 opacity-50 cursor-not-allowed group relative"><span className="text-sm text-slate-500">Parallel Gen</span><div className="w-10 h-5 rounded-full bg-slate-800 border border-slate-700 relative"><div className="w-3 h-3 rounded-full absolute top-1 left-1 bg-slate-600"></div></div></div>
+            
+            <div className="flex items-center justify-between p-3 bg-slate-900/20 rounded-lg border border-slate-800/50 opacity-50 cursor-not-allowed group relative">
+              <span className="text-sm text-slate-500">Parallel Gen</span>
+              <div className="w-10 h-5 rounded-full bg-slate-800 border border-slate-700 relative"><div className="w-3 h-3 rounded-full absolute top-1 left-1 bg-slate-600"></div></div>
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Coming Soon</div>
+            </div>
           </aside>
 
           <div className="col-span-9 flex flex-col gap-6">
@@ -495,7 +530,7 @@ export default function App() {
                       <span className="text-xs font-bold text-blue-500 uppercase">{s.id}</span>
                       {imageComponent ? (
                           <div className="flex gap-2">
-                              <button onClick={() => setSurfaceState((prev: any) => { 
+                              <button onClick={() => setSurfaceState((prev: any) => {
                                   const { [`img_${s.id}`]: _, ...restComps } = prev.components;
                                   return { ...prev, components: restComps };
                               })} className="text-slate-500 hover:text-white text-[10px] flex items-center gap-1"><EditIcon /> Edit Text</button>

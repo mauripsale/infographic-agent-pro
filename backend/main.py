@@ -5,14 +5,14 @@ import asyncio
 import re
 import tempfile
 from pathlib import Path
-from fastapi import FastAPI, Request, UploadFile, File, Depends, HTTPException
+from fastapi import FastAPI, Request, UploadFile, File, Depends, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 import firebase_admin
-from firebase_admin import auth as firebase_auth, credentials
+from firebase_admin import auth as firebase_auth, firestore
 
 # ADK Core
 from google.adk.runners import Runner
@@ -30,23 +30,27 @@ except ImportError:
 from agents.infographic_agent.agent import create_infographic_agent
 from tools.image_gen import ImageGenerationTool
 from tools.export_tool import ExportTool
+from services.security import security_service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize Firebase Admin
-# In Cloud Run, it uses Default Google Credentials automatically
+# Initialize Firebase Admin & Firestore
 try:
     firebase_admin.initialize_app()
 except ValueError:
-    # Already initialized
     pass
+
+try:
+    db = firestore.client()
+except Exception as e:
+    logger.warning(f"Firestore init failed (local dev?): {e}")
+    db = None
 
 app = FastAPI()
 
 # --- AUTH HELPERS ---
 async def get_user_id(request: Request):
-    """Verifies Firebase Token and returns UID."""
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid authentication token")
@@ -55,9 +59,23 @@ async def get_user_id(request: Request):
     try:
         decoded_token = firebase_auth.verify_id_token(token)
         return decoded_token['uid']
-    except Exception as e:
+    except (firebase_auth.InvalidIdTokenError, ValueError) as e:
         logger.error(f"Auth Error: {e}")
         raise HTTPException(status_code=401, detail="Invalid token")
+
+def get_decrypted_api_key(user_id: str) -> str:
+    """Retrieves and decrypts the user's API key from Firestore."""
+    if not db: return ""
+    try:
+        doc = db.collection("users").document(user_id).get()
+        if doc.exists:
+            data = doc.to_dict()
+            encrypted_key = data.get("gemini_api_key")
+            if encrypted_key:
+                return security_service.decrypt_data(encrypted_key)
+    except Exception as e:
+        logger.error(f"Firestore Read Error: {e}")
+    return None
 
 # --- MIDDLEWARE ---
 class ModelSelectionMiddleware(BaseHTTPMiddleware):
@@ -70,17 +88,48 @@ class ModelSelectionMiddleware(BaseHTTPMiddleware):
 app.add_middleware(ModelSelectionMiddleware)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# Static & Tools
 STATIC_DIR = Path("static")
 STATIC_DIR.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 session_service = InMemorySessionService()
 
+# --- SETTINGS ENDPOINTS ---
+@app.get("/user/settings")
+async def get_settings(user_id: str = Depends(get_user_id)):
+    """Check if user has a configured API Key."""
+    api_key = get_decrypted_api_key(user_id)
+    return {
+        "has_api_key": bool(api_key),
+        "masked_key": f"sk-....{api_key[-4:]}" if api_key else None
+    }
+
+@app.post("/user/settings")
+async def save_settings(payload: dict = Body(...), user_id: str = Depends(get_user_id)):
+    """Encrypts and saves the API key."""
+    raw_key = payload.get("api_key")
+    if not raw_key or not raw_key.startswith("AIza"):
+        raise HTTPException(status_code=400, detail="Invalid API Key format")
+    
+    try:
+        encrypted = security_service.encrypt_data(raw_key)
+        if db:
+            db.collection("users").document(user_id).set({
+                "gemini_api_key": encrypted,
+                "updated_at": firestore.SERVER_TIMESTAMP
+            }, merge=True)
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Save Settings Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save settings")
+
+
 @app.post("/agent/export")
 async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
     try:
-        api_key = request.headers.get("x-goog-api-key")
-        if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key"})
+        # Fallback priority: Header -> Firestore -> Env
+        api_key = request.headers.get("x-goog-api-key") or get_decrypted_api_key(user_id) or os.environ.get("GOOGLE_API_KEY")
+        if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key. Please configure it in settings."})))
+        
         data = await request.json()
         images = data.get("images", [])
         fmt = data.get("format", "zip")
@@ -96,8 +145,9 @@ async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
 @app.post("/agent/regenerate_slide")
 async def regenerate_slide(request: Request, user_id: str = Depends(get_user_id)):
     try:
-        api_key = request.headers.get("x-goog-api-key")
+        api_key = request.headers.get("x-goog-api-key") or get_decrypted_api_key(user_id) or os.environ.get("GOOGLE_API_KEY")
         if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key"})
+        
         data = await request.json()
         slide_id = data.get("slide_id")
         prompt = data.get("image_prompt")
@@ -126,16 +176,12 @@ async def regenerate_slide(request: Request, user_id: str = Depends(get_user_id)
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/upload")
-async def upload_document(file: UploadFile = File(...), user_id: str = Depends(get_user_id)):
-    """Uploads a file to Gemini File API and returns the file handle/URI."""
+async def upload_document(request: Request, file: UploadFile = File(...), user_id: str = Depends(get_user_id)):
     try:
-        api_key = os.environ.get("GOOGLE_API_KEY") # Try env first
-        # We need a way to pass api_key here if not in env. 
-        # For simplicity, we assume the client might send it as a header or we use a service key.
-        # But since upload is a separate call, we'll try to get it from header too if needed.
+        api_key = request.headers.get("x-goog-api-key") or get_decrypted_api_key(user_id) or os.environ.get("GOOGLE_API_KEY")
+        if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key"})
         
         client = genai.Client(api_key=api_key)
-        
         tmp_path = None
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp:
@@ -156,8 +202,9 @@ async def upload_document(file: UploadFile = File(...), user_id: str = Depends(g
 @app.post("/agent/stream")
 async def agent_stream(request: Request, user_id: str = Depends(get_user_id)):
     try:
-        api_key = request.headers.get("x-goog-api-key")
-        if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key"})
+        api_key = request.headers.get("x-goog-api-key") or get_decrypted_api_key(user_id) or os.environ.get("GOOGLE_API_KEY")
+        if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key. Please configure it in settings."})))
+        
         data = await request.json()
         phase = data.get("phase", "script")
         
@@ -172,7 +219,6 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id)):
                 if await request.is_disconnected(): return
 
                 runner = Runner(agent=agent, app_name="infographic-pro", session_service=session_service)
-                # ISOLATE SESSION BY USER_ID
                 session_id = data.get("session_id", "default_project")
                 namespaced_session_id = f"{user_id}_{session_id}"
                 
@@ -190,7 +236,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id)):
                         client = genai.Client(api_key=api_key)
                         g_file = client.files.get(name=file_id)
                         prompt_parts.append(types.Part.from_uri(file_uri=g_file.uri, mime_type=g_file.mime_type))
-                        logger.info(f"Attached file {file_id} to prompt for {user_id}")
+                        logger.info(f"Attached file {file_id}")
                     except Exception as fe:
                         logger.error(f"Failed to attach file {file_id}: {fe}")
                         yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "l", "component": "Text", "text": "⚠️ Failed to read uploaded doc. Proceeding with text only..."}]}}) + "\n"
