@@ -72,10 +72,31 @@ def get_decrypted_api_key(user_id: str) -> str:
             data = doc.to_dict()
             encrypted_key = data.get("gemini_api_key")
             if encrypted_key:
-                return security_service.decrypt_data(encrypted_key)
+                val = security_service.decrypt_data(encrypted_key)
+                return val if val else ""
     except Exception as e:
         logger.error(f"Firestore Read Error: {e}")
-    return None
+    return ""
+
+async def get_api_key(request: Request, user_id: str = Depends(get_user_id)) -> str:
+    """Dependency to get API key with fallback: Header -> Firestore -> Env."""
+    # Check header first (explicit override)
+    api_key = request.headers.get("x-goog-api-key")
+    
+    # Then Firestore (user settings)
+    if not api_key:
+        api_key = get_decrypted_api_key(user_id)
+        
+    # Finally Env (system default)
+    if not api_key:
+        api_key = os.environ.get("GOOGLE_API_KEY")
+
+    if not api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing API Key. Please configure it in settings.",
+        )
+    return api_key
 
 # --- MIDDLEWARE ---
 class ModelSelectionMiddleware(BaseHTTPMiddleware):
@@ -124,12 +145,8 @@ async def save_settings(payload: dict = Body(...), user_id: str = Depends(get_us
 
 
 @app.post("/agent/export")
-async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
+async def export_assets(request: Request, api_key: str = Depends(get_api_key)):
     try:
-        # Fallback priority: Header -> Firestore -> Env
-        api_key = request.headers.get("x-goog-api-key") or get_decrypted_api_key(user_id) or os.environ.get("GOOGLE_API_KEY")
-        if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key. Please configure it in settings."})))
-        
         data = await request.json()
         images = data.get("images", [])
         fmt = data.get("format", "zip")
@@ -143,11 +160,8 @@ async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/regenerate_slide")
-async def regenerate_slide(request: Request, user_id: str = Depends(get_user_id)):
+async def regenerate_slide(request: Request, api_key: str = Depends(get_api_key)):
     try:
-        api_key = request.headers.get("x-goog-api-key") or get_decrypted_api_key(user_id) or os.environ.get("GOOGLE_API_KEY")
-        if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key"})
-        
         data = await request.json()
         slide_id = data.get("slide_id")
         prompt = data.get("image_prompt")
@@ -176,11 +190,8 @@ async def regenerate_slide(request: Request, user_id: str = Depends(get_user_id)
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/upload")
-async def upload_document(request: Request, file: UploadFile = File(...), user_id: str = Depends(get_user_id)):
+async def upload_document(request: Request, file: UploadFile = File(...), user_id: str = Depends(get_user_id), api_key: str = Depends(get_api_key)):
     try:
-        api_key = request.headers.get("x-goog-api-key") or get_decrypted_api_key(user_id) or os.environ.get("GOOGLE_API_KEY")
-        if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key"})
-        
         client = genai.Client(api_key=api_key)
         tmp_path = None
         try:
@@ -200,11 +211,8 @@ async def upload_document(request: Request, file: UploadFile = File(...), user_i
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/stream")
-async def agent_stream(request: Request, user_id: str = Depends(get_user_id)):
+async def agent_stream(request: Request, user_id: str = Depends(get_user_id), api_key: str = Depends(get_api_key)):
     try:
-        api_key = request.headers.get("x-goog-api-key") or get_decrypted_api_key(user_id) or os.environ.get("GOOGLE_API_KEY")
-        if not api_key: return JSONResponse(status_code=401, content={"error": "Missing API Key. Please configure it in settings."})
-        
         data = await request.json()
         phase = data.get("phase", "script")
         
