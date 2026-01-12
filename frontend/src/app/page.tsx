@@ -642,6 +642,15 @@ export default function App() {
           </section>
         )}
       </div>
+
+      <footer className="fixed bottom-0 w-full bg-[#030712]/95 backdrop-blur-md border-t border-slate-800/50 py-4 px-6 text-center z-30">
+          <p className="text-[10px] text-slate-500 mb-1 tracking-tight">
+              Created by <a href="https://www.linkedin.com/in/maurizioipsale/" target="_blank" className="text-blue-400 hover:text-blue-300 font-bold hover:underline">Maurizio Ipsale</a> • Google Developer Expert (GDE) Cloud/AI
+          </p>
+          <p className="text-[9px] text-slate-600 uppercase tracking-widest opacity-80">
+              Disclaimer: AI-generated content may be inaccurate. Please verify information. Not an official Google product.
+          </p>
+      </footer>
     </div>
   );
 }
