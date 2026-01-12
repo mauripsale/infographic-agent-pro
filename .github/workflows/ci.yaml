@@ -59,10 +59,8 @@ jobs:
       uses: FirebaseExtended/action-hosting-deploy@v0
       with:
         repoToken: '${{ secrets.GITHUB_TOKEN }}'
-        # GENERIC SECRET NAME - Update this in GitHub Settings!
         firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' 
         channelId: live
-        # Uses the variable, allowing project switch without code change
         projectId: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }} 
         entryPoint: frontend
 
@@ -88,7 +86,6 @@ jobs:
           run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
         - name: Build and Push Docker image
-          # Uses GCP_PROJECT_ID secret
           run: |
             cd backend/
             docker build -f Dockerfile -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/infographic-agent-backend/infographic-agent-backend:${{ github.sha }} .
@@ -99,6 +96,10 @@ jobs:
           with:
             service: 'infographic-agent-backend'
             image: 'us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/infographic-agent-backend/infographic-agent-backend:${{ github.sha }}'
-            region: 'us-central1' # You could also make this a secret if region changes
+            region: 'us-central1'
             labels: 'managed-by=github-actions,commit-sha=${{ github.sha }}'
             flags: '--allow-unauthenticated'
+            env_vars: |
+              GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}
+              ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
+              BACKEND_URL=${{ secrets.NEXT_PUBLIC_BACKEND_URL }}
