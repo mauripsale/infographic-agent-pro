@@ -25,11 +25,11 @@ interface A2UIComponent {
   [key: string]: any;
 }
 
-// Icons
+// Icons (Standardized sizes for mobile)
 const MonitorIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>;
-const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
-const SparklesIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 7h4"/><path d="M3 3h4"/></svg>;
-const FileUpIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>;
+const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
+const SparklesIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 7h4"/><path d="M3 3h4"/></svg>;
+const FileUpIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>;
 const RefreshIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>;
 const EyeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>;
 const ChevronLeft = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>;
@@ -41,6 +41,8 @@ const EditIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height
 const CheckIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
 const GoogleIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>;
 const KeyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>;
+const ChevronDown = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>;
+const ChevronUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>;
 
 // --- Shared Stream Helper ---
 const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>, onMessage: (msg: any) => void) => {
@@ -71,10 +73,13 @@ export default function App() {
   const [modelType, setModelType] = useState<"flash" | "pro">("flash");
   
   // Settings & Auth State
-  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null); // null = unknown
+  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null); 
   const [showSettings, setShowSettings] = useState(false);
   const [inputApiKey, setInputApiKey] = useState("");
   const [isSavingKey, setIsSavingKey] = useState(false);
+  
+  // Mobile UX
+  const [showMobileSettings, setShowMobileSettings] = useState(false);
 
   // Generation Settings
   const [numSlides, setNumSlides] = useState(5);
@@ -138,7 +143,7 @@ export default function App() {
           if (res.ok) {
               setHasApiKey(true);
               setShowSettings(false);
-              setInputApiKey(""); // Clear from memory
+              setInputApiKey(""); 
               alert("API Key saved securely!");
           } else {
               const err = await res.json();
@@ -153,7 +158,6 @@ export default function App() {
   };
 
   // Lightbox Navigation
-  // --- Keyboard Nav for Lightbox ---
   const navigateLightbox = useCallback((dir: number) => {
       if (!script || lightboxIndex === null) return;
       const newIndex = lightboxIndex + dir;
@@ -170,7 +174,7 @@ export default function App() {
           if (e.key === "Escape") setLightboxIndex(null);
       };
       window.addEventListener("keydown", handleKeyDown);
-      return () => window.removeEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown); 
   }, [lightboxIndex, navigateLightbox]); 
 
   const toggleFullscreen = () => {
@@ -428,7 +432,7 @@ export default function App() {
       
       {/* SETTINGS MODAL */}
       {showSettings && (
-          <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center backdrop-blur-sm animate-fade-in">
+          <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center backdrop-blur-sm animate-fade-in px-4">
               <div className="bg-[#1e293b] border border-slate-700 p-8 rounded-2xl max-w-md w-full shadow-2xl relative">
                   <button onClick={() => setShowSettings(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white"><XIcon /></button>
                   <div className="flex items-center gap-3 mb-6">
@@ -464,7 +468,7 @@ export default function App() {
           </div>
       )}
 
-      {/* Lightbox ... */}
+      {/* Lightbox */}
       {lightboxIndex !== null && script && (
           <div ref={lightboxRef} className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center backdrop-blur-xl animate-fade-in focus:outline-none overflow-hidden">
               <div className="absolute top-6 right-6 z-20 flex gap-4">
@@ -504,26 +508,15 @@ export default function App() {
           </div>
       )}
 
-      {showConfirm && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm animate-fade-in">
-            <div className="bg-[#1e293b] border border-slate-700 p-8 rounded-2xl max-w-md w-full shadow-2xl">
-                <h3 className="text-xl font-bold text-white mb-2">Start New Presentation?</h3>
-                <p className="text-slate-400 mb-6">Current content will be cleared.</p>
-                <div className="flex gap-3 justify-end">
-                    <button onClick={() => setShowConfirm(false)} className="px-4 py-2 text-slate-300 hover:text-white font-medium">Cancel</button>
-                    <button onClick={() => { setShowConfirm(false); handleStream("script"); }} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold">Start New</button>
-                </div>
-            </div>
-        </div>
-      )}
-
+      {/* HEADER */}
       <header className="sticky top-0 h-16 border-b border-slate-800 bg-[#030712]/90 backdrop-blur-md z-40 flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white"><MonitorIcon /></div>
-          <span className="text-lg font-bold text-slate-50 tracking-tight">Infographic Agent Pro</span>
+          <span className="text-lg font-bold text-slate-50 tracking-tight hidden md:block">Infographic Agent Pro</span>
+          <span className="text-lg font-bold text-slate-50 tracking-tight md:hidden">IA Pro</span>
         </div>
         <div className="flex items-center gap-4">
-          <div className="bg-slate-900 p-1 rounded-full border border-slate-800 flex mr-2">
+          <div className="bg-slate-900 p-1 rounded-full border border-slate-800 hidden md:flex mr-2">
             <button onClick={() => setModelType("flash")} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${modelType === "flash" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"}`}>2.5 Flash</button>
             <button onClick={() => setModelType("pro")} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${modelType === "pro" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"}`}>3 Pro</button>
           </div>
@@ -539,55 +532,88 @@ export default function App() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 pt-10 flex flex-col gap-12">
-        <section className="grid grid-cols-12 gap-8">
-          <aside className="col-span-3 bg-[#111827] rounded-2xl border border-slate-800 p-6 flex flex-col gap-6 shadow-xl h-fit">
-            <div className="flex items-center gap-2 text-slate-100 font-semibold border-b border-slate-800 pb-4">
-              <SettingsIcon /><span className="uppercase tracking-wider text-xs">Settings</span>
-            </div>
-            <div>
-              <div className="flex justify-between text-sm mb-3"><span className="text-slate-400">Slides</span><span className="text-blue-400 font-bold bg-blue-900/30 px-2 py-0.5 rounded text-xs">{numSlides}</span></div>
-              <input type="range" min="1" max="30" value={numSlides} onChange={(e) => setNumSlides(Number(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg cursor-pointer accent-blue-600" />
-            </div>
-            <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Detail</label><select value={detailLevel} onChange={(e) => setDetailLevel(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option>1 - Super Simple</option><option>2 - Basic</option><option>3 - Average</option><option>4 - Detailed</option><option>5 - Super Detailed</option></select></div>
-            <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Format</label><select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option value="16:9">16:9 (Wide)</option><option value="4:3">4:3 (Standard)</option></select></div>
-            <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Lang</label><select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option>English</option><option>Italian</option></select></div>
-            <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Style</label><input type="text" value={style} onChange={(e) => setStyle(e.target.value)} placeholder="e.g. Minimalist" className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none" /></div>
-            
-            <div className="flex items-center justify-between p-3 bg-slate-900/20 rounded-lg border border-slate-800/50 opacity-50 cursor-not-allowed group relative">
-              <span className="text-sm text-slate-500">Parallel Gen</span>
-              <div className="w-10 h-5 rounded-full bg-slate-800 border border-slate-700 relative"><div className="w-3 h-3 rounded-full absolute top-1 left-1 bg-slate-600"></div></div>
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Coming Soon</div>
-            </div>
+      {/* MAIN CONTENT */}
+      <div className="max-w-7xl mx-auto px-6 pt-6 md:pt-10 flex flex-col gap-6 md:gap-12 pb-24">
+        <section className="grid grid-cols-1 md:grid-cols-12 gap-8">
+          
+          {/* SIDEBAR / MOBILE DRAWER */}
+          <aside className={`col-span-1 md:col-span-3 bg-[#111827] rounded-2xl border border-slate-800 shadow-xl overflow-hidden transition-all duration-300 ${showMobileSettings ? "max-h-[500px] mb-6" : "max-h-0 md:max-h-none opacity-0 md:opacity-100 hidden md:flex flex-col gap-6 p-6"}`}>
+             {/* Duplicate Settings Content for Mobile Toggle logic (Using hidden/block classes instead of conditional rendering for cleaner transition if needed, but here sticking to conditional classes) */}
+             <div className="p-6 flex flex-col gap-6">
+                <div className="flex items-center gap-2 text-slate-100 font-semibold border-b border-slate-800 pb-4">
+                <SettingsIcon /><span className="uppercase tracking-wider text-xs">Settings</span>
+                </div>
+                <div>
+                <div className="flex justify-between text-sm mb-3"><span className="text-slate-400">Slides</span><span className="text-blue-400 font-bold bg-blue-900/30 px-2 py-0.5 rounded text-xs">{numSlides}</span></div>
+                <input type="range" min="1" max="30" value={numSlides} onChange={(e) => setNumSlides(Number(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg cursor-pointer accent-blue-600" />
+                </div>
+                <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Detail</label><select value={detailLevel} onChange={(e) => setDetailLevel(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option>1 - Super Simple</option><option>2 - Basic</option><option>3 - Average</option><option>4 - Detailed</option><option>5 - Super Detailed</option></select></div>
+                <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Format</label><select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option value="16:9">16:9 (Wide)</option><option value="4:3">4:3 (Standard)</option></select></div>
+                <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Lang</label><select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option>English</option><option>Italian</option></select></div>
+                <div className="md:hidden"><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Model</label><select value={modelType} onChange={(e:any) => setModelType(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option value="flash">2.5 Flash</option><option value="pro">3 Pro</option></select></div>
+                <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Style</label><input type="text" value={style} onChange={(e) => setStyle(e.target.value)} placeholder="e.g. Minimalist" className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none" /></div>
+             </div>
           </aside>
 
-          <div className="col-span-9 flex flex-col gap-6">
-            <div className="bg-[#0f172a] rounded-xl border border-slate-800 p-6 shadow-inner min-h-[300px]">
-              <textarea value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Describe your topic or upload a file..." className="w-full h-full bg-transparent resize-none outline-none text-slate-300 text-lg font-mono placeholder-slate-700" />
-            </div>
-            <div className="flex gap-4">
-              <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".pdf,.txt,.md" />
-              <button onClick={() => fileInputRef.current?.click()} disabled={!hasApiKey} className={`w-[20%] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-medium py-4 rounded-xl flex items-center justify-center gap-2 transition-all ${uploadedFile ? "border-green-500 text-green-400 bg-green-900/10" : ""}`}>
-                  {uploadedFile ? <><CheckIcon /> {uploadedFile.name.slice(0, 10)}...</> : <><FileUpIcon /> Upload Doc</>}
+          {/* MOBILE TOGGLE BUTTON */}
+          <div className="md:hidden col-span-1">
+              <button onClick={() => setShowMobileSettings(!showMobileSettings)} className="w-full bg-[#1e293b] border border-slate-700 text-slate-300 py-3 rounded-xl flex items-center justify-center gap-2 font-medium text-sm">
+                  {showMobileSettings ? <ChevronUp /> : <ChevronDown />} {showMobileSettings ? "Hide Options" : "Show Options (Slides, Lang...)"}
               </button>
-              <button onClick={startScriptGen} disabled={isStreaming || !hasApiKey || (!query && !uploadedFile)} className="w-[80%] bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
-                  {!hasApiKey ? "⚠️ Configure API Key First" : (isStreaming && phase === "review" ? "Generating..." : <><SparklesIcon /> Generate Script</>)}
+          </div>
+
+          <div className="col-span-1 md:col-span-9 flex flex-col gap-6"> 
+            
+            {/* MISSING API KEY BANNER */}
+            {!hasApiKey && (
+                <div className="bg-amber-900/30 border border-amber-600/50 p-4 rounded-xl flex items-center gap-3 text-amber-200 text-sm animate-pulse">
+                    <KeyIcon />
+                    <span><strong>Action Required:</strong> Please configure your Gemini API Key in Settings to start.</span>
+                </div>
+            )}
+
+            <div className="bg-[#0f172a] rounded-xl border border-slate-800 p-4 md:p-6 shadow-inner min-h-[200px] md:min-h-[300px]">
+              <textarea 
+                value={query} 
+                onChange={(e) => setQuery(e.target.value)} 
+                placeholder="Describe your topic (e.g. 'History of Rome'), paste a URL, or upload a file..." 
+                className="w-full h-full bg-transparent resize-none outline-none text-slate-300 text-base md:text-lg font-mono placeholder-slate-600 leading-relaxed" 
+              />
+            </div>
+            
+            <div className="flex flex-col md:flex-row gap-4">
+              <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".pdf,.txt,.md" />
+              
+              <button 
+                onClick={() => fileInputRef.current?.click()} 
+                disabled={!hasApiKey} 
+                className={`w-full md:w-[20%] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-medium py-4 rounded-xl flex items-center justify-center gap-2 transition-all min-h-[48px] ${uploadedFile ? "border-green-500 text-green-400 bg-green-900/10" : ""} disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                  {uploadedFile ? <><CheckIcon /> <span className="truncate max-w-[100px]">{uploadedFile.name}</span></> : <><FileUpIcon /> Upload</>}
+              </button>
+              
+              <button 
+                onClick={startScriptGen} 
+                disabled={isStreaming || !hasApiKey || (!query && !uploadedFile)} 
+                className="w-full md:w-[80%] bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 min-h-[48px]"
+              >
+                  {isStreaming && phase === "review" ? "Generating..." : <><SparklesIcon /> Generate Script</>}
               </button>
             </div>
           </div>
         </section>
 
         {(phase !== "input" || isStreaming) && (
-          <section ref={resultsRef} className="mt-10 border-t border-slate-800 pt-12 animate-fade-in">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-2xl font-bold text-white">Final Presentation</h2>
-              <div className="flex gap-4">
-                {isStreaming && (<button onClick={handleStop} className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded-lg font-bold text-sm shadow-lg animate-pulse flex items-center gap-2">STOP</button>)}
+          <section ref={resultsRef} className="mt-4 md:mt-10 border-t border-slate-800 pt-8 md:pt-12 animate-fade-in">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4">
+              <h2 className="text-xl md:text-2xl font-bold text-white">Final Presentation</h2>
+              <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+                {isStreaming && (<button onClick={handleStop} className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded-lg font-bold text-sm shadow-lg animate-pulse flex items-center gap-2 whitespace-nowrap">STOP</button>)}
                 {phase === "graphics" && !isStreaming && (
-                    <><button onClick={() => handleExport("zip")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold">ZIP</button>
-                    <button onClick={() => handleExport("pdf")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold">PDF</button></>
+                    <><button onClick={() => handleExport("zip")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">ZIP</button>
+                    <button onClick={() => handleExport("pdf")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">PDF</button></>
                 )}
-                {phase === "review" && script && (<button onClick={() => handleStream("graphics", script)} className="bg-green-600 hover:bg-green-500 px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-900/20">Generate Graphics</button>)}
+                {phase === "review" && script && (<button onClick={() => handleStream("graphics", script)} className="bg-green-600 hover:bg-green-500 px-6 md:px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-900/20 text-sm whitespace-nowrap w-full md:w-auto">Generate Graphics</button>)}
               </div>
             </div>
 
@@ -643,7 +669,7 @@ export default function App() {
         )}
       </div>
 
-      <footer className="fixed bottom-0 w-full bg-[#030712]/95 backdrop-blur-md border-t border-slate-800/50 py-4 px-6 text-center z-30">
+      <footer className="w-full bg-[#030712]/95 backdrop-blur-md border-t border-slate-800/50 py-4 px-6 text-center z-30 mt-auto md:fixed md:bottom-0">
           <p className="text-[10px] text-slate-500 mb-1 tracking-tight">
               Created by <a href="https://www.linkedin.com/in/maurizioipsale/" target="_blank" className="text-blue-400 hover:text-blue-300 font-bold hover:underline">Maurizio Ipsale</a> • Google Developer Expert (GDE) Cloud/AI
           </p>
