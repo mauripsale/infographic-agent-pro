@@ -45,7 +45,7 @@ except ValueError:
 try:
     db = firestore.client()
 except Exception as e:
-    logger.warning(f"Firestore init failed (local dev?): {e}")
+    logger.warning(f"Firestore init failed: {e}")
     db = None
 
 app = FastAPI()
@@ -76,26 +76,22 @@ def get_decrypted_api_key(user_id: str) -> str:
                 val = security_service.decrypt_data(encrypted_key)
                 return val if val else ""
     except Exception as e:
-        logger.error(f"Firestore Read Error: {e}")
+        logger.error(f"Firestore Read Error for {user_id}: {e}")
     return ""
 
 async def get_api_key(request: Request, user_id: str = Depends(get_user_id)) -> str:
-    """Dependency to get API key with fallback: Header -> Firestore -> Env."""
-    # Check header first (explicit override)
+    """Dependency to get API key with strict fallback: Header -> Firestore. NO SYSTEM DEFAULT."""
+    # Check header first (explicit override for dev/debug)
     api_key = request.headers.get("x-goog-api-key")
     
     # Then Firestore (user settings)
     if not api_key:
         api_key = get_decrypted_api_key(user_id)
         
-    # Finally Env (system default)
-    if not api_key:
-        api_key = os.environ.get("GOOGLE_API_KEY")
-
     if not api_key:
         raise HTTPException(
             status_code=401,
-            detail="Missing API Key. Please configure it in settings.",
+            detail="Missing Gemini API Key. Please go to Settings to configure it.",
         )
     return api_key
 
@@ -118,7 +114,6 @@ session_service = InMemorySessionService()
 # --- SETTINGS ENDPOINTS ---
 @app.get("/user/settings")
 async def get_settings(user_id: str = Depends(get_user_id)):
-    """Check if user has a configured API Key."""
     api_key = get_decrypted_api_key(user_id)
     return {
         "has_api_key": bool(api_key),
@@ -127,10 +122,9 @@ async def get_settings(user_id: str = Depends(get_user_id)):
 
 @app.post("/user/settings")
 async def save_settings(payload: dict = Body(...), user_id: str = Depends(get_user_id)):
-    """Encrypts and saves the API key."""
     raw_key = payload.get("api_key")
     if not raw_key or not raw_key.startswith("AIza"):
-        raise HTTPException(status_code=400, detail="Invalid API Key format")
+        raise HTTPException(status_code=400, detail="Invalid API Key format. Must start with AIza.")
     
     try:
         encrypted = security_service.encrypt_data(raw_key)
