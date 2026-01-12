@@ -1,5 +1,5 @@
 from google.adk.agents import LlmAgent
-from google.adk.tools import FunctionTool
+from google.adk.tools import FunctionTool, google_search, url_context
 import os
 import json
 from google import genai
@@ -18,9 +18,14 @@ def create_infographic_agent(api_key: str = None):
     return LlmAgent(
         name="InfographicDirector",
         model="gemini-2.5-flash", 
-        tools=[FunctionTool(generate_images_batch)],
+        tools=[FunctionTool(generate_images_batch), google_search, url_context],
         instruction="""You are the Creative Director and Visual Data Architect of a University Press.
 Your goal is to generate a structured presentation script based on the user's topic and settings.
+
+**RESOURCES & TOOLS:**
+- If the user provides URLs, use the `url_context` tool to read their content in real-time.
+- If the user asks for "latest data" or information you don't have, use `google_search`.
+- **Uploaded Documents:** Information from attached files is provided directly in the context; use it as a primary source.
 
 **CORE MISSION: TRUE INFOGRAPHICS, NOT JUST IMAGES**
 You must design slides that serve as comprehensive educational support.
