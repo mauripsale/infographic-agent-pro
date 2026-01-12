@@ -1,95 +1,66 @@
 # Infrastructure Migration Guide 🚀
 
-This guide details how to move the **Infographic Agent Pro** application to a new Google Cloud and Firebase environment without changing any code.
+This guide details how to move the **Infographic Agent Pro** application to a new Google Cloud and Firebase environment.
 
-## 📋 Prerequisites
+## ⚡️ Quick Migration (Automated)
 
-You need two new projects (they can be the same GCP project):
-1.  **Google Cloud Platform (GCP) Project**: For hosting the Backend (Cloud Run).
-2.  **Firebase Project**: For hosting the Frontend and Authentication.
+We provide a script to automate the tedious process of setting up GitHub Secrets.
+
+1.  **Prerequisites**:
+    *   Install GitHub CLI: `brew install gh` (macOS) or see [docs](https://cli.github.com/).
+    *   Authenticate: `gh auth login`.
+
+2.  **Prepare Credentials**:
+    *   Copy `env.migration.template` to `.env.migration`.
+    *   Fill in all the values (see *Manual Setup* below for where to find them).
+    *   **Important**: For `FIREBASE_SERVICE_ACCOUNT`, paste the entire JSON content on a single line.
+
+3.  **Run Automation**:
+    ```bash
+    ./scripts/setup_secrets.sh .env.migration
+    ```
+
+4.  **Deploy**:
+    *   Push code to `main` or re-run the GitHub Action.
 
 ---
 
-## 🛠️ Step 1: Cloud Console Setup
+## 🛠️ Manual Setup / Reference
 
-### 1.1 Google Cloud Project
+If you prefer to do it manually or need to find the values for the script:
+
+### 1. Cloud Console Setup
+
+#### 1.1 Google Cloud Project
 1.  Create a new Project (or select existing).
-2.  Enable the following APIs:
-    *   **Cloud Run Admin API**
-    *   **Artifact Registry API**
-    *   **Generative Language API** (Gemini)
-    *   **Firestore API**
+2.  Enable APIs: **Cloud Run Admin**, **Artifact Registry**, **Generative Language** (Gemini), **Firestore**.
 
-### 1.2 Firebase Project
+#### 1.2 Firebase Project
 1.  Go to [Firebase Console](https://console.firebase.google.com/).
-2.  Add a project (select the GCP project created above).
-3.  **Authentication**:
-    *   Go to *Build > Authentication*.
-    *   Click *Get Started*.
-    *   Enable **Google** provider.
-4.  **Firestore**:
-    *   Go to *Build > Firestore Database*.
-    *   Click *Create Database* (Start in production mode).
-    *   Select a location (e.g., `eur3` or `nam5`).
-5.  **Web App Config**:
-    *   Go to *Project Settings* (gear icon).
-    *   Scroll to *Your apps* -> Click `</>` (Web).
-    *   Register app (nickname: "Frontend").
-    *   **Keep this tab open**, you will need the `firebaseConfig` values.
+2.  Add project (link to GCP project).
+3.  Enable **Authentication** (Google Provider).
+4.  Create **Firestore Database**.
+5.  Register **Web App** (Get config for `.env.migration`).
 
-### 1.3 Service Account (Critical)
-1.  Go to [GCP Console > IAM > Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts).
-2.  Find the compute service account or create a new one with roles:
-    *   *Firebase Hosting Admin*
-    *   *Cloud Run Admin*
-    *   *Service Account User*
-    *   *Artifact Registry Writer*
-3.  Click Actions (three dots) -> **Manage Keys**.
-4.  **Add Key** -> **Create new key** -> **JSON**.
-5.  Save the file (e.g., `service-account.json`). **You will paste this entire content into GitHub.**
+#### 1.3 Service Account
+1.  [GCP IAM](https://console.cloud.google.com/iam-admin/serviceaccounts): Create/Select service account.
+2.  Roles: *Firebase Hosting Admin, Cloud Run Admin, Service Account User, Artifact Registry Writer*.
+3.  Keys: Create JSON key -> Save content for `FIREBASE_SERVICE_ACCOUNT`.
+
+### 2. Secrets Checklist (Reference)
+
+| Secret Name | Description |
+| :--- | :--- |
+| `GCP_PROJECT_ID` | GCP Project ID. |
+| `FIREBASE_SERVICE_ACCOUNT` | Full JSON key content. |
+| `ENCRYPTION_KEY` | Random 32-byte base64 string. |
+| `GOOGLE_API_KEY` | Gemini API Key (System fallback). |
+| `NEXT_PUBLIC_BACKEND_URL` | Cloud Run Service URL. |
+| `NEXT_PUBLIC_FIREBASE_...` | (6 variables) From Firebase Config. |
 
 ---
 
-## 🔑 Step 2: GitHub Secrets Checklist
+## 🚀 Final Step: Launch
 
-Go to your GitHub Repository -> **Settings** -> **Secrets and variables** -> **Actions**.
-Create the following **Repository Secrets**.
-
-### A. Infrastructure Secrets
-| Secret Name | Value Description |
-| :--- | :--- |
-| `GCP_PROJECT_ID` | The ID of your new Google Cloud Project (e.g., `my-new-project-123`). |
-| `FIREBASE_SERVICE_ACCOUNT` | **Paste the entire content** of the JSON file downloaded in Step 1.3. |
-| `ENCRYPTION_KEY` | A random 32-byte base64 string for encrypting user API keys. <br>Generate one in Python: `from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())` |
-
-### B. Frontend Configuration (From Step 1.2)
-*Copy these values from the Firebase Console "firebaseConfig" object.*
-
-| Secret Name | Value Source |
-| :--- | :--- |
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | `apiKey` |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | `authDomain` |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | `projectId` |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | `storageBucket` |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | `messagingSenderId` |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | `appId` |
-
-### C. Backend Configuration (Circular Dependency)
-*Note: You might need to deploy once to get the Cloud Run URL, then update this secret and re-deploy.*
-
-| Secret Name | Value Description |
-| :--- | :--- |
-| `NEXT_PUBLIC_BACKEND_URL` | The URL of your Cloud Run service (e.g., `https://infographic-backend-xyz.run.app`). |
-| `GOOGLE_API_KEY` | (Optional) A fallback Gemini API Key for system operations (not used for user generation). |
-
----
-
-## 🚀 Step 3: Launch
-
-1.  Push a commit to `main` (or run "Re-run jobs" in GitHub Actions).
-2.  **First Run**: The Frontend might fail to connect if `NEXT_PUBLIC_BACKEND_URL` is wrong.
-3.  **Get URL**: Go to GCP Console -> Cloud Run -> Copy the Service URL.
-4.  **Update Secret**: Update `NEXT_PUBLIC_BACKEND_URL` in GitHub Secrets.
-5.  **Re-run Deploy**: Run the GitHub Action again.
-
-**Done!** Your SaaS is live on the new infrastructure.
+1.  Trigger GitHub Action.
+2.  **Circular Dependency**: If `NEXT_PUBLIC_BACKEND_URL` is unknown, deploy once, get the URL from Cloud Run, update the secret/env file, and re-deploy.
