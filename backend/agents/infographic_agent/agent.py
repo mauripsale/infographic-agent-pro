@@ -1,31 +1,44 @@
 from google.adk.agents import LlmAgent
-from google.adk.tools import FunctionTool, google_search, url_context
+from google.adk.tools import google_search, url_context
+from google.adk.tools.agent_tool import AgentTool
 import os
-import json
-from google import genai
 from tools.image_gen import ImageGenerationTool
 
 def create_infographic_agent(api_key: str = None):
     if api_key: os.environ["GOOGLE_API_KEY"] = api_key
     
-    img_tool = ImageGenerationTool(api_key=api_key)
-    
-    def generate_images_batch(script_json: str) -> str:
-        """Helper tool if needed by agent logic, but mainly controlled by Runner loop."""
-        return "Batch execution handled by Runner."
+    # 1. Specialist: Search Agent (Isolated for Google Search Tool)
+    search_agent = LlmAgent(
+        name="SearchSpecialist",
+        model="gemini-2.5-flash",
+        instruction="You are a search specialist. Use Google Search to find accurate, up-to-date information.",
+        tools=[google_search]
+    )
 
-    # The "Director" Agent
+    # 2. Specialist: URL Reader Agent (Isolated for URL Context Tool)
+    url_agent = LlmAgent(
+        name="UrlReaderSpecialist",
+        model="gemini-2.5-flash",
+        instruction="You are a URL reading specialist. Use the url_context tool to extract content from web pages.",
+        tools=[url_context]
+    )
+
+    # 3. Root Agent: Director (Orchestrator)
+    # It delegates tasks to specialists via AgentTool
     return LlmAgent(
         name="InfographicDirector",
         model="gemini-2.5-flash", 
-        tools=[FunctionTool(generate_images_batch), google_search, url_context],
+        tools=[
+            AgentTool(agent=search_agent),
+            AgentTool(agent=url_agent)
+        ],
         instruction="""You are the Creative Director and Visual Data Architect of a University Press.
 Your goal is to generate a structured presentation script based on the user's topic and settings.
 
 **RESOURCES & TOOLS:**
-- If the user provides URLs, use the `url_context` tool to read their content in real-time.
-- If the user asks for "latest data" or information you don't have, use `google_search`.
-- **Uploaded Documents:** Information from attached files is provided directly in the context; use it as a primary source.
+- To find latest data or missing info, call the `SearchSpecialist`.
+- To read specific URLs provided by the user, call the `UrlReaderSpecialist`.
+- **Uploaded Documents:** Information from attached files is provided directly in your context; use it as a primary source.
 
 **CORE MISSION: TRUE INFOGRAPHICS, NOT JUST IMAGES**
 You must design slides that serve as comprehensive educational support.
