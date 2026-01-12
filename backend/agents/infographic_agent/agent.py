@@ -5,12 +5,16 @@ import os
 from tools.image_gen import ImageGenerationTool
 
 def create_infographic_agent(api_key: str = None):
-    if api_key: os.environ["GOOGLE_API_KEY"] = api_key
+    if api_key:
+        os.environ["GOOGLE_API_KEY"] = api_key
+    
+    # Use a constant for the model name to improve maintainability
+    AGENT_MODEL = "gemini-2.5-flash"
     
     # 1. Specialist: Search Agent (Isolated for Google Search Tool)
     search_agent = LlmAgent(
         name="SearchSpecialist",
-        model="gemini-2.5-flash",
+        model=AGENT_MODEL,
         instruction="You are a search specialist. Use Google Search to find accurate, up-to-date information.",
         tools=[google_search]
     )
@@ -18,7 +22,7 @@ def create_infographic_agent(api_key: str = None):
     # 2. Specialist: URL Reader Agent (Isolated for URL Context Tool)
     url_agent = LlmAgent(
         name="UrlReaderSpecialist",
-        model="gemini-2.5-flash",
+        model=AGENT_MODEL,
         instruction="You are a URL reading specialist. Use the url_context tool to extract content from web pages.",
         tools=[url_context]
     )
@@ -27,7 +31,7 @@ def create_infographic_agent(api_key: str = None):
     # It delegates tasks to specialists via AgentTool
     return LlmAgent(
         name="InfographicDirector",
-        model="gemini-2.5-flash", 
+        model=AGENT_MODEL, 
         tools=[
             AgentTool(agent=search_agent),
             AgentTool(agent=url_agent)
