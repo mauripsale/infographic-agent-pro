@@ -114,6 +114,7 @@ session_service = InMemorySessionService()
 # --- SETTINGS ENDPOINTS ---
 @app.get("/user/settings")
 async def get_settings(user_id: str = Depends(get_user_id)):
+    """Check if user has a configured API Key."""
     api_key = get_decrypted_api_key(user_id)
     return {
         "has_api_key": bool(api_key),
@@ -122,6 +123,7 @@ async def get_settings(user_id: str = Depends(get_user_id)):
 
 @app.post("/user/settings")
 async def save_settings(payload: dict = Body(...), user_id: str = Depends(get_user_id)):
+    """Encrypts and saves the API key provided by the user."""
     raw_key = payload.get("api_key")
     if not raw_key or not raw_key.startswith("AIza"):
         raise HTTPException(status_code=400, detail="Invalid API Key format. Must start with AIza.")

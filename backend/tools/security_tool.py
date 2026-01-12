@@ -1,22 +1,29 @@
 import os
-import base64
 import logging
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 
 logger = logging.getLogger(__name__)
 
 class SecurityService:
     def __init__(self):
-        # Try to get key from env, otherwise generate a temporary one (dev only warning)
         key = os.environ.get("ENCRYPTION_KEY")
         if not key:
-            logger.warning("⚠️ ENCRYPTION_KEY not found in env. Using temporary key. API Keys will be lost on restart!")
+            # In production, failing is safer than losing data on restart
+            # For local dev without env, we can still warn, but let's be strict as requested by review
+            error_msg = "CRITICAL: ENCRYPTION_KEY not found. App cannot start securely."
+            logger.critical(error_msg)
+            # We raise an error to prevent startup in production if key is missing
+            # Only allow bypass if explicitly setting a flag like ALLOW_INSECURE_DEV
+            if not os.environ.get("ALLOW_INSECURE_DEV"):
+                raise ValueError(error_msg)
+            
+            logger.warning("⚠️ Using temporary key (Data loss on restart). Set ALLOW_INSECURE_DEV only locally.")
             key = Fernet.generate_key().decode()
         
         try:
-            self.cipher = Fernet(key.encode() if isinstance(key, str) else key)
+            self.cipher = Fernet(key.encode())
         except Exception as e:
-            logger.error(f"Invalid ENCRYPTION_KEY: {e}")
+            logger.error(f"Invalid ENCRYPTION_KEY format: {e}")
             raise
 
     def encrypt_data(self, plaintext: str) -> str:
@@ -25,12 +32,15 @@ class SecurityService:
         return self.cipher.encrypt(plaintext.encode()).decode()
 
     def decrypt_data(self, ciphertext: str) -> str | None:
-        """Decrypts a string. Returns None if decryption fails (invalid key/data)."""
+        """Decrypts a string. Returns None if decryption fails."""
         if not ciphertext: return None
         try:
             return self.cipher.decrypt(ciphertext.encode()).decode()
-        except Exception:
-            logger.warning("Decryption failed. Data might be corrupted or key changed.")
+        except InvalidToken:
+            logger.warning("Decryption failed: Invalid token. Key might have changed.")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected decryption error: {e}")
             return None
 
 # Singleton instance

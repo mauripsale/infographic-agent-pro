@@ -153,6 +153,7 @@ export default function App() {
   };
 
   // Lightbox Navigation
+  // --- Keyboard Nav for Lightbox ---
   const navigateLightbox = useCallback((dir: number) => {
       if (!script || lightboxIndex === null) return;
       const newIndex = lightboxIndex + dir;
