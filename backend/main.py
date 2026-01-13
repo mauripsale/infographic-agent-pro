@@ -32,7 +32,7 @@ from agents.infographic_agent.agent import create_infographic_agent
 from tools.image_gen import ImageGenerationTool
 from tools.export_tool import ExportTool
 from tools.security_tool import security_service
-from tools.slides_tool import GoogleSlidesTool # Moved up
+from tools.slides_tool import GoogleSlidesTool
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -179,7 +179,7 @@ async def export_assets(request: Request, api_key: str = Depends(get_api_key)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/regenerate_slide")
-async def regenerate_slide(request: Request, api_key: str = Depends(get_api_key)):
+async def regenerate_slide(request: Request, user_id: str = Depends(get_user_id), api_key: str = Depends(get_api_key)):
     try:
         data = await request.json()
         slide_id = data.get("slide_id")
@@ -192,7 +192,7 @@ async def regenerate_slide(request: Request, api_key: str = Depends(get_api_key)
                 {"id": f"card_{slide_id}", "component": "Text", "text": "🎨 Nano Banana is refining...", "status": "generating"}
             ]}}) + "\n"
             img_tool = ImageGenerationTool(api_key=api_key)
-            img_url = await asyncio.to_thread(img_tool.generate_and_save, prompt, aspect_ratio=aspect_ratio)
+            img_url = await asyncio.to_thread(img_tool.generate_and_save, prompt, aspect_ratio=aspect_ratio, user_id=user_id)
             
             if "Error" not in img_url:
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
@@ -306,7 +306,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": "🖌️ Nano Banana is drawing...", "status": "generating"}]}})
                     yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
-                    img_url = await asyncio.to_thread(img_tool.generate_and_save, slide['image_prompt'], aspect_ratio=ar)
+                    img_url = await asyncio.to_thread(img_tool.generate_and_save, slide['image_prompt'], aspect_ratio=ar, user_id=user_id)
                     if "Error" not in img_url:
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"}, {"id": f"title_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, {"id": f"img_{sid}", "component": "Image", "src": img_url}]}})
                     else:

@@ -102,3 +102,4 @@ jobs:
             env_vars: |
               ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
               BACKEND_URL=${{ secrets.NEXT_PUBLIC_BACKEND_URL }}
+              GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }}

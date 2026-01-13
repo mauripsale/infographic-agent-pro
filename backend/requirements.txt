@@ -481,3 +481,4 @@ fpdf==1.7.2
 firebase-admin
 google-api-python-client
 google-auth
+requests
