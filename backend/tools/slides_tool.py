@@ -1,4 +1,3 @@
-import concurrent.futures
 import logging
 import os
 import tempfile
@@ -31,8 +30,8 @@ _NETWORK_TIMEOUT = 30
 class GoogleSlidesTool:
     def __init__(self, access_token: str):
         self.creds = Credentials(token=access_token)
-        self.slides_service = build('slides', 'v1', credentials=self.creds)
-        self.drive_service = build('drive', 'v3', credentials=self.creds)
+        self.slides_service = build('slides', 'v1', credentials=self.creds, cache_discovery=False)
+        self.drive_service = build('drive', 'v3', credentials=self.creds, cache_discovery=False)
 
     def _upload_image_to_drive(self, image_url: str) -> str | None:
         """Downloads image from URL and uploads to Drive. Returns file ID."""
@@ -83,24 +82,17 @@ class GoogleSlidesTool:
             presentation = self.slides_service.presentations().create(body={'title': title}).execute()
             presentation_id = presentation.get('presentationId')
             
-            # 2. Upload Images in Parallel for better performance
+            # 2. Upload Images Sequentially (Stability Fix)
             image_map = {} 
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future_to_idx = {}
-                for i, slide in enumerate(slides_data):
-                    img_url = slide.get('image_url')
-                    if img_url:
-                        future = executor.submit(self._upload_image_to_drive, img_url)
-                        future_to_idx[future] = i
-                
-                for future in concurrent.futures.as_completed(future_to_idx):
-                    idx = future_to_idx[future]
+            for i, slide in enumerate(slides_data):
+                img_url = slide.get('image_url')
+                if img_url:
                     try:
-                        file_id = future.result()
+                        file_id = self._upload_image_to_drive(img_url)
                         if file_id:
-                            image_map[idx] = file_id
+                            image_map[i] = file_id
                     except Exception as exc:
-                        logger.error(f"Image upload parallel task failed for slide {idx}: {exc}")
+                        logger.error(f"Image upload failed for slide {i}: {exc}")
 
             # 3. Build Requests
             requests = []

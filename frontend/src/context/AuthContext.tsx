@@ -32,16 +32,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // Handle redirect result
-    getRedirectResult(auth).then((result) => {
-        if (result) {
-            const credential = GoogleAuthProvider.credentialFromResult(result);
-            if (credential?.accessToken) {
-                setGoogleAccessToken(credential.accessToken);
-            }
-        }
-    }).catch(console.error);
-
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
