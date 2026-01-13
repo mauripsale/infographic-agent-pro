@@ -7,23 +7,10 @@ from googleapiclient.discovery import build
 
 logger = logging.getLogger(__name__)
 
-# Layout Constants for maintainability
-TITLE_WIDTH = 700
-TITLE_HEIGHT = 60
-TITLE_X = 20
-TITLE_Y = 20
-
-BODY_WIDTH = 300
-BODY_HEIGHT = 300
-BODY_X = 20
-BODY_Y = 100
-
-IMG_WIDTH = 350
-IMG_HEIGHT = 300
-IMG_X = 350
-IMG_Y = 100
-
 _NETWORK_TIMEOUT = 30
+# Standard 16:9 Slide Dimensions in Points
+PAGE_WIDTH = 720
+PAGE_HEIGHT = 405
 
 class GoogleSlidesTool:
     def __init__(self, access_token: str):
@@ -51,7 +38,7 @@ class GoogleSlidesTool:
             presentation = self.slides_service.presentations().create(body={'title': title}).execute()
             presentation_id = presentation.get('presentationId')
             
-            # 2. Build Requests
+            # 2. Batch 1: Create Slides & Images
             requests = []
             
             for i, slide in enumerate(slides_data):
@@ -65,35 +52,6 @@ class GoogleSlidesTool:
                     }
                 })
 
-                # Add Elements with coordinate-based positioning
-                title_id = f"title_{i}"
-                requests.append({
-                    'createShape': {
-                        'objectId': title_id,
-                        'shapeType': 'TEXT_BOX',
-                        'elementProperties': {
-                            'pageObjectId': page_id,
-                            'size': {'width': {'magnitude': TITLE_WIDTH, 'unit': 'PT'}, 'height': {'magnitude': TITLE_HEIGHT, 'unit': 'PT'}},
-                            'transform': {'scaleX': 1, 'scaleY': 1, 'translateX': TITLE_X, 'translateY': TITLE_Y, 'unit': 'PT'}
-                        }
-                    }
-                })
-                requests.append({'insertText': {'objectId': title_id, 'text': slide.get('title', 'Untitled')}})
-
-                body_id = f"body_{i}"
-                requests.append({
-                    'createShape': {
-                        'objectId': body_id,
-                        'shapeType': 'TEXT_BOX',
-                        'elementProperties': {
-                            'pageObjectId': page_id,
-                            'size': {'width': {'magnitude': BODY_WIDTH, 'unit': 'PT'}, 'height': {'magnitude': BODY_HEIGHT, 'unit': 'PT'}},
-                            'transform': {'scaleX': 1, 'scaleY': 1, 'translateX': BODY_X, 'translateY': BODY_Y, 'unit': 'PT'}
-                        }
-                    }
-                })
-                requests.append({'insertText': {'objectId': body_id, 'text': slide.get('description', '')}})
-
                 img_url = slide.get('image_url')
                 if img_url and self._check_image_url(img_url):
                     img_obj_id = f"img_{i}"
@@ -103,15 +61,56 @@ class GoogleSlidesTool:
                             'url': img_url,
                             'elementProperties': {
                                 'pageObjectId': page_id,
-                                'size': {'width': {'magnitude': IMG_WIDTH, 'unit': 'PT'}, 'height': {'magnitude': IMG_HEIGHT, 'unit': 'PT'}},
-                                'transform': {'scaleX': 1, 'scaleY': 1, 'translateX': IMG_X, 'translateY': IMG_Y, 'unit': 'PT'}
+                                'size': {'width': {'magnitude': PAGE_WIDTH, 'unit': 'PT'}, 'height': {'magnitude': PAGE_HEIGHT, 'unit': 'PT'}},
+                                'transform': {'scaleX': 1, 'scaleY': 1, 'translateX': 0, 'translateY': 0, 'unit': 'PT'}
                             }
                         }
                     })
 
-            # Execute Batch Update
+            # Execute Batch 1
             if requests:
                 self.slides_service.presentations().batchUpdate(presentationId=presentation_id, body={'requests': requests}).execute()
+
+            # 3. Batch 2: Add Speaker Notes
+            # Fetch minimal data needed to locate speaker notes body placeholders
+            presentation = self.slides_service.presentations().get(
+                presentationId=presentation_id,
+                fields='slides(objectId,slideProperties/notesPage/pageElements(objectId,shape/placeholder/type))'
+            ).execute()
+            
+            notes_requests = []
+            slides_map = {s['objectId']: s for s in presentation.get('slides', [])}
+
+            for i, slide_data in enumerate(slides_data):
+                page_id = f"slide_{i}_page"
+                slide_obj = slides_map.get(page_id)
+                
+                if not slide_obj:
+                    continue
+                    
+                notes_page = slide_obj.get('slideProperties', {}).get('notesPage')
+                if not notes_page:
+                    continue
+
+                # Find the Body placeholder in the notes page
+                body_placeholder_id = None
+                for element in notes_page.get('pageElements', []):
+                    if element.get('shape', {}).get('placeholder', {}).get('type') == 'BODY':
+                        body_placeholder_id = element['objectId']
+                        break
+                
+                if body_placeholder_id:
+                    note_text = f"Title: {slide_data.get('title', 'Untitled')}\n\n{slide_data.get('description', '')}"
+                    notes_requests.append({
+                        'insertText': {
+                            'objectId': body_placeholder_id,
+                            'text': note_text
+                        }
+                    })
+
+            # Execute Batch 2
+            if notes_requests:
+                self.slides_service.presentations().batchUpdate(presentationId=presentation_id, body={'requests': notes_requests}).execute()
 
             return f"https://docs.google.com/presentation/d/{presentation_id}/edit"
 
