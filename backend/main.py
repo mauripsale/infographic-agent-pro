@@ -32,6 +32,7 @@ from agents.infographic_agent.agent import create_infographic_agent
 from tools.image_gen import ImageGenerationTool
 from tools.export_tool import ExportTool
 from tools.security_tool import security_service
+from tools.slides_tool import GoogleSlidesTool # Moved up
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -140,6 +141,27 @@ async def save_settings(payload: dict = Body(...), user_id: str = Depends(get_us
         logger.error(f"Save Settings Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to save settings")
 
+
+@app.post("/agent/export_slides")
+async def export_slides_endpoint(request: Request, user_id: str = Depends(get_user_id)):
+    data = await request.json()
+    google_token = data.get("google_token")
+    if not google_token:
+        # Fail fast before try block
+        raise HTTPException(status_code=401, detail="Missing Google OAuth Token")
+    
+    try:
+        slides_data = data.get("slides", [])
+        title = data.get("title", "Infographic Presentation")
+        
+        tool = GoogleSlidesTool(access_token=google_token)
+        url = await asyncio.to_thread(tool.create_presentation, title, slides_data)
+        
+        return {"url": url}
+    except Exception as e:
+        logger.error(f"Slides Export Failed: {e}")
+        # Return 500 but include message for debugging
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/export")
 async def export_assets(request: Request, api_key: str = Depends(get_api_key)):

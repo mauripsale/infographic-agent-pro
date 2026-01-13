@@ -479,3 +479,5 @@ zipp==3.23.0
     # via importlib-metadata
 fpdf==1.7.2
 firebase-admin
+google-api-python-client
+google-auth
