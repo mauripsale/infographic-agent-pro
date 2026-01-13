@@ -141,6 +141,30 @@ async def save_settings(payload: dict = Body(...), user_id: str = Depends(get_us
         raise HTTPException(status_code=500, detail="Failed to save settings")
 
 
+from tools.slides_tool import GoogleSlidesTool
+
+@app.post("/agent/export_slides")
+async def export_slides_endpoint(request: Request, user_id: str = Depends(get_user_id)):
+    try:
+        data = await request.json()
+        google_token = data.get("google_token")
+        if not google_token:
+            raise HTTPException(status_code=401, detail="Missing Google OAuth Token")
+            
+        slides_data = data.get("slides", [])
+        title = data.get("title", "Infographic Presentation")
+        
+        # Initialize tool with USER'S token (not service account)
+        tool = GoogleSlidesTool(access_token=google_token)
+        
+        # Run export in thread pool
+        url = await asyncio.to_thread(tool.create_presentation, title, slides_data)
+        
+        return {"url": url}
+    except Exception as e:
+        logger.error(f"Slides Export Failed: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @app.post("/agent/export")
 async def export_assets(request: Request, api_key: str = Depends(get_api_key)):
     try:
