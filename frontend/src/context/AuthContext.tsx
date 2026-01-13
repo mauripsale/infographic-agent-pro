@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check for redirect result on load (for mobile flow or if popup fails)
+    // Handle redirect result
     getRedirectResult(auth).then((result) => {
         if (result) {
             const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -51,16 +51,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async () => {
     try {
-      // We prefer Popup for desktop UX, but fallback to redirect is handled by Firebase config usually.
-      // Here we explicitly capture the credential to get the Access Token.
       const result = await signInWithPopup(auth, googleProvider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential?.accessToken) {
           setGoogleAccessToken(credential.accessToken);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login failed", error);
-      if (error.code === 'auth/popup-blocked') {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'auth/popup-blocked') {
           alert("Please allow popups for sign-in");
       }
     }
@@ -80,7 +78,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return await user.getIdToken();
   };
 
-  // Helper to get the OAuth token needed for Slides API
   const getGoogleAccessToken = async () => {
       return googleAccessToken;
   };
