@@ -30,6 +30,21 @@ class GoogleSlidesTool:
         self.creds = Credentials(token=access_token)
         self.slides_service = build('slides', 'v1', credentials=self.creds, cache_discovery=False)
 
+    def _check_image_url(self, url: str) -> bool:
+        """Verifies if the image URL is reachable."""
+        try:
+            # Try HEAD first (faster)
+            response = requests.head(url, timeout=5)
+            if response.status_code == 200:
+                return True
+            # Fallback to GET if HEAD is not supported/blocked
+            response = requests.get(url, stream=True, timeout=5)
+            response.close()
+            return response.status_code == 200
+        except Exception as e:
+            logger.warning(f"Image URL check failed for {url}: {e}")
+            return False
+
     def create_presentation(self, title: str, slides_data: list) -> str:
         try:
             # 1. Create Presentation
@@ -80,7 +95,7 @@ class GoogleSlidesTool:
                 requests.append({'insertText': {'objectId': body_id, 'text': slide.get('description', '')}})
 
                 img_url = slide.get('image_url')
-                if img_url:
+                if img_url and self._check_image_url(img_url):
                     img_obj_id = f"img_{i}"
                     requests.append({
                         'createImage': {
