@@ -1,25 +1,23 @@
 import os
 import uuid
 import logging
-import json
 import time
 import io
+import datetime
 from pathlib import Path
 from PIL import Image
 from google import genai
-from google.genai import types
+try:
+    from google.cloud import storage
+    GCS_AVAILABLE = True
+except ImportError:
+    GCS_AVAILABLE = False
 
 try:
     from context import model_context
 except ImportError:
     from contextvars import ContextVar
     model_context = ContextVar("model_context", default="gemini-2.5-flash-image")
-
-try:
-    from google.cloud import storage
-    GCS_AVAILABLE = True
-except ImportError:
-    GCS_AVAILABLE = False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,24 +30,32 @@ class ImageGenerationTool:
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         self.bucket_name = bucket_name or os.environ.get("GCS_BUCKET_NAME")
         
-    def generate_and_save(self, prompt: str, aspect_ratio: str = "16:9") -> str:
+        if GCS_AVAILABLE and self.bucket_name:
+            try:
+                self.storage_client = storage.Client()
+                self.bucket = self.storage_client.bucket(self.bucket_name)
+            except Exception as e:
+                logger.error(f"GCS Init Failed: {e}")
+                self.bucket = None
+        else:
+            self.bucket = None
+
+    def generate_and_save(self, prompt: str, aspect_ratio: str = "16:9", user_id: str = "anonymous") -> str:
         """
-        Generates an image using Nano Banana (Gemini Image) models.
+        Generates an image and saves it to GCS (preferred) or local static dir.
+        Returns a Signed URL (GCS) or absolute URL (Local).
         """
         try:
             if not self.api_key:
                 return "Error: Missing Google API Key."
 
             client = genai.Client(api_key=self.api_key)
-            
             model_id = model_context.get()
-            if "image" not in model_id:
-                model_id = "gemini-2.5-flash-image"
-
-            logger.info(f"🎨 Nano Banana [Model: {model_id}] is drawing: {prompt[:40]}...")
+            
+            logger.info(f"🎨 Drawing for {user_id}: {prompt[:40]}...")
 
             image_bytes = None
-            max_retries = 3
+            max_retries = 2
             
             for attempt in range(max_retries):
                 try:
@@ -57,67 +63,54 @@ class ImageGenerationTool:
                         model=model_id,
                         contents=f"Generate a professional infographic image. Style: {prompt}. Aspect Ratio: {aspect_ratio}"
                     )
-
                     if response.candidates and response.candidates[0].content.parts:
                         for part in response.candidates[0].content.parts:
                             if part.inline_data:
                                 image_bytes = part.inline_data.data
                                 break
-                            elif hasattr(part, 'data') and part.data:
-                                image_bytes = part.data
-                                break
-                    
-                    if image_bytes:
-                        break # Success!
-                    else:
-                        logger.warning(f"Attempt {attempt+1}/{max_retries} failed: No image data returned.")
+                    if image_bytes: break
                 except Exception as api_err:
-                    logger.warning(f"Attempt {attempt+1}/{max_retries} API Error: {api_err}")
-                    time.sleep(2 ** attempt) # Exponential Backoff (1, 2, 4 seconds)
+                    logger.warning(f"Attempt {attempt+1} API Error: {api_err}")
+                    time.sleep(2)
 
             if not image_bytes:
-                return f"Error: Model {model_id} failed after {max_retries} attempts."
+                return "Error: Image generation failed."
 
-            # --- FORCE VALID PNG CONVERSION ---
+            # Convert/Sanitize to PNG
             try:
-                # Open bytes as image
                 img = Image.open(io.BytesIO(image_bytes))
-                # Convert to RGB (strips alpha channel for PDF compatibility)
-                if img.mode != 'RGB':
-                    img = img.convert('RGB')
-                
-                # Save to new bytes buffer as pure PNG
+                if img.mode != 'RGB': img = img.convert('RGB')
                 output_buffer = io.BytesIO()
                 img.save(output_buffer, format="PNG")
                 image_bytes = output_buffer.getvalue()
-            except (Image.UnidentifiedImageError, IOError) as pil_err:
-                logger.error(f"PIL Conversion Error: {pil_err}")
-                return f"Error processing image data: {str(pil_err)}"
             except Exception as e:
-                logger.error(f"Unexpected image processing error: {e}")
-                return f"Unexpected error during image processing: {str(e)}"
-            # ----------------------------------
+                return f"Error processing image: {str(e)}"
 
-            filename = f"infographic_{uuid.uuid4().hex}.png"
+            filename = f"img_{uuid.uuid4().hex}.png"
 
-            # 1. GCS Upload
-            if GCS_AVAILABLE and self.bucket_name:
+            # 1. GCS Upload (Primary)
+            if self.bucket:
                 try:
-                    storage_client = storage.Client()
-                    bucket = storage_client.bucket(self.bucket_name)
-                    blob = bucket.blob(f"generated/{filename}")
+                    blob_path = f"users/{user_id}/generated/{filename}"
+                    blob = self.bucket.blob(blob_path)
                     blob.upload_from_string(image_bytes, content_type="image/png")
-                    return blob.public_url
+                    
+                    # Generate Signed URL (valid for 1 hour)
+                    url = blob.generate_signed_url(
+                        version="v4",
+                        expiration=datetime.timedelta(hours=1),
+                        method="GET"
+                    )
+                    return url
                 except Exception as gcs_err:
-                    logger.warning(f"GCS Upload failed: {gcs_err}")
+                    logger.error(f"GCS Upload failed: {gcs_err}. Falling back to local.")
 
-            # 2. Local Fallback
+            # 2. Local Fallback (if GCS fails or not configured)
             filepath = STATIC_DIR / filename
             with open(filepath, "wb") as f:
                 f.write(image_bytes)
             
-            # Return absolute URL for the separate frontend
-            backend_url = "https://infographic-agent-backend-218788847170.us-central1.run.app"
+            backend_url = os.environ.get("BACKEND_URL", "http://localhost:8080")
             return f"{backend_url}/static/{filename}"
 
         except Exception as e:
