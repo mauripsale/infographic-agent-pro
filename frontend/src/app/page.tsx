@@ -176,7 +176,7 @@ export default function App() {
       }
   }, [script, lightboxIndex]);
 
-  useEffect(() => {
+  useEffect(() => { 
       const handleKeyDown = (e: KeyboardEvent) => {
           if (lightboxIndex === null) return;
           if (e.key === "ArrowLeft") navigateLightbox(-1);
@@ -412,7 +412,7 @@ export default function App() {
                     "Content-Type": "application/json", 
                     "Authorization": `Bearer ${token}` 
                 },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     google_token: googleToken, 
                     title: query.substring(0, 50) || "Infographic Presentation",
                     slides: slidesPayload
@@ -482,8 +482,12 @@ export default function App() {
               <div className="max-w-md w-full bg-[#111827] border border-slate-800 p-10 rounded-3xl shadow-2xl text-center flex flex-col gap-8 animate-fade-in">
                   <div className="mx-auto w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/40"><MonitorIcon /></div>
                   <div>
-                      <h1 className="text-3xl font-bold text-white mb-2">Infographic Agent</h1>
-                      <p className="text-slate-400 text-sm">Sign in to start creating professional infographics with Nano Banana.</p>
+                      <h1 className="text-4xl font-bold text-white mb-2 tracking-tighter">IPSA</h1>
+                      <p className="text-blue-400 font-semibold text-xs uppercase tracking-widest mb-4">Your Visual Data Architect</p>
+                      <p className="text-slate-400 text-sm">
+                        The <strong>Infographic Presentation Sales Agent</strong>. 
+                        Sign in to transform technical insights into stunning visual narratives.
+                      </p>
                   </div>
                   <button onClick={login} className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-xl">
                       <GoogleIcon /> Sign in with Google
@@ -579,8 +583,8 @@ export default function App() {
       <header className="sticky top-0 h-16 border-b border-slate-800 bg-[#030712]/90 backdrop-blur-md z-40 flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white"><MonitorIcon /></div>
-          <span className="text-lg font-bold text-slate-50 tracking-tight hidden md:block">Infographic Agent Pro</span>
-          <span className="text-lg font-bold text-slate-50 tracking-tight md:hidden">IA Pro</span>
+          <span className="text-lg font-bold text-slate-50 tracking-tight">IPSA</span>
+          <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-medium hidden md:block border-l border-slate-800 pl-4 ml-1">Your Visual Data Architect</span>
         </div>
         <div className="flex items-center gap-4">
           <div className="bg-slate-900 p-1 rounded-full border border-slate-800 hidden md:flex mr-2">
@@ -605,7 +609,7 @@ export default function App() {
           
           {/* SIDEBAR / MOBILE DRAWER */}
           <aside className={`col-span-1 md:col-span-3 bg-[#111827] rounded-2xl border border-slate-800 shadow-xl overflow-hidden transition-all duration-300 ${showMobileSettings ? "max-h-[500px] mb-6" : "max-h-0 md:max-h-none opacity-0 md:opacity-100 hidden md:flex flex-col gap-6 p-6"}`}>
-             {/* Duplicate Settings Content for Mobile Toggle logic (Using hidden/block classes instead of conditional rendering for cleaner transition if needed, but here sticking to conditional classes) */}
+             {/* Duplicate Settings Content for Mobile Toggle logic */}
              <div className="p-6 flex flex-col gap-6">
                 <div className="flex items-center gap-2 text-slate-100 font-semibold border-b border-slate-800 pb-4">
                 <SettingsIcon /><span className="uppercase tracking-wider text-xs">Settings</span>
@@ -746,7 +750,7 @@ export default function App() {
               Created by <a href="https://www.linkedin.com/in/maurizioipsale/" target="_blank" className="text-blue-400 hover:text-blue-300 font-bold hover:underline">Maurizio Ipsale</a> • Google Developer Expert (GDE) Cloud/AI
           </p>
           <p className="text-[9px] text-slate-600 uppercase tracking-widest opacity-80">
-              Disclaimer: AI-generated content may be inaccurate. Please verify information. Not an official Google product.
+              Disclaimer: AI-generated content may be inaccurate. IPSA is not an official Google product.
           </p>
       </footer>
     </div>
