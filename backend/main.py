@@ -162,7 +162,7 @@ async def list_projects(user_id: str = Depends(get_user_id)):
         return projects
     except Exception as e:
         logger.error(f"List Projects Error: {e}")
-        return []
+        raise HTTPException(status_code=500, detail="Failed to list projects")
 
 @app.get("/user/projects/{project_id}")
 async def get_project(project_id: str, user_id: str = Depends(get_user_id)):
@@ -215,22 +215,27 @@ async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
             
         local_path = Path(".") / relative_url.lstrip("/")
         
-        # 1. Upload to GCS for persistence
-        filename = local_path.name
-        remote_path = f"users/{user_id}/exports/{filename}"
-        if project_id:
-            remote_path = storage_tool.get_project_asset_path(user_id, project_id, filename)
+        try:
+            # 1. Upload to GCS for persistence
+            filename = local_path.name
+            remote_path = f"users/{user_id}/exports/{filename}"
+            if project_id:
+                remote_path = storage_tool.get_project_asset_path(user_id, project_id, filename)
+                
+            gcs_url = await asyncio.to_thread(storage_tool.upload_file, str(local_path), remote_path)
             
-        gcs_url = await asyncio.to_thread(storage_tool.upload_file, str(local_path), remote_path)
-        
-        # 2. Update Firestore if project exists
-        if db and project_id:
-            db.collection("users").document(user_id).collection("projects").document(project_id).update({
-                f"export_{fmt}_url": gcs_url,
-                "updated_at": firestore.SERVER_TIMESTAMP
-            })
-            
-        return {"url": gcs_url or relative_url}
+            # 2. Update Firestore if project exists
+            if db and project_id:
+                db.collection("users").document(user_id).collection("projects").document(project_id).update({
+                    f"export_{fmt}_url": gcs_url,
+                    "updated_at": firestore.SERVER_TIMESTAMP
+                })
+                
+            return {"url": gcs_url or relative_url}
+        finally:
+            if local_path.exists():
+                os.remove(local_path)
+
     except Exception as e:
         logger.error(f"Export Error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -276,7 +281,7 @@ async def upload_document(request: Request, file: UploadFile = File(...), user_i
                 tmp_path = tmp.name
             
             # 1. Permanent Persistence (GCS)
-            remote_path = storage_tool.get_user_upload_path(user_id, file.filename)
+            remote_path = storage_tool.get_user_upload_path(user_id, os.path.basename(file.filename))
             gcs_url = await asyncio.to_thread(storage_tool.upload_file, tmp_path, remote_path, content_type=file.content_type)
             
             # 2. Ephemeral Processing (Gemini)
@@ -296,11 +301,6 @@ async def upload_document(request: Request, file: UploadFile = File(...), user_i
         finally:
             if tmp_path and os.path.exists(tmp_path):
                 os.remove(tmp_path)
-            
-    except Exception as e:
-        logger.error(f"Upload Error: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
             
     except Exception as e:
         logger.error(f"Upload Error: {e}")
@@ -396,7 +396,6 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["status", "grid"]}, {"id": "status", "component": "Text", "text": "🎨 Starting production..."}, {"id": "grid", "component": "Column", "children": children_ids}] + card_comps}}) + "\n"
                 
                 img_tool = ImageGenerationTool(api_key=api_key)
-                generated_images = []
                 for idx, slide in enumerate(slides):
                     if await request.is_disconnected(): break
                     sid = slide['id']
@@ -408,7 +407,6 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     if "Error" not in img_url:
                         # Update slide with its permanent image URL
                         slide["image_url"] = img_url
-                        generated_images.append(img_url)
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"}, {"id": f"title_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, {"id": f"img_{sid}", "component": "Image", "src": img_url}]}})
                     else:
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}})
