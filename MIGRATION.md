@@ -86,4 +86,4 @@ If you prefer to do it manually or need to find the values for the script:
 ## 🚀 Final Step: Launch
 
 1.  Trigger GitHub Action.
-2.  **Circular Dependency**: If `NEXT_PUBLIC_BACKEND_URL` is unknown, deploy once, get the URL from Cloud Run, update the secret/env file, and re-deploy.
+2.  **Circular Dependency**: If `NEXT_PUBLIC_BACKEND_URL` is unknown, deploy once, get the URL from Cloud Run, update the secret/env file, and re-deploy.as
