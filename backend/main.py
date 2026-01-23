@@ -224,28 +224,37 @@ async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
             return JSONResponse(status_code=500, content={"error": "Export failed"})
             
         local_path = Path(".") / relative_url.lstrip("/")
+        gcs_url = None
         
+        # 1. Upload to GCS for persistence (try best effort)
         try:
-            # 1. Upload to GCS for persistence
             filename = local_path.name
             remote_path = f"users/{user_id}/exports/{filename}"
             if project_id:
                 remote_path = storage_tool.get_project_asset_path(user_id, project_id, filename)
                 
             gcs_url = await asyncio.to_thread(storage_tool.upload_file, str(local_path), remote_path)
-            
-            # 2. Update Firestore if project exists
-            if db and project_id:
+        except Exception as upload_err:
+            logger.warning(f"GCS Upload Failed (falling back to local): {upload_err}")
+
+        # 2. Update Firestore if project exists
+        if db and project_id:
+            try:
                 db.collection("users").document(user_id).collection("projects").document(project_id).update({
                     f"export_{fmt}_url": gcs_url,
                     "updated_at": firestore.SERVER_TIMESTAMP
                 })
+            except Exception as db_err:
+                logger.warning(f"Firestore Update Failed: {db_err}")
                 
-            # Only clean up local file if we successfully uploaded to GCS
-            if gcs_url and local_path.exists():
+        # Only clean up local file if we successfully uploaded to GCS
+        if gcs_url and local_path.exists():
+            try:
                 os.remove(local_path)
+            except Exception: pass
 
-            return {"url": gcs_url or relative_url}
+        return {"url": gcs_url or relative_url}
+
     except Exception as e:
         logger.error(f"Export Error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
