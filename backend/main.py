@@ -241,11 +241,11 @@ async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
                     "updated_at": firestore.SERVER_TIMESTAMP
                 })
                 
-            return {"url": gcs_url or relative_url}
-        finally:
-            if local_path.exists():
+            # Only clean up local file if we successfully uploaded to GCS
+            if gcs_url and local_path.exists():
                 os.remove(local_path)
 
+            return {"url": gcs_url or relative_url}
     except Exception as e:
         logger.error(f"Export Error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
