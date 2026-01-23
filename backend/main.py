@@ -40,9 +40,6 @@ from tools.storage_tool import StorageTool
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize GCS Tool
-storage_tool = StorageTool()
-
 # Initialize ADK Artifact Service
 gcs_bucket = os.environ.get("GCS_BUCKET_NAME")
 if gcs_bucket:
@@ -51,6 +48,9 @@ if gcs_bucket:
 else:
     artifact_service = InMemoryArtifactService()
     logger.warning("GCS_BUCKET_NAME not set. Using InMemoryArtifactService (artifacts will be lost on restart).")
+
+# Initialize Storage Tool (wraps ADK service)
+storage_tool = StorageTool(artifact_service)
 
 # Initialize Firebase Admin & Firestore
 try:
