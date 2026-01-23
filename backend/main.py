@@ -4,6 +4,7 @@ import json
 import asyncio
 import re
 import tempfile
+import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, Request, UploadFile, File, Depends, HTTPException, Body
@@ -33,9 +34,13 @@ from tools.image_gen import ImageGenerationTool
 from tools.export_tool import ExportTool
 from tools.security_tool import security_service
 from tools.slides_tool import GoogleSlidesTool
+from tools.storage_tool import StorageTool
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize GCS Tool
+storage_tool = StorageTool()
 
 # Initialize Firebase Admin & Firestore
 try:
@@ -141,6 +146,37 @@ async def save_settings(payload: dict = Body(...), user_id: str = Depends(get_us
         logger.error(f"Save Settings Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to save settings")
 
+# --- PROJECT HISTORY ENDPOINTS ---
+@app.get("/user/projects")
+async def list_projects(user_id: str = Depends(get_user_id)):
+    """Lists all infographic projects for a user."""
+    if not db: return []
+    try:
+        docs = db.collection("users").document(user_id).collection("projects").order_by("created_at", direction=firestore.Query.DESCENDING).limit(50).stream()
+        projects = []
+        for d in docs:
+            p = d.to_dict()
+            p["id"] = d.id
+            # Remove sensitive or too large data for listing if needed
+            projects.append(p)
+        return projects
+    except Exception as e:
+        logger.error(f"List Projects Error: {e}")
+        return []
+
+@app.get("/user/projects/{project_id}")
+async def get_project(project_id: str, user_id: str = Depends(get_user_id)):
+    """Retrieves a specific project."""
+    if not db: raise HTTPException(status_code=500, detail="Database unavailable")
+    try:
+        doc = db.collection("users").document(user_id).collection("projects").document(project_id).get()
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="Project not found")
+        return doc.to_dict()
+    except Exception as e:
+        logger.error(f"Get Project Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve project")
+
 
 @app.post("/agent/export_slides")
 async def export_slides_endpoint(request: Request, user_id: str = Depends(get_user_id)):
@@ -164,16 +200,37 @@ async def export_slides_endpoint(request: Request, user_id: str = Depends(get_us
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/export")
-async def export_assets(request: Request, api_key: str = Depends(get_api_key)):
+async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
     try:
         data = await request.json()
         images = data.get("images", [])
         fmt = data.get("format", "zip")
+        project_id = data.get("project_id")
+        
         tool = ExportTool()
-        url = await asyncio.to_thread(tool.create_pdf, images) if fmt == "pdf" else await asyncio.to_thread(tool.create_zip, images)
-        if not url: return JSONResponse(status_code=500, content={"error": "Export failed"})
-        base_url = os.environ.get("BACKEND_URL", "https://infographic-agent-backend-218788847170.us-central1.run.app")
-        return {"url": f"{base_url}{url}"}
+        relative_url = await asyncio.to_thread(tool.create_pdf, images) if fmt == "pdf" else await asyncio.to_thread(tool.create_zip, images)
+        
+        if not relative_url: 
+            return JSONResponse(status_code=500, content={"error": "Export failed"})
+            
+        local_path = Path(".") / relative_url.lstrip("/")
+        
+        # 1. Upload to GCS for persistence
+        filename = local_path.name
+        remote_path = f"users/{user_id}/exports/{filename}"
+        if project_id:
+            remote_path = storage_tool.get_project_asset_path(user_id, project_id, filename)
+            
+        gcs_url = await asyncio.to_thread(storage_tool.upload_file, str(local_path), remote_path)
+        
+        # 2. Update Firestore if project exists
+        if db and project_id:
+            db.collection("users").document(user_id).collection("projects").document(project_id).update({
+                f"export_{fmt}_url": gcs_url,
+                "updated_at": firestore.SERVER_TIMESTAMP
+            })
+            
+        return {"url": gcs_url or relative_url}
     except Exception as e:
         logger.error(f"Export Error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -218,12 +275,32 @@ async def upload_document(request: Request, file: UploadFile = File(...), user_i
                 tmp.write(await file.read())
                 tmp_path = tmp.name
             
+            # 1. Permanent Persistence (GCS)
+            remote_path = storage_tool.get_user_upload_path(user_id, file.filename)
+            gcs_url = await asyncio.to_thread(storage_tool.upload_file, tmp_path, remote_path, content_type=file.content_type)
+            
+            # 2. Ephemeral Processing (Gemini)
             gemini_file = client.files.upload(path=tmp_path)
-            logger.info(f"User {user_id} uploaded file {gemini_file.name}")
-            return {"file_id": gemini_file.name, "uri": gemini_file.uri}
+            
+            # 3. Track in Firestore for History
+            if db:
+                db.collection("users").document(user_id).collection("uploads").add({
+                    "filename": file.filename,
+                    "gcs_url": gcs_url,
+                    "gemini_file_id": gemini_file.name,
+                    "uploaded_at": firestore.SERVER_TIMESTAMP
+                })
+
+            logger.info(f"User {user_id} uploaded file {gemini_file.name} to GCS and Gemini")
+            return {"file_id": gemini_file.name, "uri": gemini_file.uri, "gcs_url": gcs_url}
         finally:
             if tmp_path and os.path.exists(tmp_path):
                 os.remove(tmp_path)
+            
+    except Exception as e:
+        logger.error(f"Upload Error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
             
     except Exception as e:
         logger.error(f"Upload Error: {e}")
@@ -234,6 +311,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
     try:
         data = await request.json()
         phase = data.get("phase", "script")
+        project_id = data.get("project_id") or uuid.uuid4().hex
         
         async def event_generator():
             surface_id = "infographic_workspace"
@@ -289,7 +367,19 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     match = re.search(r'(\{.*\})', agent_output.replace("\n", ""), re.DOTALL)
                     if match:
                         script_data = json.loads(match.group(1))
-                        yield json.dumps({"updateDataModel": {"surfaceId": surface_id, "path": "/", "op": "replace", "value": {"script": script_data}}}) + "\n"
+                        
+                        # PERSIST PROJECT IN FIRESTORE
+                        if db:
+                            db.collection("users").document(user_id).collection("projects").document(project_id).set({
+                                "query": data.get("query", ""),
+                                "file_ids": file_ids,
+                                "script": script_data,
+                                "status": "script_ready",
+                                "created_at": firestore.SERVER_TIMESTAMP,
+                                "updated_at": firestore.SERVER_TIMESTAMP
+                            }, merge=True)
+
+                        yield json.dumps({"updateDataModel": {"surfaceId": surface_id, "path": "/", "op": "replace", "value": {"script": script_data, "project_id": project_id}}}) + "\n"
                         yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["review_header"]}, {"id": "review_header", "component": "Text", "text": "✅ Plan Ready."}]}}) + "\n"
                     else:
                         yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Text", "text": "Agent failed to produce valid JSON."}]}}) + "\n"
@@ -306,6 +396,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["status", "grid"]}, {"id": "status", "component": "Text", "text": "🎨 Starting production..."}, {"id": "grid", "component": "Column", "children": children_ids}] + card_comps}}) + "\n"
                 
                 img_tool = ImageGenerationTool(api_key=api_key)
+                generated_images = []
                 for idx, slide in enumerate(slides):
                     if await request.is_disconnected(): break
                     sid = slide['id']
@@ -313,12 +404,25 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
                     img_url = await asyncio.to_thread(img_tool.generate_and_save, slide['image_prompt'], aspect_ratio=ar, user_id=user_id)
+                    
                     if "Error" not in img_url:
+                        # Update slide with its permanent image URL
+                        slide["image_url"] = img_url
+                        generated_images.append(img_url)
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"}, {"id": f"title_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, {"id": f"img_{sid}", "component": "Image", "src": img_url}]}})
                     else:
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}})
                     yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
+                
+                # FINAL UPDATE TO PROJECT IN FIRESTORE
+                if db and not await request.is_disconnected():
+                    db.collection("users").document(user_id).collection("projects").document(project_id).update({
+                        "script": script,
+                        "status": "completed",
+                        "updated_at": firestore.SERVER_TIMESTAMP
+                    })
+
                 if not await request.is_disconnected():
                     yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✨ Done!"}]}}) + "\n"
 

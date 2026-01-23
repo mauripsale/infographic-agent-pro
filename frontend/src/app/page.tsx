@@ -13,6 +13,17 @@ interface Slide {
   title: string;
   image_prompt: string;
   description?: string;
+  image_url?: string;
+}
+
+interface Project {
+  id: string;
+  query: string;
+  script: any;
+  status: string;
+  created_at: any;
+  export_pdf_url?: string;
+  export_zip_url?: string;
 }
 
 interface A2UIComponent {
@@ -45,6 +56,7 @@ const ChevronDown = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" hei
 const ChevronUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>;
 const PresentationIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h20v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3z"/><path d="m22 3-5 5"/><path d="m15 3 5 5"/></svg>;
 const PaletteIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.928 0 1.72-.615 1.947-1.513l.053-.213a1 1 0 0 1 1.94-.038l.053.213A2.001 2.001 0 0 0 19.89 22c.11 0 .11-10-7.89-20z"/></svg>;
+const HistoryIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="m12 7 0 5 3 3"/></svg>;
 
 // --- Shared Stream Helper ---
 const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>, onMessage: (msg: any) => void) => {
@@ -92,6 +104,12 @@ export default function App() {
   // Mobile UX
   const [showMobileSettings, setShowMobileSettings] = useState(false);
 
+  // Projects State
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+
   // Generation Settings
   const [numSlides, setNumSlides] = useState(5);
   const [style, setStyle] = useState("");
@@ -120,8 +138,56 @@ export default function App() {
 
   // Check for API Key on auth load
   useEffect(() => {
-    if (user) checkSettings();
+    if (user) {
+        checkSettings();
+        fetchProjects();
+    }
   }, [user]);
+
+  const fetchProjects = async () => {
+      setIsLoadingHistory(true);
+      try {
+          const token = await getToken();
+          const res = await fetch(`${BACKEND_URL}/user/projects`, {
+              headers: { "Authorization": `Bearer ${token}` }
+          });
+          const data = await res.json();
+          setProjects(data);
+      } catch (e) {
+          console.error("Failed to fetch projects", e);
+      } finally {
+          setIsLoadingHistory(false);
+      }
+  };
+
+  const loadProject = (project: Project) => {
+      setCurrentProjectId(project.id);
+      setQuery(project.query);
+      setScript(project.script);
+      setPhase("graphics");
+      
+      // Reconstruct surface components from script
+      const ar = project.script.global_settings?.aspect_ratio || "16:9";
+      const comps: any = {
+          "root": { id: "root", component: "Column", children: ["status", "grid"] },
+          "status": { id: "status", component: "Text", text: "Project Loaded from History" },
+          "grid": { id: "grid", component: "Column", children: project.script.slides.map((s: any) => `card_${s.id}`) }
+      };
+      
+      project.script.slides.forEach((s: any, idx: number) => {
+          if (s.image_url) {
+              comps[`card_${s.id}`] = { id: `card_${s.id}`, component: "Column", children: [`title_${s.id}`, `img_${s.id}`], status: "success" };
+              comps[`title_${s.id}`] = { id: `title_${s.id}`, component: "Text", text: `${idx+1}. ${s.title}` };
+              comps[`img_${s.id}`] = { id: `img_${s.id}`, component: "Image", src: s.image_url };
+          } else {
+              comps[`card_${s.id}`] = { id: `card_${s.id}`, component: "Text", text: "Waiting...", status: "waiting" };
+          }
+      });
+      
+      setSurfaceState({ components: comps, dataModel: { script: project.script } });
+      setShowHistory(false);
+      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+  };
 
   const checkSettings = async () => {
       try {
@@ -292,6 +358,7 @@ export default function App() {
         });
         setSurfaceState({ components: {}, dataModel: {} });
         setVisiblePrompts({});
+        setCurrentProjectId(null); // Reset for new project
     } else {
         setPhase("graphics");
     }
@@ -355,6 +422,7 @@ export default function App() {
             phase: targetPhase, 
             script: payloadScript, 
             session_id: "s1",
+            project_id: currentProjectId,
             file_ids: [fileContentId, brandingFileId].filter(id => id !== null)
         }),
         signal: abortController.signal
@@ -368,8 +436,9 @@ export default function App() {
               return { ...prev, components: nextComps };
               });
           }
-          if (msg.updateDataModel && msg.updateDataModel.value?.script) {
-              setScript(msg.updateDataModel.value.script);
+          if (msg.updateDataModel) {
+              if (msg.updateDataModel.value?.script) setScript(msg.updateDataModel.value.script);
+              if (msg.updateDataModel.value?.project_id) setCurrentProjectId(msg.updateDataModel.value.project_id);
           }
       });
 
@@ -378,6 +447,7 @@ export default function App() {
     } finally { 
         setIsStreaming(false); 
         abortControllerRef.current = null;
+        fetchProjects(); // Refresh history
     }
   };
 
@@ -422,7 +492,7 @@ export default function App() {
                 return {
                     title: s.title,
                     description: s.description,
-                    image_url: comp ? comp.src : null
+                    image_url: comp ? comp.src : (s.image_url || null)
                 };
             });
 
@@ -455,7 +525,7 @@ export default function App() {
     // --- ZIP/PDF EXPORT ---
     const imgUrls = script.slides.map((s: Slide) => {
         const comp = surfaceState.components[`img_${s.id}`] as A2UIComponent;
-        return comp ? comp.src : null;
+        return comp ? comp.src : (s.image_url || null);
     }).filter((url: string | null) => url !== null);
 
     if (imgUrls.length === 0) {
@@ -471,7 +541,7 @@ export default function App() {
                 "Content-Type": "application/json", 
                 "Authorization": `Bearer ${token}`
             },
-            body: JSON.stringify({ images: imgUrls, format: fmt })
+            body: JSON.stringify({ images: imgUrls, format: fmt, project_id: currentProjectId })
         });
         const data = await res.json();
         if (data.url) window.open(data.url, "_blank");
@@ -523,6 +593,42 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
       
+      {/* HISTORY MODAL */}
+      {showHistory && (
+          <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center backdrop-blur-sm animate-fade-in px-4">
+              <div className="bg-[#1e293b] border border-slate-700 p-8 rounded-2xl max-w-2xl w-full shadow-2xl relative max-h-[80vh] flex flex-col">
+                  <button onClick={() => setShowHistory(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white"><XIcon /></button>
+                  <div className="flex items-center gap-3 mb-6">
+                      <div className="w-10 h-10 bg-blue-900/30 rounded-full flex items-center justify-center text-blue-400"><HistoryIcon /></div>
+                      <h3 className="text-xl font-bold text-white">Project History</h3>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+                      {isLoadingHistory ? (
+                          <div className="flex items-center justify-center py-20 text-slate-500 animate-pulse">Loading past works...</div>
+                      ) : projects.length === 0 ? (
+                          <div className="text-center py-20 text-slate-500">No projects found. Start creating!</div>
+                      ) : (
+                          <div className="flex flex-col gap-3">
+                              {projects.map(p => (
+                                  <div key={p.id} onClick={() => loadProject(p)} className="bg-slate-900 hover:bg-slate-800 border border-slate-700 p-4 rounded-xl cursor-pointer transition-all group">
+                                      <div className="flex justify-between items-start mb-2">
+                                          <h4 className="font-bold text-white line-clamp-1 group-hover:text-blue-400 transition-colors">{p.query}</h4>
+                                          <span className="text-[10px] text-slate-500 uppercase">{new Date(p.created_at?.seconds * 1000).toLocaleDateString()}</span>
+                                      </div>
+                                      <div className="flex gap-4 text-[10px] text-slate-500 uppercase font-bold tracking-widest">
+                                          <span>{p.script?.slides?.length || 0} Slides</span>
+                                          <span className={p.status === 'completed' ? 'text-green-500' : 'text-amber-500'}>{p.status}</span>
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+                      )}
+                  </div>
+              </div>
+          </div>
+      )}
+
       {/* SETTINGS MODAL */}
       {showSettings && (
           <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center backdrop-blur-sm animate-fade-in px-4">
@@ -585,9 +691,10 @@ export default function App() {
                   {(() => {
                       const slide = script.slides[lightboxIndex];
                       const imgComp = surfaceState.components[`img_${slide.id}`] as A2UIComponent;
-                      return imgComp ? (
+                      const src = imgComp?.src || slide.image_url;
+                      return src ? (
                           <div className="relative w-full h-full max-w-7xl flex items-center justify-center group">
-                              <img src={imgComp.src} className="max-w-full max-h-full object-contain shadow-2xl rounded-lg" alt={slide.title} />
+                              <img src={src} className="max-w-full max-h-full object-contain shadow-2xl rounded-lg" alt={slide.title} />
                               <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-4 md:p-6 backdrop-blur-md translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                                   <h2 className="text-xl md:text-2xl font-bold text-white mb-2">{slide.title}</h2>
                                   <p className="text-sm text-slate-300 max-w-4xl line-clamp-3">{slide.description || slide.image_prompt}</p>
@@ -609,6 +716,10 @@ export default function App() {
           <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-medium hidden md:block border-l border-slate-800 pl-4 ml-1">Your Visual Data Architect</span>
         </div>
         <div className="flex items-center gap-4">
+          <button onClick={() => setShowHistory(true)} className="p-2 rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition-all" title="View History">
+              <HistoryIcon />
+          </button>
+
           <div className="bg-slate-900 p-1 rounded-full border border-slate-800 hidden md:flex mr-2">
             <button onClick={() => setModelType("flash")} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${modelType === "flash" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"}`}>2.5 Flash</button>
             <button onClick={() => setModelType("pro")} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${modelType === "pro" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"}`}>3 Pro</button>
@@ -735,11 +846,13 @@ export default function App() {
                   
                   if (isLoadingScript) return <div key={s.id} className="bg-[#111827] border border-slate-800 rounded-xl p-4 h-64 animate-pulse"></div>;
 
+                  const src = imageComponent?.src || s.image_url;
+
                   return (
                   <div key={s.id} className={`bg-[#111827] border border-slate-800 rounded-xl p-4 flex flex-col gap-3 shadow-xl transition-all relative overflow-hidden group ${isGenerating ? "ring-2 ring-blue-500" : ""}`}>
                     <div className="flex justify-between items-center border-b border-slate-800 pb-2 z-10 relative">
                       <span className="text-xs font-bold text-blue-500 uppercase">{s.id}</span>
-                      {imageComponent ? (
+                      {src ? (
                           <div className="flex gap-2">
                               <button onClick={() => setSurfaceState((prev: any) => {
                                   const { [`img_${s.id}`]: _, ...restComps } = prev.components;
@@ -752,9 +865,9 @@ export default function App() {
                       )}
                     </div>
                     <div className="flex-1 flex flex-col gap-3">
-                        {imageComponent && !visiblePrompts[s.id] ? (
+                        {src && !visiblePrompts[s.id] ? (
                             <div className="relative group min-h-[200px] bg-slate-900 rounded-lg overflow-hidden animate-fade-in flex items-center justify-center cursor-pointer" onClick={() => setLightboxIndex(idx)}>
-                                <img src={imageComponent.src} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={s.title} />
+                                <img src={src} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={s.title} />
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><EyeIcon /> <span className="ml-2 font-bold text-white">View</span></div>
                             </div>
                         ) : (
@@ -766,7 +879,7 @@ export default function App() {
                     </div>
                     {isGenerating && <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center z-20 animate-pulse"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div><span className="text-xs font-bold text-blue-400 uppercase">Drawing...</span></div>}
                     {hasError && <div className="absolute inset-0 bg-red-900/80 flex flex-col items-center justify-center z-20"><span className="text-xs font-bold text-red-200">FAILED</span><button onClick={() => retrySlide(s.id)} className="mt-2 text-[10px] underline text-white">Retry</button></div>}
-                    {imageComponent && !visiblePrompts[s.id] && (<div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-4 right-4 z-10"><button onClick={(e) => { e.stopPropagation(); retrySlide(s.id); }} className="bg-slate-800 p-2 rounded-full hover:bg-white/10 text-white transition-colors" title="Regenerate"><RefreshIcon /></button></div>)}
+                    {src && !visiblePrompts[s.id] && (<div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-4 right-4 z-10"><button onClick={(e) => { e.stopPropagation(); retrySlide(s.id); }} className="bg-slate-800 p-2 rounded-full hover:bg-white/10 text-white transition-colors" title="Regenerate"><RefreshIcon /></button></div>)}
                   </div>
                 )})
               }
@@ -787,3 +900,4 @@ export default function App() {
     </div>
   );
 }
+
