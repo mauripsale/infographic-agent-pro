@@ -71,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const providerWithScope = new GoogleAuthProvider();
       providerWithScope.addScope('https://www.googleapis.com/auth/drive.file');
       providerWithScope.addScope('https://www.googleapis.com/auth/presentations');
+      providerWithScope.setCustomParameters({ prompt: 'consent' });
       // We use the existing auth instance but trigger a re-auth/link flow
       try {
           const result = await signInWithPopup(auth, providerWithScope, browserPopupRedirectResolver);
