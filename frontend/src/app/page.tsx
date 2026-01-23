@@ -472,13 +472,13 @@ export default function App() {
             let googleToken = await getGoogleAccessToken();
 
             if (!hasSlidesPermissions || !googleToken) {
-                const granted = await grantSlidesPermissions();
-                if (!granted) {
+                const newToken = await grantSlidesPermissions();
+                if (!newToken) {
                     alert("Google Slides export requires Drive permissions. Please grant them to continue.");
                     setIsExporting(false);
                     return;
                 }
-                googleToken = await getGoogleAccessToken();
+                googleToken = newToken;
             }
 
             if (!googleToken) {
