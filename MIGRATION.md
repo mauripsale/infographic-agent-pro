@@ -86,4 +86,10 @@ If you prefer to do it manually or need to find the values for the script:
 ## 🚀 Final Step: Launch
 
 1.  Trigger GitHub Action.
-2.  **Circular Dependency**: If `NEXT_PUBLIC_BACKEND_URL` is unknown, deploy once, get the URL from Cloud Run, update the secret/env file, and re-deploy.
+2.  **Circular Dependency**: If `NEXT_PUBLIC_BACKEND_URL` is unknown, deploy once, get the URL from Cloud Run, update the secret/env file, and re-run the GitHub Action.
+
+## Future Migration Notes (Post-Firebase)
+- **Authentication**: Currently, Google OAuth scopes for Slides (incremental auth) are handled client-side via Firebase SDK using `signInWithPopup` and `prompt: 'consent'`. When migrating away from Firebase Auth to a custom Cloud Run auth service:
+    - Implement a server-side OAuth 2.0 flow (Authorization Code Flow) for handling Google Drive/Slides scopes.
+    - Store Refresh Tokens securely in the new backend database.
+    - Replace client-side `grantSlidesPermissions` logic with a redirect to the new auth service's consent endpoint.

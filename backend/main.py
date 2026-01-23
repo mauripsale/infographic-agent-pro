@@ -19,6 +19,7 @@ from firebase_admin import auth as firebase_auth, firestore
 # ADK Core
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
+from google.adk.artifacts import InMemoryArtifactService, GcsArtifactService
 from google.genai import types
 from google import genai
 
@@ -41,6 +42,15 @@ logger = logging.getLogger(__name__)
 
 # Initialize GCS Tool
 storage_tool = StorageTool()
+
+# Initialize ADK Artifact Service
+gcs_bucket = os.environ.get("GCS_BUCKET_NAME")
+if gcs_bucket:
+    artifact_service = GcsArtifactService(bucket_name=gcs_bucket)
+    logger.info(f"Initialized GcsArtifactService with bucket: {gcs_bucket}")
+else:
+    artifact_service = InMemoryArtifactService()
+    logger.warning("GCS_BUCKET_NAME not set. Using InMemoryArtifactService (artifacts will be lost on restart).")
 
 # Initialize Firebase Admin & Firestore
 try:
