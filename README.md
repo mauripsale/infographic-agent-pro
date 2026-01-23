@@ -80,5 +80,6 @@ IPSA is designed with a **"Trust & Safety"** first approach:
 -   **Incremental Auth**: The app works with basic profile access. Highly sensitive scopes (like Google Drive write access) are requested *only* when you explicitly click "Export to Slides".
 -   **BYOK (Bring Your Own Key)**: Users provide their own Gemini API Key, which is encrypted client-side or stored securely in Firestore with user-only access rules.
 
-Built with ❤️ by Maurizio Ipsale using <strong>Google ADK</strong> and <strong>Gemini</strong>.
+<p align="center">
+  Built with ❤️ by Maurizio Ipsale using <strong>Google ADK</strong> and <strong>Gemini</strong>.
 </p>
