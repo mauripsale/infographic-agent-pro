@@ -46,7 +46,7 @@ class ImageGenerationTool:
         else:
             self.bucket = None
 
-    def generate_and_save(self, prompt: str, aspect_ratio: str = "16:9", user_id: str = "anonymous") -> str:
+    def generate_and_save(self, prompt: str, aspect_ratio: str = "16:9", user_id: str = "anonymous", project_id: str = None) -> str:
         """
         Generates an image and saves it to GCS (preferred) or local static dir.
         Returns a Signed URL (GCS) or absolute URL (Local).
@@ -62,7 +62,7 @@ class ImageGenerationTool:
             if "image" not in model_id:
                 model_id = "gemini-2.5-flash-image"
             
-            logger.info(f"🎨 Drawing for {user_id} using {model_id}: {prompt[:40]}...")
+            logger.info(f"🎨 Drawing for {user_id} (Project: {project_id}) using {model_id}: {prompt[:40]}...")
 
             image_bytes = None
             
@@ -110,7 +110,11 @@ class ImageGenerationTool:
             # 1. GCS Upload (Primary)
             if self.bucket:
                 try:
-                    blob_path = f"users/{user_id}/generated/{filename}"
+                    if project_id:
+                        blob_path = f"users/{user_id}/projects/{project_id}/assets/{filename}"
+                    else:
+                        blob_path = f"users/{user_id}/generated/{filename}"
+                        
                     blob = self.bucket.blob(blob_path)
                     blob.upload_from_string(image_bytes, content_type="image/png")
                     
