@@ -68,7 +68,16 @@ const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>, on
 };
 
 export default function App() {
-  const { user, loading: authLoading, login, logout, getToken, getGoogleAccessToken } = useAuth();
+  const { 
+    user, 
+    loading: authLoading, 
+    login, 
+    logout, 
+    getToken, 
+    getGoogleAccessToken,
+    grantSlidesPermissions,
+    hasSlidesPermissions 
+  } = useAuth();
   
   const [query, setQuery] = useState("");
   const [modelType, setModelType] = useState<"flash" | "pro">("flash");
@@ -370,10 +379,20 @@ export default function App() {
     // --- GOOGLE SLIDES EXPORT ---
     if (fmt === "slides") {
         try {
-            const googleToken = await getGoogleAccessToken();
+            let googleToken = await getGoogleAccessToken();
+
+            if (!hasSlidesPermissions || !googleToken) {
+                const granted = await grantSlidesPermissions();
+                if (!granted) {
+                    alert("Google Slides export requires Drive permissions. Please grant them to continue.");
+                    setIsExporting(false);
+                    return;
+                }
+                googleToken = await getGoogleAccessToken();
+            }
 
             if (!googleToken) {
-                alert("Please sign in again to enable Google Slides export (missing permissions).");
+                alert("Failed to retrieve Google Access Token. Please sign in again.");
                 setIsExporting(false);
                 return;
             }
