@@ -130,3 +130,4 @@ export default function App() {
               <HistoryIcon />
           </button>
           {/* ... (rest of header) */}
+
