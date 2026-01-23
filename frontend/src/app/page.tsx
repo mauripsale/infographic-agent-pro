@@ -559,7 +559,16 @@ export default function App() {
             body: JSON.stringify({ images: imgUrls, format: fmt, project_id: currentProjectId })
         });
         const data = await res.json();
-        if (data.url) window.open(data.url, "_blank");
+        if (data.url) {
+            // Use hidden anchor to bypass popup blockers and avoid permission-change reloads
+            const link = document.createElement('a');
+            link.href = data.url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
         else alert("Export failed. Please check server logs.");
     } catch(e) { 
         console.error("Export error:", e);
