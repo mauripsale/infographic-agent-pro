@@ -579,14 +579,7 @@ export default function App() {
           </div>
       )}
 
-      {/* HEADER */}
-      <header className="sticky top-0 h-16 border-b border-slate-800 bg-[#030712]/90 backdrop-blur-md z-40 flex items-center justify-between px-6">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white"><MonitorIcon /></div>
-          <span className="text-lg font-bold text-slate-50 tracking-tight">IPSA</span>
-          <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-medium hidden md:block border-l border-slate-800 pl-4 ml-1">Your Visual Data Architect</span>
-        </div>
-        <div className="flex items-center gap-4">
+      {/* HEADER */}      <header className="sticky top-0 h-16 border-b border-slate-800 bg-[#030712]/90 backdrop-blur-md z-40 flex items-center justify-between px-6">        <div className="flex items-center gap-3">          <img src="/logo.png" alt="IPSA Logo" className="w-8 h-8 rounded-lg" />          <span className="text-lg font-bold text-slate-50 tracking-tight">IPSA</span>          <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-medium hidden md:block border-l border-slate-800 pl-4 ml-1">Your Visual Data Architect</span>        </div>        <div className="flex items-center gap-4">
           <div className="bg-slate-900 p-1 rounded-full border border-slate-800 hidden md:flex mr-2">
             <button onClick={() => setModelType("flash")} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${modelType === "flash" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"}`}>2.5 Flash</button>
             <button onClick={() => setModelType("pro")} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${modelType === "pro" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"}`}>3 Pro</button>
