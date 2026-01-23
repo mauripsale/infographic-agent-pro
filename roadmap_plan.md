@@ -45,6 +45,8 @@ This document outlines the planned fixes and features discussed on Jan 13, follo
 - **Logo Issues:** Generative models often mangle specific text/logos if asked to "draw" them.
 
 ### Proposed Features
+- **Branding Guide Support:** Allow users to upload a PDF/TXT branding guide. 
+  - The Agent will analyze this document to extract colors, tone of voice, and visual metaphors.
 - **Brand Kit Settings:** Allow users to save:
     - Primary/Secondary Hex Colors.
     - Style Keywords (e.g., "Minimalist", "Tech", "Hand-drawn").
@@ -64,12 +66,30 @@ This document outlines the planned fixes and features discussed on Jan 13, follo
     - Remove `https://www.googleapis.com/auth/presentations`.
     - Rely solely on `https://www.googleapis.com/auth/drive.file` (which grants access only to files created by the app).
 
-## 6. Implementation Steps (Tomorrow)
+## 6. Enterprise Persistence & History (New)
+### Problem Analysis
+- **Ephemeral Uploads:** Currently, uploaded files are temp-only. Users have to re-upload context every time.
+- **Single File Limit:** Users often have multiple source docs (e.g., "Tech Specs" + "Marketing Brief").
+- **No History:** Users cannot see past projects or re-download old decks.
+
+### Proposed Features
+- **Multi-File Upload:** Update UI and Backend to accept `List<File>`.
+- **GCS Persistence:**
+    - Save all uploaded files to a secure GCS bucket: `gs://<bucket>/users/<uid>/uploads/<file>`.
+    - Save generated assets (images, pptx) to: `gs://<bucket>/users/<uid>/projects/<project_id>/`.
+- **User History (Firestore):**
+    - Create a `projects` collection in Firestore.
+    - Store metadata: `prompt`, `timestamp`, `file_urls` (GCS), `status`, `generated_pptx_url`.
+    - **UI Dashboard:** A "My Projects" view to browse history and re-download assets.
+
+## 7. Implementation Steps (Updated)
 1. **Step 1:** Modify `backend/tools/export_tool.py` to support Landscape and Handout layouts using a library like `reportlab` or `FPDF`.
 2. **Step 2:** Update the Frontend `AuthContext` and API service to handle preemptive token refreshing.
 3. **Step 3:** Update the Frontend UI:
     - Implement batching for generation requests.
     - Add per-slide "Stop/Skip" controls.
     - Implement `localStorage` persistence for `session_id` and workspace state.
-4. **Step 4:** Implement Scope Reduction in `AuthContext.tsx`.
-5. **Step 5 (Time Permitting):** Implement Brand Kit settings in Backend and UI.
+4. **Step 4 (Done):** Implement Scope Reduction in `AuthContext.tsx`.
+5. **Step 5:** Implement Branding Guide Support (Upload + Agent Analysis).
+6. **Step 6:** Implement Multi-File Upload & GCS Persistence.
+7. **Step 7:** Implement User History Dashboard.
