@@ -2,6 +2,7 @@ google-adk>=0.1.0
 aiosqlite==0.21.0
 fastapi
 uvicorn
+gunicorn
 python-multipart
 google-genai
 google-cloud-storage
