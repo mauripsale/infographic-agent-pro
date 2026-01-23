@@ -304,40 +304,31 @@ export default function App() {
     let fileContentId = null;
     let brandingFileId = null;
 
-    if (targetPhase === "script") {
-        // Upload Source File
-        if (uploadedFile) {
-            const formData = new FormData();
-            formData.append("file", uploadedFile);
-            try {
-                const uploadRes = await fetch(`${BACKEND_URL}/agent/upload`, {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${token}` },
-                    body: formData
-                });
-                const uploadData = await uploadRes.json();
-                if (uploadData.file_id) fileContentId = uploadData.file_id;
-                else throw new Error("Upload failed");
-            } catch (e) {
-                console.error("Source upload failed", e);
-                alert("Source document upload failed. Proceeding with text only.");
-            }
+    const uploadFile = async (file: File) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        try {
+            const uploadRes = await fetch(`${BACKEND_URL}/agent/upload`, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${token}` },
+                body: formData
+            });
+            const uploadData = await uploadRes.json();
+            if (uploadData.file_id) return uploadData.file_id;
+            else throw new Error("Upload failed");
+        } catch (e) {
+            console.error(`Upload failed for ${file.name}`, e);
+            return null;
         }
-        // Upload Branding File
+    };
+
+    if (targetPhase === "script") {
+        if (uploadedFile) {
+            fileContentId = await uploadFile(uploadedFile);
+            if (!fileContentId) alert("Source document upload failed. Proceeding with text only.");
+        }
         if (brandingFile) {
-            const formData = new FormData();
-            formData.append("file", brandingFile);
-            try {
-                const uploadRes = await fetch(`${BACKEND_URL}/agent/upload`, {
-                    method: "POST",
-                    headers: { "Authorization": `Bearer ${token}` },
-                    body: formData
-                });
-                const uploadData = await res.json(); // NOTE: This should be uploadRes.json()
-                if (uploadData.file_id) brandingFileId = uploadData.file_id;
-            } catch (e) {
-                console.error("Branding upload failed", e);
-            }
+            brandingFileId = await uploadFile(brandingFile);
         }
     }
 

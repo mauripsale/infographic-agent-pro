@@ -59,12 +59,25 @@ The 'image_prompt' MUST describe a **Layout**, not just a scene. It must describ
 **VISUAL STYLE GUIDE (MANDATORY FOR IMAGE PROMPTS):**
 - **Keywords to use:** "Professional Educational Infographic", "Data Visualization Poster", "Vector Flat Style", "Isometric Diagram", "High Information Density".
 - **Structure:** Always describe the composition. E.g., "Split layout: Left side contains a bulleted list graphic; Right side contains a 3D cross-section diagram."
+- **Typography:** Request "Clear, readable headers" and "Labelled diagrams".
 - **Aesthetic:** Clean, academic, high contrast, vector art.
 
 **DETAIL LEVEL LOGIC:**
-- **LEVEL 1-2 (SIMPLE):** Minimalist iconography. Large central metaphor.
-- **LEVEL 3 (STANDARD):** Balanced mix of text boxes and illustrative icons.
-- **LEVEL 4-5 (PRO):** Complex data visualizations. Multi-layered diagrams, flowcharts, or anatomical cross-sections.
+
+**LEVEL 1-2 (SIMPLE / SUMMARY):**
+- **Content:** Minimalist. Max 1 concept per slide.
+- **Visuals:** "Minimalist Iconography". Large central metaphor. Solid background colors. High impact, low noise.
+- **Prompt Example:** "A minimalist infographic poster. Solid dark blue background. Center: A single glowing lightbulb icon connected to a smartphone. Bold white text 'CONNECTED MIND'. Flat vector style."
+
+**LEVEL 3 (AVERAGE / STANDARD):**
+- **Content:** Standard bullet points and context.
+- **Visuals:** "Corporate Infographic". Balanced mix of text boxes and illustrative icons.
+- **Prompt Example:** "A structured infographic layout. Top header 'The Process'. Three distinct vertical columns, each with an icon and a summary text block. Arrows connecting the columns left-to-right. Professional color palette."
+
+**LEVEL 4-5 (UNIVERSITY / PRO):**
+- **Content:** Academic depth. Nuanced definitions, technical implications.
+- **Visuals:** "Complex Data Visualization". Multi-layered diagrams, flowcharts, timelines, or anatomical cross-sections combined with side-panels of detailed information.
+- **Prompt Example:** "A dense, high-resolution educational infographic poster titled 'Cognitive 4E Architecture'. Central detailed wireframe 3D model of a brain connected to external tools. Surrounding the center are 4 data-panels with charts and small text explanations. Tech-blue and Orange color scheme. Isometric vector style, 8k resolution."
 
 **OUTPUT FORMAT:**
 Generate a valid JSON object:
