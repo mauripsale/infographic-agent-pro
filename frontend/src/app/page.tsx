@@ -562,9 +562,18 @@ export default function App() {
         if (data.url) {
             // Use hidden anchor to bypass popup blockers and avoid permission-change reloads
             const link = document.createElement('a');
-            link.href = data.url;
+            let downloadUrl = data.url;
+            // Fix: If URL is relative (from backend static), prepend backend host
+            if (downloadUrl.startsWith("/")) {
+                downloadUrl = `${BACKEND_URL}${downloadUrl}`;
+            }
+            link.href = downloadUrl;
             link.target = '_blank';
             link.rel = 'noopener noreferrer';
+            // Force filename if backend didn't provide Content-Disposition, helps browser treat as download
+            if (fmt === 'pdf') link.download = `presentation-${new Date().getTime()}.pdf`;
+            else if (fmt === 'zip') link.download = `presentation-${new Date().getTime()}.zip`;
+            
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
