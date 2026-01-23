@@ -22,7 +22,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   getToken: () => Promise<string | null>;
   getGoogleAccessToken: () => Promise<string | null>;
-  grantSlidesPermissions: () => Promise<boolean>;
+  grantSlidesPermissions: () => Promise<string | null>;
   hasSlidesPermissions: boolean;
 }
 
@@ -65,12 +65,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const grantSlidesPermissions = async (): Promise<boolean> => {
-      if (!user) return false;
+  const grantSlidesPermissions = async (): Promise<string | null> => {
+      if (!user) return null;
 
       const providerWithScope = new GoogleAuthProvider();
       providerWithScope.addScope('https://www.googleapis.com/auth/drive.file');
-      providerWithScope.addScope('https://www.googleapis.com/auth/presentations');
       providerWithScope.setCustomParameters({ prompt: 'consent' });
       // We use the existing auth instance but trigger a re-auth/link flow
       try {
@@ -80,12 +79,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (credential?.accessToken) {
               setGoogleAccessToken(credential.accessToken);
               setHasSlidesPermissions(true);
-              return true;
+              return credential.accessToken;
           }
-          return false;
+          return null;
       } catch (error) {
           console.error("Failed to grant slides permissions", error);
-          return false;
+          return null;
       }
   };
 
