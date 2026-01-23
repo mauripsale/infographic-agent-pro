@@ -257,16 +257,22 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
 
                 prompt_parts = [types.Part(text=data.get("query", ""))]
                 
-                file_id = data.get("file_id")
-                if file_id:
-                    try:
-                        client = genai.Client(api_key=api_key)
-                        g_file = client.files.get(name=file_id)
-                        prompt_parts.append(types.Part.from_uri(file_uri=g_file.uri, mime_type=g_file.mime_type))
-                        logger.info(f"Attached file {file_id}")
-                    except Exception as fe:
-                        logger.error(f"Failed to attach file {file_id}: {fe}")
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "l", "component": "Text", "text": "⚠️ Failed to read uploaded doc. Proceeding with text only..."}]}}) + "\n"
+                # Support both single file_id (legacy) and multi file_ids
+                file_ids = data.get("file_ids", [])
+                legacy_file_id = data.get("file_id")
+                if legacy_file_id and legacy_file_id not in file_ids:
+                    file_ids.append(legacy_file_id)
+
+                if file_ids:
+                    client = genai.Client(api_key=api_key)
+                    for fid in file_ids:
+                        try:
+                            g_file = client.files.get(name=fid)
+                            prompt_parts.append(types.Part.from_uri(file_uri=g_file.uri, mime_type=g_file.mime_type))
+                            logger.info(f"Attached file {fid}")
+                        except Exception as fe:
+                            logger.error(f"Failed to attach file {fid}: {fe}")
+                            yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "l", "component": "Text", "text": f"⚠️ Failed to read file {fid}. Proceeding..."}]}}) + "\n"
 
                 content = types.Content(role="user", parts=prompt_parts)
                 agent_output = ""

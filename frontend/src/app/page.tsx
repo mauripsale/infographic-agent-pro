@@ -44,6 +44,7 @@ const KeyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height=
 const ChevronDown = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>;
 const ChevronUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>;
 const PresentationIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h20v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3z"/><path d="m22 3-5 5"/><path d="m15 3 5 5"/></svg>;
+const PaletteIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.928 0 1.72-.615 1.947-1.513l.053-.213a1 1 0 0 1 1.94-.038l.053.213A2.001 2.001 0 0 0 19.89 22c.11 0 .11-10-7.89-20z"/></svg>;
 
 // --- Shared Stream Helper ---
 const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>, onMessage: (msg: any) => void) => {
@@ -107,9 +108,11 @@ export default function App() {
   const lightboxRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const brandingInputRef = useRef<HTMLInputElement>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [brandingFile, setBrandingFile] = useState<File | null>(null);
   
   // UX State
   const [visiblePrompts, setVisiblePrompts] = useState<Record<string, boolean>>({});
@@ -210,6 +213,12 @@ export default function App() {
       }
   };
 
+  const handleBrandingUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          setBrandingFile(e.target.files[0]);
+      }
+  };
+
   const retrySlide = async (slideId: string) => {
       if (!hasApiKey) { setShowSettings(true); return; }
       const slide = script.slides.find((s: Slide) => s.id === slideId);
@@ -293,22 +302,42 @@ export default function App() {
     
     let effectiveQuery = query;
     let fileContentId = null;
+    let brandingFileId = null;
 
-    if (targetPhase === "script" && uploadedFile) {
-        const formData = new FormData();
-        formData.append("file", uploadedFile);
-        try {
-            const uploadRes = await fetch(`${BACKEND_URL}/agent/upload`, {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${token}` },
-                body: formData
-            });
-            const uploadData = await uploadRes.json();
-            if (uploadData.file_id) fileContentId = uploadData.file_id;
-            else throw new Error("Upload failed");
-        } catch (e) {
-            console.error("Upload failed", e);
-            alert("Document upload failed. Proceeding with text only.");
+    if (targetPhase === "script") {
+        // Upload Source File
+        if (uploadedFile) {
+            const formData = new FormData();
+            formData.append("file", uploadedFile);
+            try {
+                const uploadRes = await fetch(`${BACKEND_URL}/agent/upload`, {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${token}` },
+                    body: formData
+                });
+                const uploadData = await uploadRes.json();
+                if (uploadData.file_id) fileContentId = uploadData.file_id;
+                else throw new Error("Upload failed");
+            } catch (e) {
+                console.error("Source upload failed", e);
+                alert("Source document upload failed. Proceeding with text only.");
+            }
+        }
+        // Upload Branding File
+        if (brandingFile) {
+            const formData = new FormData();
+            formData.append("file", brandingFile);
+            try {
+                const uploadRes = await fetch(`${BACKEND_URL}/agent/upload`, {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${token}` },
+                    body: formData
+                });
+                const uploadData = await res.json(); // NOTE: This should be uploadRes.json()
+                if (uploadData.file_id) brandingFileId = uploadData.file_id;
+            } catch (e) {
+                console.error("Branding upload failed", e);
+            }
         }
     }
 
@@ -335,7 +364,7 @@ export default function App() {
             phase: targetPhase, 
             script: payloadScript, 
             session_id: "s1",
-            file_id: fileContentId
+            file_ids: [fileContentId, brandingFileId].filter(id => id !== null)
         }),
         signal: abortController.signal
       });
@@ -482,11 +511,13 @@ export default function App() {
               <div className="max-w-md w-full bg-[#111827] border border-slate-800 p-10 rounded-3xl shadow-2xl text-center flex flex-col gap-8 animate-fade-in">
                   <div className="mx-auto w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/40"><MonitorIcon /></div>
                   <div>
-                      <h1 className="text-4xl font-bold text-white mb-2 tracking-tighter">IPSA</h1>
-                      <p className="text-blue-400 font-semibold text-xs uppercase tracking-widest mb-4">Your Visual Data Architect</p>
-                      <p className="text-slate-400 text-sm">
-                        The <strong>Infographic Presentation Sales Agent</strong>. 
-                        Sign in to transform technical insights into stunning visual narratives.
+                      <h1 className="text-6xl font-black text-white mb-2 tracking-tighter">IPSA</h1>
+                      <div className="flex flex-col gap-1 mb-6">
+                        <p className="text-blue-400 font-bold text-sm uppercase tracking-[0.3em]">Your Visual Data Architect</p>
+                        <p className="text-slate-500 font-medium text-[10px] uppercase tracking-widest">Infographic Presentation Sales Agent</p>
+                      </div>
+                      <p className="text-slate-400 text-base max-w-sm mx-auto leading-relaxed">
+                        Transform complex technical insights into stunning, high-impact visual narratives in seconds.
                       </p>
                   </div>
                   <button onClick={login} className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-xl">
@@ -579,7 +610,14 @@ export default function App() {
           </div>
       )}
 
-      {/* HEADER */}      <header className="sticky top-0 h-16 border-b border-slate-800 bg-[#030712]/90 backdrop-blur-md z-40 flex items-center justify-between px-6">        <div className="flex items-center gap-3">          <img src="/logo.png" alt="IPSA Logo" className="w-8 h-8 rounded-lg" />          <span className="text-lg font-bold text-slate-50 tracking-tight">IPSA</span>          <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-medium hidden md:block border-l border-slate-800 pl-4 ml-1">Your Visual Data Architect</span>        </div>        <div className="flex items-center gap-4">
+      {/* HEADER */}
+      <header className="sticky top-0 h-16 border-b border-slate-800 bg-[#030712]/90 backdrop-blur-md z-40 flex items-center justify-between px-6">
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="IPSA Logo" className="w-8 h-8 rounded-lg" />
+          <span className="text-lg font-bold text-slate-50 tracking-tight">IPSA</span>
+          <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-medium hidden md:block border-l border-slate-800 pl-4 ml-1">Your Visual Data Architect</span>
+        </div>
+        <div className="flex items-center gap-4">
           <div className="bg-slate-900 p-1 rounded-full border border-slate-800 hidden md:flex mr-2">
             <button onClick={() => setModelType("flash")} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${modelType === "flash" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"}`}>2.5 Flash</button>
             <button onClick={() => setModelType("pro")} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${modelType === "pro" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"}`}>3 Pro</button>
@@ -647,19 +685,28 @@ export default function App() {
             
             <div className="flex flex-col md:flex-row gap-4">
               <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".pdf,.txt,.md" />
+              <input type="file" ref={brandingInputRef} className="hidden" onChange={handleBrandingUpload} accept=".pdf,.txt,.md" />
               
               <button 
                 onClick={() => fileInputRef.current?.click()} 
                 disabled={!hasApiKey} 
-                className={`w-full md:w-[20%] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-medium py-4 rounded-xl flex items-center justify-center gap-2 transition-all min-h-[48px] ${uploadedFile ? "border-green-500 text-green-400 bg-green-900/10" : ""} disabled:opacity-50 disabled:cursor-not-allowed`}
+                className={`w-full md:w-[25%] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-medium py-4 rounded-xl flex items-center justify-center gap-2 transition-all min-h-[48px] ${uploadedFile ? "border-green-500 text-green-400 bg-green-900/10" : ""} disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                  {uploadedFile ? <><CheckIcon /> <span className="truncate max-w-[100px]">{uploadedFile.name}</span></> : <><FileUpIcon /> Upload</>}
+                  {uploadedFile ? <><CheckIcon /> <span className="truncate max-w-[100px]">{uploadedFile.name}</span></> : <><FileUpIcon /> Source Doc</>}
+              </button>
+
+              <button 
+                onClick={() => brandingInputRef.current?.click()} 
+                disabled={!hasApiKey} 
+                className={`w-full md:w-[25%] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-medium py-4 rounded-xl flex items-center justify-center gap-2 transition-all min-h-[48px] ${brandingFile ? "border-blue-500 text-blue-400 bg-blue-900/10" : ""} disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                  {brandingFile ? <><CheckIcon /> <span className="truncate max-w-[100px]">{brandingFile.name}</span></> : <><PaletteIcon /> Brand Guide</>}
               </button>
               
               <button 
                 onClick={startScriptGen} 
                 disabled={isStreaming || !hasApiKey || (!query && !uploadedFile)} 
-                className="w-full md:w-[80%] bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 min-h-[48px]"
+                className="w-full md:w-[50%] bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 min-h-[48px]"
               >
                   {isStreaming && phase === "review" ? "Generating..." : <><SparklesIcon /> Generate Script</>}
               </button>
