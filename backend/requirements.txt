@@ -320,6 +320,8 @@ packaging==25.0
     # via
     #   google-cloud-aiplatform
     #   google-cloud-bigquery
+pillow==12.1.0
+    # via -r backend/requirements.in
 proto-plus==1.27.0
     # via
     #   google-api-core
