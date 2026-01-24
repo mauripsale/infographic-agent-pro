@@ -752,7 +752,7 @@ export default function App() {
                                           <span className="text-[10px] text-slate-500 uppercase">{new Date(p.created_at?.seconds * 1000).toLocaleDateString()}</span>
                                       </div>
                                       <div className="flex gap-4 text-[10px] text-slate-500 uppercase font-bold tracking-widest">
-                                          <span>{p.script?.slides?.length || 0} Slides</span>
+                                          <span>{p.slide_count || 0} Slides</span>
                                           <span className={p.status === 'completed' ? 'text-green-500' : 'text-amber-500'}>{p.status}</span>
                                       </div>
                                   </div>
