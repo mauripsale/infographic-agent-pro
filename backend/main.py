@@ -407,10 +407,24 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     match = re.search(r'(\{.*\})', agent_output.replace("\n", ""), re.DOTALL)
                     if match:
                         script_data = json.loads(match.group(1))
+                        
+                        # Extract Metadata for History
+                        query = data.get("query", "")
+                        if "[USER REQUEST]" in query:
+                            clean_title = query.split("[USER REQUEST]")[-1].strip()
+                        else:
+                            clean_title = query.split("\n")[-1] if "\n" in query else query
+                        
+                        if not clean_title: clean_title = "Untitled Presentation"
+                        if len(clean_title) > 60: clean_title = clean_title[:57] + "..."
+                        
+                        slide_count = len(script_data.get("slides", []))
 
                         if db:
                             db.collection("users").document(user_id).collection("projects").document(project_id).set({
-                                "query": data.get("query", ""),
+                                "query": query,
+                                "title": clean_title,
+                                "slide_count": slide_count,
                                 "file_ids": file_ids,
                                 "script": script_data,
                                 "status": "script_ready",
