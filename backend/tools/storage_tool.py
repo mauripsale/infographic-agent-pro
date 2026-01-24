@@ -35,7 +35,19 @@ class StorageTool:
             return url
         except Exception as e:
             logger.warning(f"Could not generate signed URL for {remote_path} (likely missing private key): {e}")
-            # Fallback: authenticated URL (works if user is logged into Google/Cloud console)
+            return f"https://storage.cloud.google.com/{self.bucket.name}/{remote_path}"
+
+    def _get_blob_url(self, blob, remote_path: str) -> str:
+        """Tries to generate a signed URL, falling back to an authenticated URL."""
+        try:
+            url = blob.generate_signed_url(
+                version="v4",
+                expiration=timedelta(days=7),
+                method="GET",
+            )
+            return url
+        except Exception as sign_err:
+            logger.warning(f"GCS Signing Failed (missing key?), returning authenticated URL: {sign_err}")
             return f"https://storage.cloud.google.com/{self.bucket.name}/{remote_path}"
 
     def upload_file(self, local_path: str, remote_path: str, content_type: str = None) -> str:
@@ -46,17 +58,7 @@ class StorageTool:
         try:
             blob = self.bucket.blob(remote_path)
             blob.upload_from_filename(local_path, content_type=content_type)
-            
-            try:
-                url = blob.generate_signed_url(
-                    version="v4",
-                    expiration=timedelta(days=7),
-                    method="GET",
-                )
-                return url
-            except Exception as sign_err:
-                logger.warning(f"GCS Signing Failed (missing key?), returning authenticated URL: {sign_err}")
-                return f"https://storage.cloud.google.com/{self.bucket.name}/{remote_path}"
+            return self._get_blob_url(blob, remote_path)
 
         except Exception as e:
             logger.error(f"GCS Upload Error: {e}")
@@ -70,17 +72,7 @@ class StorageTool:
         try:
             blob = self.bucket.blob(remote_path)
             blob.upload_from_string(data, content_type=content_type)
-            
-            try:
-                url = blob.generate_signed_url(
-                    version="v4",
-                    expiration=timedelta(days=7),
-                    method="GET",
-                )
-                return url
-            except Exception as sign_err:
-                logger.warning(f"GCS Signing Failed (missing key?), returning authenticated URL: {sign_err}")
-                return f"https://storage.cloud.google.com/{self.bucket.name}/{remote_path}"
+            return self._get_blob_url(blob, remote_path)
 
         except Exception as e:
             logger.error(f"GCS Upload Error (bytes): {e}")
