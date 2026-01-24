@@ -16,15 +16,26 @@ interface Slide {
   image_url?: string;
 }
 
-interface Project {
+interface ProjectSummary {
   id: string;
+  title?: string;
   query: string;
-  script: any;
   status: string;
+  slide_count?: number;
   created_at: any;
+}
+
+interface ProjectDetails extends ProjectSummary {
+  script: {
+    slides: Slide[];
+    global_settings?: any;
+  };
   export_pdf_url?: string;
   export_zip_url?: string;
 }
+
+// State compatibility
+type Project = ProjectSummary;
 
 interface A2UIComponent {
   id: string;
@@ -165,33 +176,73 @@ export default function App() {
       }
   };
 
-  const loadProject = (project: Project) => {
-      setCurrentProjectId(project.id);
-      setQuery(project.query);
-      setScript(project.script);
-      setPhase("graphics");
-      
-      // Reconstruct surface components from script
-      const ar = project.script.global_settings?.aspect_ratio || "16:9";
-      const comps: any = {
-          "root": { id: "root", component: "Column", children: ["status", "grid"] },
-          "status": { id: "status", component: "Text", text: "Project Loaded from History" },
-          "grid": { id: "grid", component: "Column", children: project.script.slides.map((s: any) => `card_${s.id}`) }
-      };
-      
-      project.script.slides.forEach((s: any, idx: number) => {
-          if (s.image_url) {
-              comps[`card_${s.id}`] = { id: `card_${s.id}`, component: "Column", children: [`title_${s.id}`, `img_${s.id}`], status: "success" };
-              comps[`title_${s.id}`] = { id: `title_${s.id}`, component: "Text", text: `${idx+1}. ${s.title}` };
-              comps[`img_${s.id}`] = { id: `img_${s.id}`, component: "Image", src: s.image_url };
-          } else {
-              comps[`card_${s.id}`] = { id: `card_${s.id}`, component: "Text", text: "Waiting...", status: "waiting" };
+  // --- Date Formatter ---
+  const formatDate = (timestamp: { seconds: number } | string | Date | null | undefined): string => {
+      if (!timestamp) return "Unknown date";
+      try {
+          // Firestore Timestamp (seconds, nanoseconds)
+          if (typeof timestamp === 'object' && 'seconds' in (timestamp as any)) {
+              return new Date((timestamp as any).seconds * 1000).toLocaleDateString(undefined, { 
+                  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+              });
           }
-      });
+          // ISO String or other
+          const dateObj = new Date(timestamp as any);
+          if (isNaN(dateObj.getTime())) return "Invalid date";
+          
+          return dateObj.toLocaleDateString(undefined, {
+               month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+          });
+      } catch (e) {
+          return "Invalid date";
+      }
+  };
+
+  const loadProject = async (projectSummary: ProjectSummary) => {
+      setIsLoadingHistory(true);
+      setCurrentProjectId(projectSummary.id);
       
-      setSurfaceState({ components: comps, dataModel: { script: project.script } });
-      setShowHistory(false);
-      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+      try {
+          const token = await getToken();
+          const res = await fetch(`${BACKEND_URL}/user/projects/${projectSummary.id}`, {
+              headers: { "Authorization": `Bearer ${token}` }
+          });
+          
+          if (!res.ok) throw new Error("Failed to load project details");
+          
+          const fullProject: ProjectDetails = await res.json();
+          
+          setQuery(fullProject.query || "");
+          setScript(fullProject.script);
+          setPhase("graphics");
+          
+          // Reconstruct surface components from script
+          const comps: any = {
+              "root": { id: "root", component: "Column", children: ["status", "grid"] },
+              "status": { id: "status", component: "Text", text: "Project Loaded from History" },
+              "grid": { id: "grid", component: "Column", children: fullProject.script?.slides.map((s: any) => `card_${s.id}`) || [] }
+          };
+          
+          fullProject.script?.slides.forEach((s: any, idx: number) => {
+              if (s.image_url) {
+                  comps[`card_${s.id}`] = { id: `card_${s.id}`, component: "Column", children: [`title_${s.id}`, `img_${s.id}`], status: "success" };
+                  comps[`title_${s.id}`] = { id: `title_${s.id}`, component: "Text", text: `${idx+1}. ${s.title}` };
+                  comps[`img_${s.id}`] = { id: `img_${s.id}`, component: "Image", src: s.image_url };
+              } else {
+                  comps[`card_${s.id}`] = { id: `card_${s.id}`, component: "Text", text: "Waiting...", status: "waiting" };
+              }
+          });
+          
+          setSurfaceState({ components: comps, dataModel: { script: fullProject.script } });
+          setShowHistory(false);
+          setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+
+      } catch (e) {
+          console.error("Load Project Error", e);
+          alert("Failed to load project details.");
+      } finally {
+          setIsLoadingHistory(false);
+      }
   };
 
   const checkSettings = async () => {
