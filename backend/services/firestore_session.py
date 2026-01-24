@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from typing import Optional, List, Any
 from google.cloud import firestore
 from google.adk.sessions import BaseSessionService, Session, GetSessionConfig, ListSessionsResponse
@@ -35,7 +36,8 @@ class FirestoreSessionService(BaseSessionService):
         try:
             # Use create() to prevent overwriting existing sessions
             doc_data = session.model_dump(mode='json', by_alias=True)
-            self.collection.document(sid).create(doc_data)
+            # Run blocking I/O in a thread
+            await asyncio.to_thread(self.collection.document(sid).create, doc_data)
             logger.info(f"Created Firestore session: {sid}")
             return session
         except Exception as e:
@@ -52,7 +54,8 @@ class FirestoreSessionService(BaseSessionService):
     ) -> Optional[Session]:
         try:
             doc_ref = self.collection.document(session_id)
-            doc = doc_ref.get()
+            # Run blocking I/O in a thread
+            doc = await asyncio.to_thread(doc_ref.get)
             
             if not doc.exists:
                 return None
@@ -67,11 +70,8 @@ class FirestoreSessionService(BaseSessionService):
             # Deserialize
             session = Session.model_validate(data)
             
-            # Optimization based on config (note: Firestore reads full doc anyway, filtering is post-fetch)
-            # If GetSessionConfig has attributes to filter events (hypothetically, depending on ADK version)
-            # we can clear them here to save bandwidth downstream.
-            # Assuming config object might look like this or future extension.
-            # Currently standard ADK GetSessionConfig might be empty or basic.
+            # Config optimization hook (placeholder)
+            # if config and not config.include_events: session.events = []
             
             return session
             
@@ -105,7 +105,8 @@ class FirestoreSessionService(BaseSessionService):
             logger.info(f"Deleted session {session_id}")
 
         try:
-            delete_in_transaction(transaction, doc_ref)
+            # Run the entire transaction block in a thread
+            await asyncio.to_thread(delete_in_transaction, transaction, doc_ref)
         except Exception as e:
             logger.error(f"Failed to delete session {session_id}: {e}")
             raise
@@ -120,12 +121,13 @@ class FirestoreSessionService(BaseSessionService):
     ) -> ListSessionsResponse:
         try:
             query = self.collection.where("appName", "==", app_name).where("userId", "==", user_id)
-            # Note: Pagination and ordering disabled to avoid requiring immediate Composite Index creation.
-            # Production usage should enable order_by and use page_token with cursors.
+            # Note: Pagination/Ordering disabled to avoid Composite Index requirement.
             # query = query.order_by("lastUpdateTime", direction=firestore.Query.DESCENDING)
             query = query.limit(page_size)
 
-            docs = query.stream()
+            # Consume stream in a thread
+            docs = await asyncio.to_thread(lambda: list(query.stream()))
+            
             sessions = []
             for d in docs:
                 try:
@@ -151,7 +153,8 @@ class FirestoreSessionService(BaseSessionService):
             doc_ref = self.collection.document(session.id)
             event_data = event.model_dump(mode='json', by_alias=True)
             
-            doc_ref.update({
+            # Run blocking update in a thread
+            await asyncio.to_thread(doc_ref.update, {
                 "events": firestore.ArrayUnion([event_data]),
                 "lastUpdateTime": session.last_update_time
             })
