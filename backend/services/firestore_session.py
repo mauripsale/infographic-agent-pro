@@ -23,9 +23,6 @@ class FirestoreSessionService(BaseSessionService):
     ) -> Session:
         sid = session_id or str(uuid.uuid4())
         
-        # Ensure session_id is unique per user/app if we want strict namespacing, 
-        # but here we rely on the ID provided or generated.
-        # Construct the ADK Session object
         session = Session(
             id=sid,
             app_name=app_name,
@@ -35,11 +32,10 @@ class FirestoreSessionService(BaseSessionService):
             last_update_time=time.time()
         )
 
-        # Persist to Firestore
         try:
-            # We use model_dump(mode='json') to ensure all types are JSON compatible
+            # Fix: Use create() to prevent overwriting existing sessions
             doc_data = session.model_dump(mode='json', by_alias=True)
-            self.collection.document(sid).set(doc_data)
+            self.collection.document(sid).create(doc_data)
             logger.info(f"Created Firestore session: {sid}")
             return session
         except Exception as e:
@@ -69,12 +65,12 @@ class FirestoreSessionService(BaseSessionService):
                 return None
 
             # Deserialize
-            session = Session.model_validate(data)
-            return session
+            return Session.model_validate(data)
             
         except Exception as e:
             logger.error(f"Failed to get session {session_id}: {e}")
-            return None
+            # Fix: Raise exception instead of swallowing it to reveal DB errors
+            raise
 
     async def delete_session(
         self,
@@ -113,16 +109,10 @@ class FirestoreSessionService(BaseSessionService):
     ) -> ListSessionsResponse:
         try:
             query = self.collection.where("appName", "==", app_name).where("userId", "==", user_id)
-            query = query.order_by("lastUpdateTime", direction=firestore.Query.DESCENDING)
+            # Fix: Remove order_by to avoid needing a Composite Index immediately.
+            # Without index, ordering by multiple fields fails.
+            # query = query.order_by("lastUpdateTime", direction=firestore.Query.DESCENDING)
             query = query.limit(page_size)
-
-            if page_token:
-                # Firestore cursor pagination usually requires the actual document snapshot or field values
-                # For simplicity in this implementation, we might skip complex token handling 
-                # or assume page_token is a document ID to start after?
-                # A robust impl would need to serialize/deserialize the cursor.
-                # For now, let's just return the first page or basic logic.
-                pass
 
             docs = query.stream()
             sessions = []
@@ -135,20 +125,16 @@ class FirestoreSessionService(BaseSessionService):
             return ListSessionsResponse(sessions=sessions, next_page_token=None)
         except Exception as e:
             logger.error(f"List sessions failed: {e}")
-            return ListSessionsResponse(sessions=[], next_page_token=None)
+            # Fix: Raise exception so we know if index is missing or DB is down
+            raise
 
     async def append_event(self, session: Session, event: Event) -> Event:
         """Appends an event to the session and updates Firestore."""
         try:
-            # 1. Update the in-memory session object first (as ADK expects)
             session.events.append(event)
             session.last_update_time = time.time()
             
-            # 2. Persist to Firestore
-            # We can use ArrayUnion to append just this event to the 'events' array
             doc_ref = self.collection.document(session.id)
-            
-            # Serialize the event
             event_data = event.model_dump(mode='json', by_alias=True)
             
             doc_ref.update({
