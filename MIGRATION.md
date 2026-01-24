@@ -1,95 +1,41 @@
-# Infrastructure Migration Guide 🚀
+# Migration Guide
 
-This guide details how to move the **Infographic Agent Pro** application to a new Google Cloud and Firebase environment.
+This document tracks changes required when moving between environments (e.g., from Dev to Prod) or updating infrastructure.
 
-## ⚡️ Quick Migration (Automated)
+## 🗄️ Database (Firestore)
 
-We provide a script to automate the tedious process of setting up GitHub Secrets.
+This project uses **Firestore in Native Mode** for session persistence and project history.
 
-1.  **Prerequisites**:
-    *   Install GitHub CLI: `brew install gh` (macOS) or see [docs](https://cli.github.com/).
-    *   Authenticate: `gh auth login`.
+### 1. Enable Firestore
+When setting up a new GCP Project:
+1. Go to **Firestore** in the Google Cloud Console.
+2. Click **Select Native Mode** (Do NOT select Datastore Mode).
+3. Choose a location (e.g., `eur3` or `us-central1`) ideally close to your Cloud Run region.
 
-2.  **Prepare Credentials**:
-    *   Copy `env.migration.template` to `.env.migration`.
-    *   Fill in all the values (see *Manual Setup* below for where to find them).
-    *   **Important**: For `FIREBASE_SERVICE_ACCOUNT`, paste the entire JSON content on a single line.
+### 2. Deploy Indexes
+The application performs complex queries (e.g., filtering sessions by user/app and sorting by time). These require **Composite Indexes**.
 
-3.  **Run Automation**:
-    ```bash
-    ./scripts/setup_secrets.sh .env.migration
-    ```
+We have defined them in `firestore.indexes.json`. To apply them to your new project:
 
-4.  **Deploy**:
-    *   Push code to `main` or re-run the GitHub Action.
+```bash
+# Using Firebase CLI (Recommended)
+firebase use <NEW_PROJECT_ID>
+firebase deploy --only firestore:indexes
+```
 
----
+*Alternatively*: If you run the app without deploying indexes, the first request to `list_sessions` will fail. Check the Cloud Run logs; Firestore provides a direct URL to create the missing index automatically.
 
-## 🛠️ Manual Setup / Reference
+## 🔐 Environment Variables
 
-If you prefer to do it manually or need to find the values for the script:
+Ensure the following secrets/vars are migrated to Cloud Run:
 
-### 1. Cloud Console Setup
-
-#### 1.1 Google Cloud Project
-1.  Create a new Project (or select existing).
-2.  Enable APIs:
-    *   **Cloud Run Admin API**
-    *   **Artifact Registry API**
-    *   **Generative Language API** (Gemini)
-    *   **Firestore API**
-    *   **Google Slides API**
-    *   **Google Drive API**
-    *   **Cloud Storage API**
-
-#### 1.2 Storage Bucket (New)
-1.  Go to **Cloud Storage** -> **Buckets**.
-2.  Click **Create**.
-3.  Name it (e.g., `infographic-assets-prod`).
-4.  Region: Same as Cloud Run (e.g., `us-central1` or `eur3`).
-5.  Class: Standard.
-6.  Access Control: Uniform.
-7.  **Important**: You do NOT need to make it public. The app uses Signed URLs.
-8.  Save the bucket name for `GCS_BUCKET_NAME`.
-
-#### 1.3 Firebase Project
-1.  Go to [Firebase Console](https://console.firebase.google.com/).
-2.  Add project (link to GCP project).
-3.  Enable **Authentication** (Google Provider).
-4.  Create **Firestore Database**.
-5.  Register **Web App** (Get config for `.env.migration`).
-
-#### 1.4 Service Account
-1.  [GCP IAM](https://console.cloud.google.com/iam-admin/serviceaccounts): Create/Select service account.
-2.  Roles:
-    *   *Firebase Hosting Admin*
-    *   *Cloud Run Admin*
-    *   *Service Account User*
-    *   *Artifact Registry Writer*
-    *   *Storage Object Admin* (For GCS access)
-3.  Keys: Create JSON key -> Save content for `FIREBASE_SERVICE_ACCOUNT`.
-
-### 2. Secrets Checklist (Reference)
-
-| Secret Name | Description |
+| Variable | Description |
 | :--- | :--- |
-| `GCP_PROJECT_ID` | GCP Project ID. |
-| `FIREBASE_SERVICE_ACCOUNT` | Full JSON key content. |
-| `ENCRYPTION_KEY` | Random 32-byte base64 string. |
-| `GOOGLE_API_KEY` | Gemini API Key (System fallback). |
-| `GCS_BUCKET_NAME` | Name of the GCS bucket created in 1.2. |
-| `NEXT_PUBLIC_BACKEND_URL` | Cloud Run Service URL. |
-| `NEXT_PUBLIC_FIREBASE_...` | (6 variables) From Firebase Config. |
+| `GCS_BUCKET_NAME` | The bucket for storing generated images and user uploads. |
+| `GOOGLE_CLOUD_PROJECT` | Automatically set by Cloud Run, but needed locally. |
 
----
+## 🔑 Authentication
 
-## 🚀 Final Step: Launch
-
-1.  Trigger GitHub Action.
-2.  **Circular Dependency**: If `NEXT_PUBLIC_BACKEND_URL` is unknown, deploy once, get the URL from Cloud Run, update the secret/env file, and re-run the GitHub Action.
-
-## Future Migration Notes (Post-Firebase)
-- **Authentication**: Currently, Google OAuth scopes for Slides (incremental auth) are handled client-side via Firebase SDK using `signInWithPopup` and `prompt: 'consent'`. When migrating away from Firebase Auth to a custom Cloud Run auth service:
-    - Implement a server-side OAuth 2.0 flow (Authorization Code Flow) for handling Google Drive/Slides scopes.
-    - Store Refresh Tokens securely in the new backend database.
-    - Replace client-side `grantSlidesPermissions` logic with a redirect to the new auth service's consent endpoint.
+1. **Enable Firebase Auth** in the new project console.
+2. Add the **Google** provider (or others as needed).
+3. Ensure the Frontend (`.env.local`) points to the new Firebase Project config.
