@@ -28,6 +28,6 @@ options:
 
 substitutions:
   _REGION: "us-central1"
-  _ARTIFACT_REPO: "cloud-run-source-deploy"
+  _ARTIFACT_REPO: "infographic-agent-backend"
   _ENCRYPTION_KEY_SECRET: "infographic-agent-encryption-key"
   _GCS_BUCKET_NAME_SECRET: "infographic-agent-gcs-bucket-name"
