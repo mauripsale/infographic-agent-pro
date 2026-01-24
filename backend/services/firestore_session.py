@@ -35,14 +35,11 @@ class FirestoreSessionService(BaseSessionService):
         )
 
         try:
-            # Use create() to prevent overwriting existing sessions
             doc_data = session.model_dump(mode='json', by_alias=True)
-            # Run blocking I/O in a thread
             await asyncio.to_thread(self.collection.document(sid).create, doc_data)
             logger.info(f"Created Firestore session: {sid}")
             return session
         except AlreadyExists:
-            # Re-raise without logging ERROR as this might be handled by caller (main.py)
             raise
         except Exception as e:
             logger.error(f"Failed to create session {sid}: {e}")
@@ -58,22 +55,25 @@ class FirestoreSessionService(BaseSessionService):
     ) -> Optional[Session]:
         try:
             doc_ref = self.collection.document(session_id)
-            # Run blocking I/O in a thread
-            doc = await asyncio.to_thread(doc_ref.get)
+            
+            # Optimization: Fetch only required fields if config suggests excluding events
+            # Note: getattr used as GetSessionConfig definition might vary by ADK version
+            field_paths = None
+            if config and getattr(config, "include_events", True) is False:
+                field_paths = ["id", "appName", "userId", "state", "lastUpdateTime"]
+            
+            doc = await asyncio.to_thread(doc_ref.get, field_paths=field_paths)
             
             if not doc.exists:
                 return None
             
             data = doc.to_dict()
             
-            # Simple validation to ensure it belongs to user/app
             if data.get("appName") != app_name or data.get("userId") != user_id:
                 logger.warning(f"Session {session_id} access mismatch for user {user_id}")
                 return None
 
-            # Deserialize
-            session = Session.model_validate(data)
-            return session
+            return Session.model_validate(data)
             
         except Exception as e:
             logger.error(f"Failed to get session {session_id}: {e}")
@@ -105,7 +105,6 @@ class FirestoreSessionService(BaseSessionService):
             logger.info(f"Deleted session {session_id}")
 
         try:
-            # Run the entire transaction block in a thread
             await asyncio.to_thread(delete_in_transaction, transaction, doc_ref)
         except Exception as e:
             logger.error(f"Failed to delete session {session_id}: {e}")
@@ -121,10 +120,19 @@ class FirestoreSessionService(BaseSessionService):
     ) -> ListSessionsResponse:
         try:
             query = self.collection.where("appName", "==", app_name).where("userId", "==", user_id)
-            # Note: Pagination/Ordering disabled to avoid Composite Index requirement.
+            
+            # IMPORTANT: Requires Firestore Composite Index on (appName ASC, userId ASC, lastUpdateTime DESC)
+            query = query.order_by("lastUpdateTime", direction=firestore.Query.DESCENDING)
+
+            if page_token:
+                # Resolve page_token (doc ID) to a document snapshot for cursor
+                last_doc_ref = self.collection.document(page_token)
+                last_doc = await asyncio.to_thread(last_doc_ref.get)
+                if last_doc.exists:
+                    query = query.start_after(last_doc)
+
             query = query.limit(page_size)
 
-            # Consume stream in a thread
             docs = await asyncio.to_thread(lambda: list(query.stream()))
             
             sessions = []
@@ -134,7 +142,9 @@ class FirestoreSessionService(BaseSessionService):
                 except Exception as ve:
                     logger.warning(f"Skipping invalid session doc {d.id}: {ve}")
 
-            return ListSessionsResponse(sessions=sessions, next_page_token=None)
+            next_token = docs[-1].id if len(docs) == page_size else None
+
+            return ListSessionsResponse(sessions=sessions, next_page_token=next_token)
         except Exception as e:
             logger.error(f"List sessions failed: {e}")
             raise
@@ -152,7 +162,6 @@ class FirestoreSessionService(BaseSessionService):
             doc_ref = self.collection.document(session.id)
             event_data = event.model_dump(mode='json', by_alias=True)
             
-            # Run blocking update in a thread
             await asyncio.to_thread(doc_ref.update, {
                 "events": firestore.ArrayUnion([event_data]),
                 "lastUpdateTime": session.last_update_time
