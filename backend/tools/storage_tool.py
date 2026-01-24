@@ -35,20 +35,20 @@ class StorageTool:
             return url
         except Exception as e:
             logger.warning(f"Could not generate signed URL for {remote_path} (likely missing private key): {e}")
-            return f"https://storage.cloud.google.com/{self.bucket.name}/{remote_path}"
+            # Fallback to public URL property
+            return self.bucket.blob(remote_path).public_url
 
-    def _get_blob_url(self, blob, remote_path: str, expiration: timedelta = timedelta(days=7)) -> str:
-        """Tries to generate a signed URL, falling back to an authenticated URL."""
+    def _get_blob_url(self, blob, expiration: timedelta = timedelta(days=7)) -> str:
+        """Tries to generate a signed URL, falling back to a public URL."""
         try:
-            url = blob.generate_signed_url(
+            return blob.generate_signed_url(
                 version="v4",
                 expiration=expiration,
                 method="GET",
             )
-            return url
         except Exception as sign_err:
-            logger.warning(f"GCS Signing Failed (missing key?), returning authenticated URL: {sign_err}")
-            return f"https://storage.cloud.google.com/{self.bucket.name}/{remote_path}"
+            logger.warning(f"GCS Signing Failed (missing key?), returning public URL: {sign_err}")
+            return blob.public_url
 
     def upload_file(self, local_path: str, remote_path: str, content_type: str = None) -> str:
         """Uploads a file to GCS via ADK bucket and returns a URL (signed or authenticated)."""
@@ -58,7 +58,7 @@ class StorageTool:
         try:
             blob = self.bucket.blob(remote_path)
             blob.upload_from_filename(local_path, content_type=content_type)
-            return self._get_blob_url(blob, remote_path)
+            return self._get_blob_url(blob)
 
         except Exception as e:
             logger.error(f"GCS Upload Error: {e}")
@@ -72,7 +72,7 @@ class StorageTool:
         try:
             blob = self.bucket.blob(remote_path)
             blob.upload_from_string(data, content_type=content_type)
-            return self._get_blob_url(blob, remote_path)
+            return self._get_blob_url(blob)
 
         except Exception as e:
             logger.error(f"GCS Upload Error (bytes): {e}")
