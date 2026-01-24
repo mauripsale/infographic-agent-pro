@@ -190,7 +190,7 @@ async def list_projects(user_id: str = Depends(get_user_id)):
             db.collection("users")
             .document(user_id)
             .collection("projects")
-            .select(["query", "status", "created_at"])
+            .select(["query", "status", "created_at", "title", "slide_count"])
             .order_by("created_at", direction=firestore.Query.DESCENDING)
             .limit(50)
             .stream()

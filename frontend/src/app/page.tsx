@@ -601,7 +601,10 @@ export default function App() {
           }
           if (msg.updateDataModel) {
               if (msg.updateDataModel.value?.script) setScript(msg.updateDataModel.value.script);
-              if (msg.updateDataModel.value?.project_id) setCurrentProjectId(msg.updateDataModel.value.project_id);
+              if (msg.updateDataModel.value?.project_id) {
+                  setCurrentProjectId(msg.updateDataModel.value.project_id);
+                  localStorage.setItem("lastProjectId", msg.updateDataModel.value.project_id);
+              }
           }
       });
 
