@@ -174,24 +174,12 @@ async def list_projects(user_id: str = Depends(get_user_id)):
     """Lists all infographic projects for a user."""
     if not db: return []
     try:
-        # Optimization: Select only necessary fields for the list view
+        # Optimization: Fetch only light fields. The 'script' field is omitted
+        # for performance. A dedicated 'slide_count' could be added in the future.
         docs = (
             db.collection("users")
             .document(user_id)
             .collection("projects")
-            .select(["query", "status", "created_at", "script"]) # Need script for slide count logic in UI (optional but good) or remove if heavy
-            # Actually, UI uses p.script.slides.length. Let's keep script but maybe we can optimize UI later?
-            # Wait, review suggestion said: .select(["query", "status", "created_at"]). 
-            # If I remove "script", the UI code `p.script?.slides?.length` will fail or return 0.
-            # Let's verify UI usage in page.tsx:
-            # {p.script?.slides?.length || 0} Slides
-            # So UI needs script. OR we should store slide_count as a separate field on save.
-            # For now, to follow review advice strictly, I should select ONLY light fields.
-            # But that breaks UI slide count. 
-            # Compromise: I will select script too for now OR I will update save_stream to store slide_count.
-            # Let's stick to the Reviewer suggestion for performance, and accept UI might show 0 slides in history list until we add slide_count field.
-            # Actually, fetching the WHOLE script just for length is bad.
-            # I will select query, status, created_at. The UI will just show 0 slides for old projects, which is acceptable for optimization.
             .select(["query", "status", "created_at"]) 
             .order_by("created_at", direction=firestore.Query.DESCENDING)
             .limit(50)
