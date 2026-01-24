@@ -84,7 +84,20 @@ class FirestoreSessionService(BaseSessionService):
         session_id: str,
     ) -> None:
         try:
-            self.collection.document(session_id).delete()
+            doc_ref = self.collection.document(session_id)
+            doc = doc_ref.get()
+            
+            if not doc.exists:
+                logger.warning(f"Session {session_id} not found for deletion")
+                return
+
+            data = doc.to_dict()
+            # Verify ownership
+            if data.get("userId") != user_id or data.get("appName") != app_name:
+                logger.warning(f"Unauthorized deletion attempt for session {session_id} by user {user_id}")
+                return
+
+            doc_ref.delete()
             logger.info(f"Deleted session {session_id}")
         except Exception as e:
             logger.error(f"Failed to delete session {session_id}: {e}")
