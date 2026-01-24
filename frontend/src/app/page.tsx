@@ -154,7 +154,8 @@ export default function App() {
 
   // --- Helper: Parse Query Settings ---
   const parseQueryToSettings = (fullQuery: string) => {
-      const settingsRegex = /\[GENERATION SETTINGS\] Slides: (\d+), Style: (.*?), Detail: (.*?), AR: (.*?), Lang: (.*)\n\n\[USER REQUEST\]\n(.*)/s;
+      // Use [\s\S]* instead of . with /s flag for better compatibility
+      const settingsRegex = /\[GENERATION SETTINGS\] Slides: (\d+), Style: (.*?), Detail: (.*?), AR: (.*?), Lang: (.*)\n\n\[USER REQUEST\]\n([\s\S]*)/;
       const match = fullQuery.match(settingsRegex);
       
       if (match) {
