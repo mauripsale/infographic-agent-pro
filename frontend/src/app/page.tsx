@@ -180,6 +180,22 @@ export default function App() {
       return title.length > 60 ? title.substring(0, 57) + "..." : title || "Untitled Project";
   };
 
+  const fetchProjects = async () => {
+      setIsLoadingHistory(true);
+      try {
+          const token = await getToken();
+          const res = await fetch(`${BACKEND_URL}/user/projects`, {
+              headers: { "Authorization": `Bearer ${token}` }
+          });
+          const data = await res.json();
+          setProjects(data);
+      } catch (e) {
+          console.error("Failed to fetch projects", e);
+      } finally {
+          setIsLoadingHistory(false);
+      }
+  };
+
   // Check for API Key on auth load & Auto-Resume
   useEffect(() => {
     if (user) {
