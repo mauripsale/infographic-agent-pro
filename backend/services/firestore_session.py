@@ -56,8 +56,6 @@ class FirestoreSessionService(BaseSessionService):
         try:
             doc_ref = self.collection.document(session_id)
             
-            # Optimization: Fetch only required fields if config suggests excluding events
-            # Note: getattr used as GetSessionConfig definition might vary by ADK version
             field_paths = None
             if config and getattr(config, "include_events", True) is False:
                 field_paths = ["id", "appName", "userId", "state", "lastUpdateTime"]
@@ -79,13 +77,8 @@ class FirestoreSessionService(BaseSessionService):
             logger.error(f"Failed to get session {session_id}: {e}")
             raise
 
-    async def delete_session(
-        self,
-        *,
-        app_name: str,
-        user_id: str,
-        session_id: str,
-    ) -> None:
+    def _delete_session_sync(self, session_id: str, user_id: str, app_name: str):
+        """Synchronous helper to run the transaction in a separate thread."""
         transaction = self.db.transaction()
         doc_ref = self.collection.document(session_id)
 
@@ -104,8 +97,18 @@ class FirestoreSessionService(BaseSessionService):
             transaction.delete(ref)
             logger.info(f"Deleted session {session_id}")
 
+        delete_in_transaction(transaction, doc_ref)
+
+    async def delete_session(
+        self,
+        *,
+        app_name: str,
+        user_id: str,
+        session_id: str,
+    ) -> None:
         try:
-            await asyncio.to_thread(delete_in_transaction, transaction, doc_ref)
+            # Run the entire transaction setup and execution in a thread
+            await asyncio.to_thread(self._delete_session_sync, session_id, user_id, app_name)
         except Exception as e:
             logger.error(f"Failed to delete session {session_id}: {e}")
             raise
