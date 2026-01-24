@@ -41,7 +41,9 @@ from services.firestore_session import FirestoreSessionService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize ADK Artifact Service
+# --- INITIALIZATION ---
+
+# 1. Artifact Service
 gcs_bucket = os.environ.get("GCS_BUCKET_NAME")
 if gcs_bucket:
     artifact_service = GcsArtifactService(bucket_name=gcs_bucket)
@@ -50,10 +52,10 @@ else:
     artifact_service = InMemoryArtifactService()
     logger.warning("GCS_BUCKET_NAME not set. Using InMemoryArtifactService (artifacts will be lost on restart).")
 
-# Initialize Storage Tool (wraps ADK service)
+# 2. Storage Tool
 storage_tool = StorageTool(artifact_service)
 
-# Initialize Firebase Admin & Firestore
+# 3. Firebase & Firestore
 try:
     firebase_admin.initialize_app()
 except ValueError:
@@ -65,15 +67,79 @@ except Exception as e:
     logger.warning(f"Firestore init failed: {e}")
     db = None
 
-app = FastAPI()
-
-# --- INIT SESSION SERVICE ---
+# 4. Session Service
 if db:
     session_service = FirestoreSessionService(db)
     logger.info("Initialized FirestoreSessionService")
 else:
     session_service = InMemorySessionService()
     logger.warning("Firestore unavailable. Using InMemorySessionService (sessions lost on restart).")
+
+
+app = FastAPI()
+
+# --- HELPER FUNCTIONS (Must be defined before Endpoints) ---
+
+async def get_user_id(request: Request):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authentication token")
+    
+    token = auth_header.split("Bearer ")[1]
+    try:
+        decoded_token = firebase_auth.verify_id_token(token)
+        return decoded_token['uid']
+    except (firebase_auth.InvalidIdTokenError, ValueError) as e:
+        logger.error(f"Auth Error: {e}")
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+def get_decrypted_api_key(user_id: str) -> str:
+    """Retrieves and decrypts the user's API key from Firestore."""
+    if not db: return ""
+    try:
+        doc = db.collection("users").document(user_id).get()
+        if doc.exists:
+            data = doc.to_dict()
+            encrypted_key = data.get("gemini_api_key")
+            if encrypted_key:
+                val = security_service.decrypt_data(encrypted_key)
+                return val if val else ""
+    except Exception as e:
+        logger.error(f"Firestore Read Error for {user_id}: {e}")
+    return ""
+
+async def get_api_key(request: Request, user_id: str = Depends(get_user_id)) -> str:
+    """Dependency to get API key with strict fallback: Header -> Firestore. NO SYSTEM DEFAULT."""
+    # Check header first (explicit override for dev/debug)
+    api_key = request.headers.get("x-goog-api-key")
+    
+    # Then Firestore (user settings)
+    if not api_key:
+        api_key = get_decrypted_api_key(user_id)
+        
+    if not api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing Gemini API Key. Please go to Settings to configure it.",
+        )
+    return api_key
+
+# --- MIDDLEWARE ---
+class ModelSelectionMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS": return await call_next(request)
+        token = model_context.set(request.headers.get("X-GenAI-Model", "gemini-2.5-flash-image"))
+        try: return await call_next(request)
+        finally: model_context.reset(token)
+
+app.add_middleware(ModelSelectionMiddleware)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+STATIC_DIR = Path("static")
+STATIC_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+# --- ENDPOINTS ---
 
 @app.get("/user/settings")
 async def get_settings(user_id: str = Depends(get_user_id)):
@@ -103,7 +169,6 @@ async def save_settings(payload: dict = Body(...), user_id: str = Depends(get_us
         logger.error(f"Save Settings Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to save settings")
 
-# --- PROJECT HISTORY ENDPOINTS ---
 @app.get("/user/projects")
 async def list_projects(user_id: str = Depends(get_user_id)):
     """Lists all infographic projects for a user."""
@@ -114,7 +179,6 @@ async def list_projects(user_id: str = Depends(get_user_id)):
         for d in docs:
             p = d.to_dict()
             p["id"] = d.id
-            # Remove sensitive or too large data for listing if needed
             projects.append(p)
         return projects
     except Exception as e:
@@ -134,13 +198,11 @@ async def get_project(project_id: str, user_id: str = Depends(get_user_id)):
         logger.error(f"Get Project Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve project")
 
-
 @app.post("/agent/export_slides")
 async def export_slides_endpoint(request: Request, user_id: str = Depends(get_user_id)):
     data = await request.json()
     google_token = data.get("google_token")
     if not google_token:
-        # Fail fast before try block
         raise HTTPException(status_code=401, detail="Missing Google OAuth Token")
     
     try:
@@ -153,7 +215,6 @@ async def export_slides_endpoint(request: Request, user_id: str = Depends(get_us
         return {"url": url}
     except Exception as e:
         logger.error(f"Slides Export Failed: {e}")
-        # Return 500 but include message for debugging
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/export")
@@ -173,7 +234,6 @@ async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
         local_path = Path(".") / relative_url.lstrip("/")
         gcs_url = None
         
-        # 1. Upload to GCS for persistence (try best effort)
         try:
             filename = local_path.name
             remote_path = f"users/{user_id}/exports/{filename}"
@@ -184,7 +244,6 @@ async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
         except Exception as upload_err:
             logger.warning(f"GCS Upload Failed (falling back to local): {upload_err}")
 
-        # 2. Update Firestore if project exists
         if db and project_id:
             try:
                 db.collection("users").document(user_id).collection("projects").document(project_id).update({
@@ -194,7 +253,6 @@ async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
             except Exception as db_err:
                 logger.warning(f"Firestore Update Failed: {db_err}")
                 
-        # Only clean up local file if we successfully uploaded to GCS
         if gcs_url and local_path.exists():
             try:
                 os.remove(local_path)
@@ -246,14 +304,11 @@ async def upload_document(request: Request, file: UploadFile = File(...), user_i
                 tmp.write(await file.read())
                 tmp_path = tmp.name
             
-            # 1. Permanent Persistence (GCS)
             remote_path = storage_tool.get_user_upload_path(user_id, os.path.basename(file.filename))
             gcs_url = await asyncio.to_thread(storage_tool.upload_file, tmp_path, remote_path, content_type=file.content_type)
             
-            # 2. Ephemeral Processing (Gemini)
             gemini_file = client.files.upload(path=tmp_path)
             
-            # 3. Track in Firestore for History
             if db:
                 db.collection("users").document(user_id).collection("uploads").add({
                     "filename": file.filename,
@@ -301,7 +356,6 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
 
                 prompt_parts = [types.Part(text=data.get("query", ""))]
                 
-                # Support both single file_id (legacy) and multi file_ids
                 file_ids = data.get("file_ids", [])
                 legacy_file_id = data.get("file_id")
                 if legacy_file_id and legacy_file_id not in file_ids:
@@ -334,7 +388,6 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     if match:
                         script_data = json.loads(match.group(1))
                         
-                        # PERSIST PROJECT IN FIRESTORE
                         if db:
                             db.collection("users").document(user_id).collection("projects").document(project_id).set({
                                 "query": data.get("query", ""),
@@ -371,7 +424,6 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     img_url = await asyncio.to_thread(img_tool.generate_and_save, slide['image_prompt'], aspect_ratio=ar, user_id=user_id)
                     
                     if "Error" not in img_url:
-                        # Update slide with its permanent image URL
                         slide["image_url"] = img_url
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"}, {"id": f"title_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, {"id": f"img_{sid}", "component": "Image", "src": img_url}]}})
                     else:
@@ -379,7 +431,6 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
                 
-                # FINAL UPDATE TO PROJECT IN FIRESTORE
                 if db and not await request.is_disconnected():
                     db.collection("users").document(user_id).collection("projects").document(project_id).update({
                         "script": script,
