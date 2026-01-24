@@ -2,7 +2,7 @@ steps:
   # 1. Build and Push with Kaniko Cache
   - name: 'gcr.io/kaniko-project/executor:v1.23.0'
     args:
-      - '--destination=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REPO}/infographic-agent-backend:$SHORT_SHA'
+      - '--destination=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REPO}/${_SERVICE_NAME}:$SHORT_SHA'
       - '--cache=true'
       - '--cache-ttl=24h'
       - '--context=dir:///workspace/backend'
@@ -14,8 +14,8 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'infographic-agent-backend'
-      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REPO}/infographic-agent-backend:$SHORT_SHA'
+      - '${_SERVICE_NAME}'
+      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REPO}/${_SERVICE_NAME}:$SHORT_SHA'
       - '--region=${_REGION}'
       - '--platform=managed'
       - '--allow-unauthenticated'
@@ -28,6 +28,7 @@ options:
 
 substitutions:
   _REGION: "us-central1"
+  _SERVICE_NAME: "infographic-agent-backend"
   _ARTIFACT_REPO: "infographic-agent-backend"
   _ENCRYPTION_KEY_SECRET: "infographic-agent-encryption-key"
   _GCS_BUCKET_NAME_SECRET: "infographic-agent-gcs-bucket-name"
