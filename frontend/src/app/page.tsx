@@ -422,6 +422,19 @@ export default function App() {
       if (abortControllerRef.current) {
           abortControllerRef.current.abort();
           setIsStreaming(false);
+          
+          // Force update stalled components
+          setSurfaceState((prev: any) => {
+              const newComps = { ...prev.components };
+              let changed = false;
+              Object.keys(newComps).forEach(key => {
+                  if (newComps[key].status === "generating") {
+                      newComps[key] = { ...newComps[key], status: "error", text: "Stopped by user" };
+                      changed = true;
+                  }
+              });
+              return changed ? { ...prev, components: newComps } : prev;
+          });
       }
   };
 
