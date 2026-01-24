@@ -70,6 +70,7 @@ jobs:
       if: github.ref == 'refs/heads/main'
       permissions:
         id-token: write # Required for Workload Identity Federation
+        contents: read
       steps:
         - name: Checkout
           uses: actions/checkout@v2
@@ -79,27 +80,12 @@ jobs:
           with:
             workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
             service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
+        
         - name: Set up Cloud SDK
           uses: 'google-github-actions/setup-gcloud@v1'
 
-        - name: Configure Docker
-          run: gcloud auth configure-docker us-central1-docker.pkg.dev
-
-        - name: Build and Push Docker image
+        - name: Submit Build & Deploy (Kaniko Optimized)
           run: |
-            cd backend/
-            docker build -f Dockerfile -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/infographic-agent-backend/infographic-agent-backend:${{ github.sha }} .
-            docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/infographic-agent-backend/infographic-agent-backend:${{ github.sha }}
-        
-        - name: Deploy to Cloud Run
-          uses: 'google-github-actions/deploy-cloudrun@v1'
-          with:
-            service: 'infographic-agent-backend'
-            image: 'us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/infographic-agent-backend/infographic-agent-backend:${{ github.sha }}'
-            region: 'us-central1'
-            labels: 'managed-by=github-actions,commit-sha=${{ github.sha }}'
-            flags: '--allow-unauthenticated'
-            env_vars: |
-              ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
-              BACKEND_URL=${{ secrets.NEXT_PUBLIC_BACKEND_URL }}
-              GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }}
+            gcloud builds submit --config cloudbuild.yaml \
+              --substitutions=_ENCRYPTION_KEY="${{ secrets.ENCRYPTION_KEY }}",_GCS_BUCKET_NAME="${{ secrets.GCS_BUCKET_NAME }}" \
+              .
