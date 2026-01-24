@@ -33,7 +33,7 @@ class FirestoreSessionService(BaseSessionService):
         )
 
         try:
-            # Fix: Use create() to prevent overwriting existing sessions
+            # Use create() to prevent overwriting existing sessions
             doc_data = session.model_dump(mode='json', by_alias=True)
             self.collection.document(sid).create(doc_data)
             logger.info(f"Created Firestore session: {sid}")
@@ -65,11 +65,18 @@ class FirestoreSessionService(BaseSessionService):
                 return None
 
             # Deserialize
-            return Session.model_validate(data)
+            session = Session.model_validate(data)
+            
+            # Optimization based on config (note: Firestore reads full doc anyway, filtering is post-fetch)
+            # If GetSessionConfig has attributes to filter events (hypothetically, depending on ADK version)
+            # we can clear them here to save bandwidth downstream.
+            # Assuming config object might look like this or future extension.
+            # Currently standard ADK GetSessionConfig might be empty or basic.
+            
+            return session
             
         except Exception as e:
             logger.error(f"Failed to get session {session_id}: {e}")
-            # Fix: Raise exception instead of swallowing it to reveal DB errors
             raise
 
     async def delete_session(
@@ -79,22 +86,26 @@ class FirestoreSessionService(BaseSessionService):
         user_id: str,
         session_id: str,
     ) -> None:
-        try:
-            doc_ref = self.collection.document(session_id)
-            doc = doc_ref.get()
-            
-            if not doc.exists:
+        transaction = self.db.transaction()
+        doc_ref = self.collection.document(session_id)
+
+        @firestore.transactional
+        def delete_in_transaction(transaction, ref):
+            snapshot = ref.get(transaction=transaction)
+            if not snapshot.exists:
                 logger.warning(f"Session {session_id} not found for deletion")
                 return
-
-            data = doc.to_dict()
-            # Verify ownership
+            
+            data = snapshot.to_dict()
             if data.get("userId") != user_id or data.get("appName") != app_name:
                 logger.warning(f"Unauthorized deletion attempt for session {session_id} by user {user_id}")
                 return
-
-            doc_ref.delete()
+            
+            transaction.delete(ref)
             logger.info(f"Deleted session {session_id}")
+
+        try:
+            delete_in_transaction(transaction, doc_ref)
         except Exception as e:
             logger.error(f"Failed to delete session {session_id}: {e}")
             raise
@@ -109,8 +120,8 @@ class FirestoreSessionService(BaseSessionService):
     ) -> ListSessionsResponse:
         try:
             query = self.collection.where("appName", "==", app_name).where("userId", "==", user_id)
-            # Fix: Remove order_by to avoid needing a Composite Index immediately.
-            # Without index, ordering by multiple fields fails.
+            # Note: Pagination and ordering disabled to avoid requiring immediate Composite Index creation.
+            # Production usage should enable order_by and use page_token with cursors.
             # query = query.order_by("lastUpdateTime", direction=firestore.Query.DESCENDING)
             query = query.limit(page_size)
 
@@ -125,11 +136,14 @@ class FirestoreSessionService(BaseSessionService):
             return ListSessionsResponse(sessions=sessions, next_page_token=None)
         except Exception as e:
             logger.error(f"List sessions failed: {e}")
-            # Fix: Raise exception so we know if index is missing or DB is down
             raise
 
     async def append_event(self, session: Session, event: Event) -> Event:
-        """Appends an event to the session and updates Firestore."""
+        """Appends an event to the session and updates Firestore.
+
+        Note: This method mutates the input `session` object by appending the new
+        event to its `events` list and updating `last_update_time`.
+        """
         try:
             session.events.append(event)
             session.last_update_time = time.time()
