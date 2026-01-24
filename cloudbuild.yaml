@@ -9,7 +9,7 @@ steps:
     id: 'Build & Push (Kaniko)'
 
   # 2. Deploy to Cloud Run
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:475.0.0-slim'
     entrypoint: gcloud
     args:
       - 'run'
@@ -19,7 +19,7 @@ steps:
       - '--region=${_REGION}'
       - '--platform=managed'
       - '--allow-unauthenticated'
-      - '--set-env-vars=ENCRYPTION_KEY=${_ENCRYPTION_KEY},GCS_BUCKET_NAME=${_GCS_BUCKET_NAME},GOOGLE_CLOUD_PROJECT=${PROJECT_ID}'
+      - '--set-secrets=ENCRYPTION_KEY=${_ENCRYPTION_KEY_SECRET}:latest,GCS_BUCKET_NAME=${_GCS_BUCKET_NAME_SECRET}:latest'
     id: 'Deploy to Cloud Run'
 
 timeout: '1200s'
@@ -29,5 +29,5 @@ options:
 substitutions:
   _REGION: "us-central1"
   _ARTIFACT_REPO: "cloud-run-source-deploy"
-  _ENCRYPTION_KEY: ""
-  _GCS_BUCKET_NAME: ""
+  _ENCRYPTION_KEY_SECRET: "infographic-agent-encryption-key"
+  _GCS_BUCKET_NAME_SECRET: "infographic-agent-gcs-bucket-name"

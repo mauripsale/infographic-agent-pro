@@ -34,6 +34,7 @@ Enable the following APIs in your new GCP Project:
 *   Cloud Build API
 *   Artifact Registry API
 *   Cloud Run API
+*   Secret Manager API
 
 ### 2. Create Artifact Registry
 Ensure an Artifact Registry repository exists for Docker images.
@@ -47,19 +48,48 @@ Ensure an Artifact Registry repository exists for Docker images.
 Configure these secrets in your GitHub Repo:
 *   `GCP_PROJECT_ID`: The new Project ID.
 *   `GCP_WORKLOAD_IDENTITY_PROVIDER`: Full path to the WIF provider.
-*   `GCP_SERVICE_ACCOUNT`: Email of the Service Account used by GitHub Actions (must have `Cloud Build Editor`, `Service Account User`, `Cloud Run Admin` roles).
+*   `GCP_SERVICE_ACCOUNT`: Email of the Service Account used by GitHub Actions (must have `Cloud Build Editor`, `Service Account User`, `Cloud Run Admin`, `Secret Manager Secret Accessor` roles).
+
+### 4. Configure Secrets (Secret Manager)
+For security, sensitive environment variables like `ENCRYPTION_KEY` and `GCS_BUCKET_NAME` are managed by Google Secret Manager and injected into Cloud Run at runtime.
+
+1.  **Create Secrets:**
+    ```bash
+    # Replace with your actual values
+    export ENCRYPTION_KEY="your-super-secret-32-byte-key"
+    export GCS_BUCKET_NAME="your-gcs-bucket-name"
+
+    gcloud secrets create infographic-agent-encryption-key --data-file=- <<< "$ENCRYPTION_KEY"
+    gcloud secrets create infographic-agent-gcs-bucket-name --data-file=- <<< "$GCS_BUCKET_NAME"
+    ```
+    *Note: The secret names (`infographic-agent-encryption-key`, etc.) correspond to the defaults in `cloudbuild.yaml`. If you change them, update the `_ENCRYPTION_KEY_SECRET` and `_GCS_BUCKET_NAME_SECRET` substitutions.*
+
+2.  **Grant Permissions:** The Cloud Build service account needs permission to access these secrets during deployment.
+    ```bash
+    PROJECT_NUMBER=$(gcloud projects describe $GCP_PROJECT_ID --format='value(projectNumber)')
+    GCP_CLOUD_BUILD_SA="$PROJECT_NUMBER@cloudbuild.gserviceaccount.com"
+
+    gcloud secrets add-iam-policy-binding infographic-agent-encryption-key \
+      --member="serviceAccount:$GCP_CLOUD_BUILD_SA" \
+      --role="roles/secretmanager.secretAccessor"
+
+    gcloud secrets add-iam-policy-binding infographic-agent-gcs-bucket-name \
+      --member="serviceAccount:$GCP_CLOUD_BUILD_SA" \
+      --role="roles/secretmanager.secretAccessor"
+    ```
 
 ## 🔐 Environment Variables
 
 Ensure the following secrets/vars are migrated to Cloud Run / Frontend:
 
 ### Backend (Cloud Run Secrets)
+Managed via Secret Manager (see above).
 | Variable | Description |
 | :--- | :--- |
-| `GOOGLE_CLOUD_PROJECT` | GCP Project ID. |
-| `ENCRYPTION_KEY` | **CRITICAL**: 32-byte string for AES (user key encryption). |
-| `GCS_BUCKET_NAME` | The bucket for storing generated images and user uploads. |
-| `FIREBASE_SERVICE_ACCOUNT` | (Optional) Full JSON key, provided as a **single line** (no newlines). |
+| `GOOGLE_CLOUD_PROJECT` | GCP Project ID (Auto-set). |
+| `ENCRYPTION_KEY` | **CRITICAL**: 32-byte string for AES. |
+| `GCS_BUCKET_NAME` | The bucket for storing generated images. |
+| `FIREBASE_SERVICE_ACCOUNT` | (Optional) Full JSON key (Single Line). |
 
 ### Frontend (Environment Variables)
 | Variable | Description |
