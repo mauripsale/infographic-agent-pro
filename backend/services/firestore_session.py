@@ -4,6 +4,7 @@ from typing import Optional, List, Any
 from google.cloud import firestore
 from google.adk.sessions import BaseSessionService, Session, GetSessionConfig, ListSessionsResponse
 from google.adk.events.event import Event
+from google.api_core.exceptions import AlreadyExists
 import uuid
 import time
 
@@ -40,6 +41,9 @@ class FirestoreSessionService(BaseSessionService):
             await asyncio.to_thread(self.collection.document(sid).create, doc_data)
             logger.info(f"Created Firestore session: {sid}")
             return session
+        except AlreadyExists:
+            # Re-raise without logging ERROR as this might be handled by caller (main.py)
+            raise
         except Exception as e:
             logger.error(f"Failed to create session {sid}: {e}")
             raise
@@ -69,10 +73,6 @@ class FirestoreSessionService(BaseSessionService):
 
             # Deserialize
             session = Session.model_validate(data)
-            
-            # Config optimization hook (placeholder)
-            # if config and not config.include_events: session.events = []
-            
             return session
             
         except Exception as e:
@@ -98,8 +98,8 @@ class FirestoreSessionService(BaseSessionService):
             
             data = snapshot.to_dict()
             if data.get("userId") != user_id or data.get("appName") != app_name:
-                logger.warning(f"Unauthorized deletion attempt for session {session_id} by user {user_id}")
-                return
+                logger.error(f"Unauthorized deletion attempt for session {session_id} by user {user_id}")
+                raise PermissionError(f"User {user_id} is not authorized to delete session {session_id}")
             
             transaction.delete(ref)
             logger.info(f"Deleted session {session_id}")
@@ -122,7 +122,6 @@ class FirestoreSessionService(BaseSessionService):
         try:
             query = self.collection.where("appName", "==", app_name).where("userId", "==", user_id)
             # Note: Pagination/Ordering disabled to avoid Composite Index requirement.
-            # query = query.order_by("lastUpdateTime", direction=firestore.Query.DESCENDING)
             query = query.limit(page_size)
 
             # Consume stream in a thread
