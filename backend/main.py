@@ -133,7 +133,17 @@ class ModelSelectionMiddleware(BaseHTTPMiddleware):
         finally: model_context.reset(token)
 
 app.add_middleware(ModelSelectionMiddleware)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware, 
+    allow_origins=[
+        "https://qwiklabs-asl-04-f9d4ba2925b9.web.app", 
+        "https://qwiklabs-asl-04-f9d4ba2925b9.firebaseapp.com",
+        "http://localhost:3000"
+    ], 
+    allow_credentials=True, 
+    allow_methods=["*"], 
+    allow_headers=["*"]
+)
 
 STATIC_DIR = Path("static")
 STATIC_DIR.mkdir(exist_ok=True)
