@@ -86,6 +86,4 @@ jobs:
 
         - name: Submit Build & Deploy (Kaniko Optimized)
           run: |
-            gcloud builds submit --config cloudbuild.yaml \
-              --substitutions=_ENCRYPTION_KEY="${{ secrets.ENCRYPTION_KEY }}",_GCS_BUCKET_NAME="${{ secrets.GCS_BUCKET_NAME }}" \
-              .
+            gcloud builds submit --config cloudbuild.yaml .
