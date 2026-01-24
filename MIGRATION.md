@@ -25,6 +25,30 @@ firebase deploy --only firestore:indexes
 
 *Alternatively*: If you run the app without deploying indexes, the first request to `list_sessions` will fail. Check the Cloud Run logs; Firestore provides a direct URL to create the missing index automatically.
 
+## 🔄 CI/CD Pipeline (GitHub Actions & Cloud Build)
+
+The project uses **Kaniko caching** via Cloud Build for fast deployments.
+
+### 1. Enable APIs
+Enable the following APIs in your new GCP Project:
+*   Cloud Build API
+*   Artifact Registry API
+*   Cloud Run API
+
+### 2. Create Artifact Registry
+Ensure an Artifact Registry repository exists for Docker images.
+*   **Name:** `cloud-run-source-deploy` (Default) or custom.
+*   **Format:** Docker
+*   **Region:** Same as your Cloud Run service (Default: `us-central1`).
+
+**Important:** If you use a different Region or Repo Name, update `cloudbuild.yaml` substitutions (`_REGION`, `_ARTIFACT_REPO`).
+
+### 3. GitHub Secrets
+Configure these secrets in your GitHub Repo:
+*   `GCP_PROJECT_ID`: The new Project ID.
+*   `GCP_WORKLOAD_IDENTITY_PROVIDER`: Full path to the WIF provider.
+*   `GCP_SERVICE_ACCOUNT`: Email of the Service Account used by GitHub Actions (must have `Cloud Build Editor`, `Service Account User`, `Cloud Run Admin` roles).
+
 ## 🔐 Environment Variables
 
 Ensure the following secrets/vars are migrated to Cloud Run / Frontend:

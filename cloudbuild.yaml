@@ -2,7 +2,7 @@ steps:
   # 1. Build and Push with Kaniko Cache
   - name: 'gcr.io/kaniko-project/executor:latest'
     args:
-      - '--destination=us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/infographic-agent-backend:latest'
+      - '--destination=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REPO}/infographic-agent-backend:latest'
       - '--cache=true'
       - '--cache-ttl=24h'
       - '--context=dir:///workspace/backend'
@@ -15,8 +15,8 @@ steps:
       - 'run'
       - 'deploy'
       - 'infographic-agent-backend'
-      - '--image=us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/infographic-agent-backend:latest'
-      - '--region=us-central1'
+      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REPO}/infographic-agent-backend:latest'
+      - '--region=${_REGION}'
       - '--platform=managed'
       - '--allow-unauthenticated'
       - '--set-env-vars=ENCRYPTION_KEY=${_ENCRYPTION_KEY},GCS_BUCKET_NAME=${_GCS_BUCKET_NAME},GOOGLE_CLOUD_PROJECT=${PROJECT_ID}'
@@ -27,5 +27,7 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 substitutions:
+  _REGION: "us-central1"
+  _ARTIFACT_REPO: "cloud-run-source-deploy"
   _ENCRYPTION_KEY: ""
   _GCS_BUCKET_NAME: ""
