@@ -180,6 +180,28 @@ export default function App() {
       return title.length > 60 ? title.substring(0, 57) + "..." : title || "Untitled Project";
   };
 
+  // --- Date Formatter ---
+  const formatDate = (timestamp: { seconds: number } | string | Date | null | undefined): string => {
+      if (!timestamp) return "Unknown date";
+      try {
+          // Firestore Timestamp (seconds, nanoseconds)
+          if (typeof timestamp === 'object' && timestamp !== null && 'seconds' in timestamp) {
+              return new Date((timestamp as any).seconds * 1000).toLocaleDateString(undefined, { 
+                  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+              });
+          }
+          // ISO String or other
+          const dateObj = new Date(timestamp as any);
+          if (isNaN(dateObj.getTime())) return "Invalid date";
+          
+          return dateObj.toLocaleDateString(undefined, {
+               month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+          });
+      } catch (e) {
+          return "Invalid date";
+      }
+  };
+
   const fetchProjects = async () => {
       setIsLoadingHistory(true);
       try {
