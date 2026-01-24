@@ -18,8 +18,14 @@ steps:
       - '--image=us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/infographic-agent-backend:latest'
       - '--region=us-central1'
       - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=ENCRYPTION_KEY=${_ENCRYPTION_KEY},GCS_BUCKET_NAME=${_GCS_BUCKET_NAME},GOOGLE_CLOUD_PROJECT=${PROJECT_ID}'
     id: 'Deploy to Cloud Run'
 
 timeout: '1200s'
 options:
   logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _ENCRYPTION_KEY: ""
+  _GCS_BUCKET_NAME: ""
