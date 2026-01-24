@@ -27,15 +27,29 @@ firebase deploy --only firestore:indexes
 
 ## 🔐 Environment Variables
 
-Ensure the following secrets/vars are migrated to Cloud Run:
+Ensure the following secrets/vars are migrated to Cloud Run / Frontend:
 
+### Backend (Cloud Run Secrets)
 | Variable | Description |
 | :--- | :--- |
+| `GOOGLE_CLOUD_PROJECT` | GCP Project ID. |
+| `ENCRYPTION_KEY` | **CRITICAL**: 32-byte string for AES (user key encryption). |
 | `GCS_BUCKET_NAME` | The bucket for storing generated images and user uploads. |
-| `GOOGLE_CLOUD_PROJECT` | Automatically set by Cloud Run, but needed locally. |
+| `FIREBASE_SERVICE_ACCOUNT` | (Optional if using default credentials) Full JSON key. |
+
+### Frontend (Environment Variables)
+| Variable | Description |
+| :--- | :--- |
+| `NEXT_PUBLIC_BACKEND_URL` | The public URL of your Cloud Run service. |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | From Firebase Console -> Project Settings. |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | e.g. `<project-id>.firebaseapp.com` |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Your GCP/Firebase Project ID. |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | e.g. `<project-id>.firebasestorage.app` |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Numeric ID from config. |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | App ID from Firebase config. |
 
 ## 🔑 Authentication
 
 1. **Enable Firebase Auth** in the new project console.
 2. Add the **Google** provider (or others as needed).
-3. Ensure the Frontend (`.env.local`) points to the new Firebase Project config.
+3. Ensure the Frontend points to the new Firebase Project config via the variables above.

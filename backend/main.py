@@ -84,7 +84,7 @@ async def get_user_id(request: Request):
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid authentication token")
-    
+
     token = auth_header.split("Bearer ")[1]
     try:
         decoded_token = firebase_auth.verify_id_token(token)
@@ -112,11 +112,11 @@ async def get_api_key(request: Request, user_id: str = Depends(get_user_id)) -> 
     """Dependency to get API key with strict fallback: Header -> Firestore. NO SYSTEM DEFAULT."""
     # Check header first (explicit override for dev/debug)
     api_key = request.headers.get("x-goog-api-key")
-    
+
     # Then Firestore (user settings)
     if not api_key:
         api_key = get_decrypted_api_key(user_id)
-        
+
     if not api_key:
         raise HTTPException(
             status_code=401,
@@ -156,7 +156,7 @@ async def save_settings(payload: dict = Body(...), user_id: str = Depends(get_us
     raw_key = payload.get("api_key")
     if not raw_key or not raw_key.startswith("AIza"):
         raise HTTPException(status_code=400, detail="Invalid API Key format. Must start with AIza.")
-    
+
     try:
         encrypted = security_service.encrypt_data(raw_key)
         if db:
@@ -180,7 +180,7 @@ async def list_projects(user_id: str = Depends(get_user_id)):
             db.collection("users")
             .document(user_id)
             .collection("projects")
-            .select(["query", "status", "created_at"]) 
+            .select(["query", "status", "created_at"])
             .order_by("created_at", direction=firestore.Query.DESCENDING)
             .limit(50)
             .stream()
@@ -214,14 +214,14 @@ async def export_slides_endpoint(request: Request, user_id: str = Depends(get_us
     google_token = data.get("google_token")
     if not google_token:
         raise HTTPException(status_code=401, detail="Missing Google OAuth Token")
-    
+
     try:
         slides_data = data.get("slides", [])
         title = data.get("title", "Infographic Presentation")
-        
+
         tool = GoogleSlidesTool(access_token=google_token)
         url = await asyncio.to_thread(tool.create_presentation, title, slides_data)
-        
+
         return {"url": url}
     except Exception as e:
         logger.error(f"Slides Export Failed: {e}")
@@ -234,22 +234,22 @@ async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
         images = data.get("images", [])
         fmt = data.get("format", "zip")
         project_id = data.get("project_id")
-        
+
         tool = ExportTool()
         relative_url = await asyncio.to_thread(tool.create_pdf, images) if fmt == "pdf" else await asyncio.to_thread(tool.create_zip, images)
-        
-        if not relative_url: 
+
+        if not relative_url:
             return JSONResponse(status_code=500, content={"error": "Export failed"})
-            
+
         local_path = Path(".") / relative_url.lstrip("/")
         gcs_url = None
-        
+
         try:
             filename = local_path.name
             remote_path = f"users/{user_id}/exports/{filename}"
             if project_id:
                 remote_path = storage_tool.get_project_asset_path(user_id, project_id, filename)
-                
+
             gcs_url = await asyncio.to_thread(storage_tool.upload_file, str(local_path), remote_path)
         except Exception as upload_err:
             logger.warning(f"GCS Upload Failed (falling back to local): {upload_err}")
@@ -262,7 +262,7 @@ async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
                 })
             except Exception as db_err:
                 logger.warning(f"Firestore Update Failed: {db_err}")
-                
+
         if gcs_url and local_path.exists():
             try:
                 os.remove(local_path)
@@ -289,7 +289,7 @@ async def regenerate_slide(request: Request, user_id: str = Depends(get_user_id)
             ]}}) + "\n"
             img_tool = ImageGenerationTool(api_key=api_key)
             img_url = await asyncio.to_thread(img_tool.generate_and_save, prompt, aspect_ratio=aspect_ratio, user_id=user_id)
-            
+
             if "Error" not in img_url:
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
                     {"id": f"card_{slide_id}", "component": "Column", "children": [f"title_{slide_id}", f"img_{slide_id}"], "status": "success"},
@@ -313,12 +313,12 @@ async def upload_document(request: Request, file: UploadFile = File(...), user_i
             with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp:
                 tmp.write(await file.read())
                 tmp_path = tmp.name
-            
+
             remote_path = storage_tool.get_user_upload_path(user_id, os.path.basename(file.filename))
             gcs_url = await asyncio.to_thread(storage_tool.upload_file, tmp_path, remote_path, content_type=file.content_type)
-            
+
             gemini_file = client.files.upload(path=tmp_path)
-            
+
             if db:
                 db.collection("users").document(user_id).collection("uploads").add({
                     "filename": file.filename,
@@ -332,7 +332,7 @@ async def upload_document(request: Request, file: UploadFile = File(...), user_i
         finally:
             if tmp_path and os.path.exists(tmp_path):
                 os.remove(tmp_path)
-            
+
     except Exception as e:
         logger.error(f"Upload Error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -343,21 +343,21 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
         data = await request.json()
         phase = data.get("phase", "script")
         project_id = data.get("project_id") or uuid.uuid4().hex
-        
+
         async def event_generator():
             surface_id = "infographic_workspace"
             yield json.dumps({"createSurface": {"surfaceId": surface_id, "catalogId": "https://a2ui.dev/specification/0.9/standard_catalog_definition.json"}}) + "\n"
 
             if phase == "script":
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["l"]}, {"id": "l", "component": "Text", "text": "🧠 Agent is analyzing source material..."}]}}) + "\n"
-                
+
                 agent = create_infographic_agent(api_key=api_key)
                 if await request.is_disconnected(): return
 
                 runner = Runner(agent=agent, app_name="infographic-pro", session_service=session_service)
                 session_id = data.get("session_id", "default_project")
                 namespaced_session_id = f"{user_id}_{session_id}"
-                
+
                 try:
                     session = await session_service.create_session(app_name="infographic-pro", user_id=user_id, session_id=namespaced_session_id)
                 except Exception as sess_err:
@@ -365,7 +365,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     session = await session_service.get_session(app_name="infographic-pro", user_id=user_id, session_id=namespaced_session_id)
 
                 prompt_parts = [types.Part(text=data.get("query", ""))]
-                
+
                 file_ids = data.get("file_ids", [])
                 legacy_file_id = data.get("file_id")
                 if legacy_file_id and legacy_file_id not in file_ids:
@@ -384,20 +384,20 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
 
                 content = types.Content(role="user", parts=prompt_parts)
                 agent_output = ""
-                
+
                 async for event in runner.run_async(session_id=session.id, user_id=user_id, new_message=content):
-                    if await request.is_disconnected(): break 
+                    if await request.is_disconnected(): break
                     if event.content and event.content.parts:
                         for part in event.content.parts:
                             if part.text: agent_output += part.text
-                
+
                 if await request.is_disconnected(): return
 
                 try:
                     match = re.search(r'(\{.*\})', agent_output.replace("\n", ""), re.DOTALL)
                     if match:
                         script_data = json.loads(match.group(1))
-                        
+
                         if db:
                             db.collection("users").document(user_id).collection("projects").document(project_id).set({
                                 "query": data.get("query", ""),
@@ -423,7 +423,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 children_ids = [f"card_{s['id']}" for s in slides]
                 card_comps = [{"id": f"card_{s['id']}", "component": "Text", "text": "Waiting...", "status": "waiting"} for s in slides]
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["status", "grid"]}, {"id": "status", "component": "Text", "text": "🎨 Starting production..."}, {"id": "grid", "component": "Column", "children": children_ids}] + card_comps}}) + "\n"
-                
+
                 img_tool = ImageGenerationTool(api_key=api_key)
                 for idx, slide in enumerate(slides):
                     if await request.is_disconnected(): break
@@ -432,7 +432,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
                     img_url = await asyncio.to_thread(img_tool.generate_and_save, slide['image_prompt'], aspect_ratio=ar, user_id=user_id)
-                    
+
                     if "Error" not in img_url:
                         slide["image_url"] = img_url
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"}, {"id": f"title_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, {"id": f"img_{sid}", "component": "Image", "src": img_url}]}})
@@ -440,7 +440,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}})
                     yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
-                
+
                 if db and not await request.is_disconnected():
                     db.collection("users").document(user_id).collection("projects").document(project_id).update({
                         "script": script,

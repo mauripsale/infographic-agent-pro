@@ -124,6 +124,9 @@ class FirestoreSessionService(BaseSessionService):
         try:
             query = self.collection.where("appName", "==", app_name).where("userId", "==", user_id)
             
+            # Optimization: Exclude 'events' array when listing sessions
+            query = query.select(["id", "appName", "userId", "state", "lastUpdateTime"])
+
             # IMPORTANT: Requires Firestore Composite Index on (appName ASC, userId ASC, lastUpdateTime DESC)
             query = query.order_by("lastUpdateTime", direction=firestore.Query.DESCENDING)
 
@@ -136,6 +139,7 @@ class FirestoreSessionService(BaseSessionService):
 
             query = query.limit(page_size)
 
+            # Consume stream in a thread
             docs = await asyncio.to_thread(lambda: list(query.stream()))
             
             sessions = []
@@ -145,7 +149,8 @@ class FirestoreSessionService(BaseSessionService):
                 except Exception as ve:
                     logger.warning(f"Skipping invalid session doc {d.id}: {ve}")
 
-            next_token = docs[-1].id if len(docs) == page_size else None
+            # Fix: Add guard to prevent IndexError if docs is empty
+            next_token = docs[-1].id if docs and len(docs) == page_size else None
 
             return ListSessionsResponse(sessions=sessions, next_page_token=next_token)
         except Exception as e:
