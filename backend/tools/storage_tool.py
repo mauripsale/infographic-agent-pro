@@ -37,12 +37,12 @@ class StorageTool:
             logger.warning(f"Could not generate signed URL for {remote_path} (likely missing private key): {e}")
             return f"https://storage.cloud.google.com/{self.bucket.name}/{remote_path}"
 
-    def _get_blob_url(self, blob, remote_path: str) -> str:
+    def _get_blob_url(self, blob, remote_path: str, expiration: timedelta = timedelta(days=7)) -> str:
         """Tries to generate a signed URL, falling back to an authenticated URL."""
         try:
             url = blob.generate_signed_url(
                 version="v4",
-                expiration=timedelta(days=7),
+                expiration=expiration,
                 method="GET",
             )
             return url
