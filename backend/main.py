@@ -36,6 +36,7 @@ from tools.export_tool import ExportTool
 from tools.security_tool import security_service
 from tools.slides_tool import GoogleSlidesTool
 from tools.storage_tool import StorageTool
+from services.firestore_session import FirestoreSessionService
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -66,68 +67,14 @@ except Exception as e:
 
 app = FastAPI()
 
-# --- AUTH HELPERS ---
-async def get_user_id(request: Request):
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid authentication token")
-    
-    token = auth_header.split("Bearer ")[1]
-    try:
-        decoded_token = firebase_auth.verify_id_token(token)
-        return decoded_token['uid']
-    except (firebase_auth.InvalidIdTokenError, ValueError) as e:
-        logger.error(f"Auth Error: {e}")
-        raise HTTPException(status_code=401, detail="Invalid token")
+# --- INIT SESSION SERVICE ---
+if db:
+    session_service = FirestoreSessionService(db)
+    logger.info("Initialized FirestoreSessionService")
+else:
+    session_service = InMemorySessionService()
+    logger.warning("Firestore unavailable. Using InMemorySessionService (sessions lost on restart).")
 
-def get_decrypted_api_key(user_id: str) -> str:
-    """Retrieves and decrypts the user's API key from Firestore."""
-    if not db: return ""
-    try:
-        doc = db.collection("users").document(user_id).get()
-        if doc.exists:
-            data = doc.to_dict()
-            encrypted_key = data.get("gemini_api_key")
-            if encrypted_key:
-                val = security_service.decrypt_data(encrypted_key)
-                return val if val else ""
-    except Exception as e:
-        logger.error(f"Firestore Read Error for {user_id}: {e}")
-    return ""
-
-async def get_api_key(request: Request, user_id: str = Depends(get_user_id)) -> str:
-    """Dependency to get API key with strict fallback: Header -> Firestore. NO SYSTEM DEFAULT."""
-    # Check header first (explicit override for dev/debug)
-    api_key = request.headers.get("x-goog-api-key")
-    
-    # Then Firestore (user settings)
-    if not api_key:
-        api_key = get_decrypted_api_key(user_id)
-        
-    if not api_key:
-        raise HTTPException(
-            status_code=401,
-            detail="Missing Gemini API Key. Please go to Settings to configure it.",
-        )
-    return api_key
-
-# --- MIDDLEWARE ---
-class ModelSelectionMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        if request.method == "OPTIONS": return await call_next(request)
-        token = model_context.set(request.headers.get("X-GenAI-Model", "gemini-2.5-flash-image"))
-        try: return await call_next(request)
-        finally: model_context.reset(token)
-
-app.add_middleware(ModelSelectionMiddleware)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
-
-STATIC_DIR = Path("static")
-STATIC_DIR.mkdir(exist_ok=True)
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-session_service = InMemorySessionService()
-
-# --- SETTINGS ENDPOINTS ---
 @app.get("/user/settings")
 async def get_settings(user_id: str = Depends(get_user_id)):
     """Check if user has a configured API Key."""
