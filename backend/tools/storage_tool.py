@@ -37,8 +37,8 @@ class StorageTool:
             return url
         except (DefaultCredentialsError, Forbidden, ValueError) as e:
             logger.warning(f"Could not generate signed URL for {remote_path} (likely missing private key or permissions): {e}")
-            # Fallback to public URL property
-            return self.bucket.blob(remote_path).public_url
+            # Fallback to public URL property (reusing blob object)
+            return blob.public_url
         except Exception as e:
             logger.error(f"Unexpected error generating signed URL for {remote_path}: {e}")
             return ""
@@ -55,7 +55,8 @@ class StorageTool:
             logger.warning(f"GCS Signing Failed (missing key or permissions), returning public URL: {sign_err}")
             return blob.public_url
         except Exception as sign_err:
-            logger.warning(f"Unexpected GCS Signing Error, returning public URL: {sign_err}")
+            # Unexpected errors should be logged as ERROR
+            logger.error(f"Unexpected GCS Signing Error, returning public URL: {sign_err}")
             return blob.public_url
 
     def upload_file(self, local_path: str, remote_path: str, content_type: str = None) -> str:
