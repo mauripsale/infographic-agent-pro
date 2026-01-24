@@ -152,55 +152,109 @@ export default function App() {
   const [visiblePrompts, setVisiblePrompts] = useState<Record<string, boolean>>({});
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  // Check for API Key on auth load
+  // --- Helper: Parse Query Settings ---
+  const parseQueryToSettings = (fullQuery: string) => {
+      const settingsRegex = /\[GENERATION SETTINGS\] Slides: (\d+), Style: (.*?), Detail: (.*?), AR: (.*?), Lang: (.*)\n\n\[USER REQUEST\]\n(.*)/s;
+      const match = fullQuery.match(settingsRegex);
+      
+      if (match) {
+          return {
+              numSlides: parseInt(match[1]),
+              style: match[2],
+              detailLevel: match[3],
+              aspectRatio: match[4],
+              language: match[5],
+              userPrompt: match[6].trim()
+          };
+      }
+      return { userPrompt: fullQuery };
+  };
+
+  // --- Helper: Clean Title for History ---
+  const getCleanTitle = (p: ProjectSummary) => {
+      if (p.title) return p.title;
+      // Fallback for legacy projects
+      const settings = parseQueryToSettings(p.query);
+      const title = settings.userPrompt;
+      return title.length > 60 ? title.substring(0, 57) + "..." : title || "Untitled Project";
+  };
+
+  // Check for API Key on auth load & Auto-Resume
   useEffect(() => {
     if (user) {
         checkSettings();
         fetchProjects();
+        
+        // Auto-Resume Last Session
+        const lastPid = localStorage.getItem("lastProjectId");
+        if (lastPid) {
+            // We need to fetch the summary first or just try to load by ID directly?
+            // To reuse loadProject, we need a summary object. 
+            // Or we can just fetch details directly. Let's do direct fetch.
+            fetchDetailsDirectly(lastPid);
+        }
     }
   }, [user]);
 
-  const fetchProjects = async () => {
+  const fetchDetailsDirectly = async (pid: string) => {
       setIsLoadingHistory(true);
       try {
           const token = await getToken();
-          const res = await fetch(`${BACKEND_URL}/user/projects`, {
+          const res = await fetch(`${BACKEND_URL}/user/projects/${pid}`, {
               headers: { "Authorization": `Bearer ${token}` }
           });
-          const data = await res.json();
-          setProjects(data);
+          if (res.ok) {
+              const fullProject: ProjectDetails = await res.json();
+              restoreProjectState(fullProject);
+          } else {
+              localStorage.removeItem("lastProjectId"); // Invalid ID
+          }
       } catch (e) {
-          console.error("Failed to fetch projects", e);
+          console.error("Auto-resume failed", e);
       } finally {
           setIsLoadingHistory(false);
       }
   };
 
-  // --- Date Formatter ---
-  const formatDate = (timestamp: { seconds: number } | string | Date | null | undefined): string => {
-      if (!timestamp) return "Unknown date";
-      try {
-          // Firestore Timestamp (seconds, nanoseconds)
-          if (typeof timestamp === 'object' && 'seconds' in (timestamp as any)) {
-              return new Date((timestamp as any).seconds * 1000).toLocaleDateString(undefined, { 
-                  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-              });
+  const restoreProjectState = (fullProject: ProjectDetails) => {
+      setCurrentProjectId(fullProject.id);
+      
+      // Parse settings from query
+      const settings = parseQueryToSettings(fullProject.query || "");
+      if (settings.numSlides) setNumSlides(settings.numSlides);
+      if (settings.style) setStyle(settings.style);
+      if (settings.detailLevel) setDetailLevel(settings.detailLevel);
+      if (settings.aspectRatio) setAspectRatio(settings.aspectRatio);
+      if (settings.language) setLanguage(settings.language);
+      
+      setQuery(settings.userPrompt || "");
+      setScript(fullProject.script);
+      setPhase("graphics");
+      
+      // Reconstruct surface components from script
+      const comps: any = {
+          "root": { id: "root", component: "Column", children: ["status", "grid"] },
+          "status": { id: "status", component: "Text", text: "Restored Session" },
+          "grid": { id: "grid", component: "Column", children: fullProject.script?.slides.map((s: any) => `card_${s.id}`) || [] }
+      };
+      
+      fullProject.script?.slides.forEach((s: any, idx: number) => {
+          if (s.image_url) {
+              comps[`card_${s.id}`] = { id: `card_${s.id}`, component: "Column", children: [`title_${s.id}`, `img_${s.id}`], status: "success" };
+              comps[`title_${s.id}`] = { id: `title_${s.id}`, component: "Text", text: `${idx+1}. ${s.title}` };
+              comps[`img_${s.id}`] = { id: `img_${s.id}`, component: "Image", src: s.image_url };
+          } else {
+              comps[`card_${s.id}`] = { id: `card_${s.id}`, component: "Text", text: "Waiting...", status: "waiting" };
           }
-          // ISO String or other
-          const dateObj = new Date(timestamp as any);
-          if (isNaN(dateObj.getTime())) return "Invalid date";
-          
-          return dateObj.toLocaleDateString(undefined, {
-               month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-          });
-      } catch (e) {
-          return "Invalid date";
-      }
+      });
+      
+      setSurfaceState({ components: comps, dataModel: { script: fullProject.script } });
+      setShowHistory(false);
+      // Don't auto-scroll on resume, it might be jarring
   };
 
   const loadProject = async (projectSummary: ProjectSummary) => {
       setIsLoadingHistory(true);
-      setCurrentProjectId(projectSummary.id);
       
       try {
           const token = await getToken();
@@ -211,30 +265,11 @@ export default function App() {
           if (!res.ok) throw new Error("Failed to load project details");
           
           const fullProject: ProjectDetails = await res.json();
+          restoreProjectState(fullProject);
           
-          setQuery(fullProject.query || "");
-          setScript(fullProject.script);
-          setPhase("graphics");
+          // Save for auto-resume
+          localStorage.setItem("lastProjectId", fullProject.id);
           
-          // Reconstruct surface components from script
-          const comps: any = {
-              "root": { id: "root", component: "Column", children: ["status", "grid"] },
-              "status": { id: "status", component: "Text", text: "Project Loaded from History" },
-              "grid": { id: "grid", component: "Column", children: fullProject.script?.slides.map((s: any) => `card_${s.id}`) || [] }
-          };
-          
-          fullProject.script?.slides.forEach((s: any, idx: number) => {
-              if (s.image_url) {
-                  comps[`card_${s.id}`] = { id: `card_${s.id}`, component: "Column", children: [`title_${s.id}`, `img_${s.id}`], status: "success" };
-                  comps[`title_${s.id}`] = { id: `title_${s.id}`, component: "Text", text: `${idx+1}. ${s.title}` };
-                  comps[`img_${s.id}`] = { id: `img_${s.id}`, component: "Image", src: s.image_url };
-              } else {
-                  comps[`card_${s.id}`] = { id: `card_${s.id}`, component: "Text", text: "Waiting...", status: "waiting" };
-              }
-          });
-          
-          setSurfaceState({ components: comps, dataModel: { script: fullProject.script } });
-          setShowHistory(false);
           setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
 
       } catch (e) {
@@ -748,8 +783,8 @@ export default function App() {
                               {projects.map(p => (
                                   <div key={p.id} onClick={() => loadProject(p)} className="bg-slate-900 hover:bg-slate-800 border border-slate-700 p-4 rounded-xl cursor-pointer transition-all group">
                                       <div className="flex justify-between items-start mb-2">
-                                          <h4 className="font-bold text-white line-clamp-1 group-hover:text-blue-400 transition-colors">{p.query}</h4>
-                                          <span className="text-[10px] text-slate-500 uppercase">{new Date(p.created_at?.seconds * 1000).toLocaleDateString()}</span>
+                                          <h4 className="font-bold text-white line-clamp-1 group-hover:text-blue-400 transition-colors">{getCleanTitle(p)}</h4>
+                                          <span className="text-[10px] text-slate-500 uppercase">{formatDate(p.created_at)}</span>
                                       </div>
                                       <div className="flex gap-4 text-[10px] text-slate-500 uppercase font-bold tracking-widest">
                                           <span>{p.slide_count || 0} Slides</span>
