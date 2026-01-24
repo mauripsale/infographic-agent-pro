@@ -2,7 +2,8 @@ import logging
 import asyncio
 from typing import Optional, List, Any
 from google.cloud import firestore
-from google.adk.sessions import BaseSessionService, Session, GetSessionConfig, ListSessionsResponse
+from google.adk.sessions import BaseSessionService, Session, ListSessionsResponse
+from google.adk.sessions.base_session_service import GetSessionConfig
 from google.adk.events.event import Event
 from google.api_core.exceptions import AlreadyExists
 import uuid
