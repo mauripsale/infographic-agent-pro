@@ -23,8 +23,6 @@ class StorageTool:
     def get_signed_url(self, remote_path: str, expiration_hours: int = 24) -> str:
         """Generates a signed URL for a GCS path using the ADK service's bucket."""
         if not self.bucket:
-            # Fallback for local/memory: assume it's served via /static if it exists locally?
-            # Or just return empty to signal failure.
             return ""
         
         try:
@@ -36,33 +34,36 @@ class StorageTool:
             )
             return url
         except Exception as e:
-            logger.error(f"Error generating signed URL for {remote_path}: {e}")
-            return ""
+            logger.warning(f"Could not generate signed URL for {remote_path} (likely missing private key): {e}")
+            # Fallback: authenticated URL (works if user is logged into Google/Cloud console)
+            return f"https://storage.cloud.google.com/{self.bucket.name}/{remote_path}"
 
     def upload_file(self, local_path: str, remote_path: str, content_type: str = None) -> str:
-        """Uploads a file to GCS via ADK bucket and returns the signed URL."""
+        """Uploads a file to GCS via ADK bucket and returns a URL (signed or authenticated)."""
         if not self.bucket:
-            # For InMemory/Local, we assume the file is already in a place accessible via static serving
-            # or we copy it to static dir? 
-            # Current main.py logic handles local fallback if this returns None/Empty.
             return ""
         
         try:
             blob = self.bucket.blob(remote_path)
             blob.upload_from_filename(local_path, content_type=content_type)
             
-            url = blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(days=7),
-                method="GET",
-            )
-            return url
+            try:
+                url = blob.generate_signed_url(
+                    version="v4",
+                    expiration=timedelta(days=7),
+                    method="GET",
+                )
+                return url
+            except Exception as sign_err:
+                logger.warning(f"GCS Signing Failed (missing key?), returning authenticated URL: {sign_err}")
+                return f"https://storage.cloud.google.com/{self.bucket.name}/{remote_path}"
+
         except Exception as e:
             logger.error(f"GCS Upload Error: {e}")
             return ""
 
     def upload_bytes(self, data: bytes, remote_path: str, content_type: str = None) -> str:
-        """Uploads bytes to GCS via ADK bucket and returns the signed URL."""
+        """Uploads bytes to GCS via ADK bucket and returns a URL (signed or authenticated)."""
         if not self.bucket:
             return ""
         
@@ -70,12 +71,17 @@ class StorageTool:
             blob = self.bucket.blob(remote_path)
             blob.upload_from_string(data, content_type=content_type)
             
-            url = blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(days=7),
-                method="GET",
-            )
-            return url
+            try:
+                url = blob.generate_signed_url(
+                    version="v4",
+                    expiration=timedelta(days=7),
+                    method="GET",
+                )
+                return url
+            except Exception as sign_err:
+                logger.warning(f"GCS Signing Failed (missing key?), returning authenticated URL: {sign_err}")
+                return f"https://storage.cloud.google.com/{self.bucket.name}/{remote_path}"
+
         except Exception as e:
             logger.error(f"GCS Upload Error (bytes): {e}")
             return ""

@@ -314,13 +314,21 @@ async def upload_document(request: Request, file: UploadFile = File(...), user_i
                 tmp.write(await file.read())
                 tmp_path = tmp.name
 
-            remote_path = storage_tool.get_user_upload_path(user_id, os.path.basename(file.filename))
-            gcs_url = await asyncio.to_thread(storage_tool.upload_file, tmp_path, remote_path, content_type=file.content_type)
+                        remote_path = storage_tool.get_user_upload_path(user_id, os.path.basename(file.filename))
 
-            gemini_file = client.files.upload(path=tmp_path)
+                        gcs_url = await asyncio.to_thread(storage_tool.upload_file, tmp_path, remote_path, content_type=file.content_type)
 
-            if db:
-                db.collection("users").document(user_id).collection("uploads").add({
+                        
+
+                        gemini_file = client.files.upload(file=tmp_path)
+
+                        
+
+                        if db:
+
+                            db.collection("users").document(user_id).collection("uploads").add({
+
+            
                     "filename": file.filename,
                     "gcs_url": gcs_url,
                     "gemini_file_id": gemini_file.name,
