@@ -35,7 +35,7 @@ Ensure the following secrets/vars are migrated to Cloud Run / Frontend:
 | `GOOGLE_CLOUD_PROJECT` | GCP Project ID. |
 | `ENCRYPTION_KEY` | **CRITICAL**: 32-byte string for AES (user key encryption). |
 | `GCS_BUCKET_NAME` | The bucket for storing generated images and user uploads. |
-| `FIREBASE_SERVICE_ACCOUNT` | (Optional if using default credentials) Full JSON key. |
+| `FIREBASE_SERVICE_ACCOUNT` | (Optional) Full JSON key, provided as a **single line** (no newlines). |
 
 ### Frontend (Environment Variables)
 | Variable | Description |

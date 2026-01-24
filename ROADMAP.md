@@ -11,41 +11,52 @@ This document tracks the planned features, architectural improvements, and futur
 
 ---
 
-## 🚧 Phase 2: Performance & Persistence (Next Steps)
+## 🏛️ Phase 2: Persistence & Enterprise Ready (Completed)
 
-### 2.1 Parallel Generation (Performance)
-*   **Goal**: Reduce total generation time for 5+ slides.
-*   **Implementation**: Re-enable the UI toggle. Refactor backend to use `asyncio.gather` for the `ImageGenerationTool` calls, generating all images concurrently while maintaining ordered A2UI updates.
+### 2.1 Persistence & History
+- [x] **ADK Artifacts**: Refactored storage layer to wrap `GcsArtifactService` for native ADK compliance (Ralph Loop).
+- [x] **Project History**: Firestore-backed session history with Sidebar UI to reload past projects.
+- [x] **User Persistence**: Secure API Key storage encrypted in Firestore.
+- [x] **Reset Session**: "New Project" workflow with double confirmation.
 
-### 2.2 Artifact Management (Persistence)
-*   **Goal**: Allow users to download the original uploaded document and manage generated assets over time.
-*   **Implementation**: 
-    *   Integrate **ADK ArtifactService** (File-based or Cloud Storage).
-    *   Store uploaded docs as Session Artifacts.
-    *   Expose download endpoints for these artifacts.
-
-### 2.3 Session History (Memory)
-*   **Goal**: Allow users to resume previous sessions or "undo" actions.
-*   **Implementation**:
-    *   Replace `InMemorySessionService` with `SqliteSessionService` or `Firestore`.
-    *   Add a "History" sidebar in the UI to load past infographic projects.
+### 2.2 Google Slides Export (Production)
+- [x] **Incremental Auth**: Implemented secure, on-demand OAuth scope request (`drive.file`).
+- [x] **Native Export**: `GoogleSlidesTool` integration for creating editable presentations.
+- [x] **Token Security**: Fixed state propagation issues to ensure fresh tokens are used for exports.
+- [x] **Download UX**: Implemented hidden anchor method for PDF/ZIP to bypass popup blockers and prevent page reloads.
 
 ---
 
-## 🔌 Phase 3: Integrations & Formats
+## 🎨 Phase 3: Advanced Styling & Polish (In Progress)
 
-### 3.1 Google Slides Export (Real Implementation)
-*   **Goal**: True native export, not just a PDF.
-*   **Implementation**:
-    *   Use `google-api-python-client` with Slides API.
-    *   Create a specialized tool `GoogleSlidesExportTool`.
-    *   Map the JSON script (Title, Body, Image) to actual Slide Layouts (Title + Body + Image placeholder).
+### 3.1 Advanced Styling (Deployed)
+- [x] **Brand Awareness**: Agent prompt updated to analyze "Brand Guide" files.
+- [x] **Visual Injection**: Automatically extracts hex colors and style keywords to enforce visual consistency in image prompts.
 
-### 3.2 Advanced Styling & Theming
-*   **Goal**: User-defined branding.
-*   **Implementation**:
-    *   Allow users to upload a "Brand Kit" (Logo, Color Palette hex codes).
-    *   Inject these constraints into the Agent's system prompt and Image Generation prompt.
+### 3.2 UX & Interface Polish (In Progress - Branch feat/multi-upload-ux)
+- [x] **Header Redesign**: Explicitly expand "IPSA" acronym and reposition the "Visual Data Architect" tagline.
+- [x] **Multi-Upload UX**: 
+    -   **Quantity**: Support multiple source files (N documents) and multiple brand assets.
+    -   **Quality**: Implement a clear "Staged Files" list with badges and remove buttons to give users full visibility before generation.
+
+### 3.4 Persistence Purist: DB Sessions (In Progress - Branch feat/firestore-sessions)
+- [x] **Goal**: Replace `InMemorySessionService` with a persistent database.
+- [x] **Implementation**: Created `FirestoreSessionService` implementing ADK `BaseSessionService` interface.
+- [ ] **Optimization**: Migrate from synchronous `firestore.Client` (wrapped in `to_thread`) to native `firestore.AsyncClient` for better performance and resource management.
+
+### 3.5 DevOps Optimization (Planned)
+- [ ] **Goal**: Reduce Cloud Run deployment time (currently ~5m).
+- [ ] **Implementation**: Implement `cloudbuild.yaml` with Kaniko cache or `--cache-from` to reuse Docker layers for dependencies.
+
+### 3.5 Advanced Export Formats (Pending)
+- [ ] **Goal**: Better PDF layouts and Landscape support.
+- [ ] **Implementation**: Refactor `ExportTool` to support `F_LANDSCAPE` and "Handout" modes (3 slides per page with notes).
+
+### 3.6 Resilience & Speed (Backlog)
+- [ ] **Goal**: Handle large projects without timeout.
+- [ ] **Implementation**: 
+    *   Implement `asyncio.gather` for parallel image generation (with rate limiting).
+    *   Add retry logic with exponential backoff for GCS/Gemini API calls.
 
 ---
 
@@ -63,4 +74,4 @@ This document tracks the planned features, architectural improvements, and futur
 *   **Goal**: "Talk to your designer".
 *   **Implementation**:
     *   Use Gemini's Native Audio capabilities.
-    *   Implement WebSocket bidirectional streaming for real-time voice feedback ("Make the second slide more blue").
+    *   Implement WebSocket bidirectional streaming for real-time voice feedback.
