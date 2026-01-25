@@ -42,7 +42,7 @@ interface A2UIComponent {
   component: string;
   src?: string;
   text?: string;
-  status?: "waiting" | "generating" | "success" | "error";
+  status?: "waiting" | "generating" | "success" | "error" | "skipped";
   children?: string[];
   [key: string]: any;
 }
