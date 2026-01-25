@@ -1112,6 +1112,7 @@ export default function App() {
                     <>
                     <button type="button" onClick={() => handleExport("zip")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">ZIP</button>
                     <button type="button" onClick={() => handleExport("pdf")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">PDF</button>
+                    <button type="button" onClick={() => handleExport("pdf_handout")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">Handout</button>
                     <button type="button" onClick={() => handleExport("slides")} disabled={isExporting} className="bg-[#fbbc04]/20 hover:bg-[#fbbc04]/30 border border-[#fbbc04]/50 text-[#fbbc04] px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap flex items-center gap-2">
                         <PresentationIcon /> Google Slides
                     </button>
@@ -1128,6 +1129,7 @@ export default function App() {
                   const imageComponent = surfaceState.components[`img_${s.id}`];
                   const isGenerating = cardComp?.status === "generating";
                   const hasError = cardComp?.status === "error";
+                  const isSkipped = cardComp?.status === "skipped";
                   const isLoadingScript = s.id.startsWith("loading_");
                   
                   if (isLoadingScript) return <div key={s.id} className="bg-[#111827] border border-slate-800 rounded-xl p-4 h-64 animate-pulse"></div>;
@@ -1135,7 +1137,7 @@ export default function App() {
                   const src = imageComponent?.src || s.image_url;
 
                   return (
-                  <div key={s.id} className={`bg-[#111827] border border-slate-800 rounded-xl p-4 flex flex-col gap-3 shadow-xl transition-all relative overflow-hidden group ${isGenerating ? "ring-2 ring-blue-500" : ""}`}>
+                  <div key={s.id} className={`bg-[#111827] border border-slate-800 rounded-xl p-4 flex flex-col gap-3 shadow-xl transition-all relative overflow-hidden group ${isGenerating ? "ring-2 ring-blue-500" : ""} ${isSkipped ? "opacity-50 grayscale" : ""}`}>
                     <div className="flex justify-between items-center border-b border-slate-800 pb-2 z-10 relative">
                       <span className="text-xs font-bold text-blue-500 uppercase">{s.id}</span>
                       {src ? (
@@ -1147,7 +1149,10 @@ export default function App() {
                               <button onClick={() => togglePrompt(s.id)} className="text-slate-500 hover:text-white text-[10px] uppercase">Prompt</button>
                           </div>
                       ) : (
-                          <button onClick={() => retrySlide(s.id)} className="text-green-500 hover:text-green-400 text-[10px] uppercase font-bold flex items-center gap-1 bg-green-900/20 px-2 py-1 rounded"><PaintBrushIcon /> Generate</button>
+                          <div className="flex gap-2">
+                             {!isSkipped && <button onClick={() => skipSlide(s.id)} className="text-slate-600 hover:text-slate-400 text-[10px] uppercase font-bold px-2 py-1 rounded hover:bg-slate-800 transition-colors">Skip</button>}
+                             <button onClick={() => retrySlide(s.id)} className="text-green-500 hover:text-green-400 text-[10px] uppercase font-bold flex items-center gap-1 bg-green-900/20 px-2 py-1 rounded"><PaintBrushIcon /> {isSkipped ? "Restore" : "Generate"}</button>
+                          </div>
                       )}
                     </div>
                     <div className="flex-1 flex flex-col gap-3">
@@ -1165,6 +1170,7 @@ export default function App() {
                     </div>
                     {isGenerating && <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center z-20 animate-pulse"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div><span className="text-xs font-bold text-blue-400 uppercase">Drawing...</span></div>}
                     {hasError && <div className="absolute inset-0 bg-red-900/80 flex flex-col items-center justify-center z-20"><span className="text-xs font-bold text-red-200">FAILED</span><button onClick={() => retrySlide(s.id)} className="mt-2 text-[10px] underline text-white">Retry</button></div>}
+                    {isSkipped && <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none"><span className="text-xs font-bold text-slate-500 uppercase rotate-[-15deg] border-2 border-slate-700 px-4 py-2 rounded opacity-50">SKIPPED</span></div>}
                     {src && !visiblePrompts[s.id] && (<div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-4 right-4 z-10"><button onClick={(e) => { e.stopPropagation(); retrySlide(s.id); }} className="bg-slate-800 p-2 rounded-full hover:bg-white/10 text-white transition-colors" title="Regenerate"><RefreshIcon /></button></div>)}
                   </div>
                 )})
