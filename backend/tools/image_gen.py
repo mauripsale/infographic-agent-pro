@@ -4,6 +4,7 @@ import logging
 import os
 import time
 import uuid
+import requests
 from pathlib import Path
 
 from google import genai
@@ -46,7 +47,46 @@ class ImageGenerationTool:
         else:
             self.bucket = None
 
-    def generate_and_save(self, prompt: str, aspect_ratio: str = "16:9", user_id: str = "anonymous", project_id: str = None) -> str:
+    def _apply_watermark(self, base_img: Image.Image, logo_url: str) -> Image.Image:
+        """Downloads a logo and pastes it onto the base image in the bottom-right corner."""
+        try:
+            # 1. Download Logo
+            res = requests.get(logo_url, timeout=10)
+            if res.status_code != 200:
+                return base_img
+            
+            logo = Image.open(io.BytesIO(res.content))
+            if logo.mode != 'RGBA':
+                logo = logo.convert('RGBA')
+            
+            # 2. Resize Logo (max 15% of base image width)
+            base_w, base_h = base_img.size
+            logo_target_w = int(base_w * 0.15)
+            w_ratio = logo_target_w / float(logo.size[0])
+            logo_target_h = int(float(logo.size[1]) * float(w_ratio))
+            logo = logo.resize((logo_target_w, logo_target_h), Image.Resampling.LANCZOS)
+            
+            # 3. Paste with transparency (bottom-right with 20px padding)
+            padding = 20
+            pos_x = base_w - logo_target_w - padding
+            pos_y = base_h - logo_target_h - padding
+            
+            # Create a transparent overlay
+            overlay = Image.new('RGBA', base_img.size, (0,0,0,0))
+            overlay.paste(logo, (pos_x, pos_y))
+            
+            # Merge with base
+            if base_img.mode != 'RGBA':
+                base_img = base_img.convert('RGBA')
+            
+            combined = Image.alpha_composite(base_img, overlay)
+            return combined.convert('RGB') # Convert back to RGB for PNG/JPG efficiency
+            
+        except Exception as e:
+            logger.error(f"Watermarking failed: {e}")
+            return base_img
+
+    def generate_and_save(self, prompt: str, aspect_ratio: str = "16:9", user_id: str = "anonymous", project_id: str = None, logo_url: str = None) -> str:
         """
         Generates an image and saves it to GCS (preferred) or local static dir.
         Returns a Signed URL (GCS) or absolute URL (Local).
@@ -71,7 +111,7 @@ class ImageGenerationTool:
                 try:
                     response = client.models.generate_content(
                         model=model_id,
-                        contents=f"Generate a professional infographic image. Style: {prompt}. Aspect Ratio: {aspect_ratio}"
+                        contents=f"Generate a professional infographic image. Style: {prompt}. Aspect Ratio: {aspectRatio if 'aspectRatio' in locals() else aspect_ratio}"
                     )
                     if response.candidates and response.candidates[0].content.parts:
                         for part in response.candidates[0].content.parts:
@@ -93,8 +133,14 @@ class ImageGenerationTool:
             # Convert/Sanitize to PNG with specific PIL exception handling
             try:
                 img = Image.open(io.BytesIO(image_bytes))
+                
+                # Apply Watermark if logo provided
+                if logo_url:
+                    img = self._apply_watermark(img, logo_url)
+                
                 if img.mode != 'RGB': 
                     img = img.convert('RGB')
+                
                 output_buffer = io.BytesIO()
                 img.save(output_buffer, format="PNG")
                 image_bytes = output_buffer.getvalue()

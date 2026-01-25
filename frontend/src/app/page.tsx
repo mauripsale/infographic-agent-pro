@@ -1168,7 +1168,18 @@ export default function App() {
                             </div>
                         )}
                     </div>
-                    {isGenerating && <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center z-20 animate-pulse"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div><span className="text-xs font-bold text-blue-400 uppercase">Drawing...</span></div>}
+                    {isGenerating && (
+                        <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center z-20 animate-pulse">
+                            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                            <span className="text-xs font-bold text-blue-400 uppercase mb-4">Drawing...</span>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); skipSlide(s.id); }} 
+                                className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-[10px] font-bold uppercase rounded border border-slate-700 transition-all pointer-events-auto"
+                            >
+                                Skip Generation
+                            </button>
+                        </div>
+                    )}
                     {hasError && <div className="absolute inset-0 bg-red-900/80 flex flex-col items-center justify-center z-20"><span className="text-xs font-bold text-red-200">FAILED</span><button onClick={() => retrySlide(s.id)} className="mt-2 text-[10px] underline text-white">Retry</button></div>}
                     {isSkipped && <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none"><span className="text-xs font-bold text-slate-500 uppercase rotate-[-15deg] border-2 border-slate-700 px-4 py-2 rounded opacity-50">SKIPPED</span></div>}
                     {src && !visiblePrompts[s.id] && (<div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-4 right-4 z-10"><button onClick={(e) => { e.stopPropagation(); retrySlide(s.id); }} className="bg-slate-800 p-2 rounded-full hover:bg-white/10 text-white transition-colors" title="Regenerate"><RefreshIcon /></button></div>)}

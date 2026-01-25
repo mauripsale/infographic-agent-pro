@@ -291,6 +291,23 @@ async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
         logger.error(f"Export Error: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+async def get_project_logo(user_id: str, project_id: str) -> Optional[str]:
+    """Helper to find a logo (image asset) in project files."""
+    if not project_id: return None
+    try:
+        doc = await asyncio.to_thread(db.collection("adk_sessions").document(project_id).get)
+        if not doc.exists: return None
+        state = doc.to_dict().get("state", {})
+        # Look for branding_logo_url or the first image in state assets
+        logo_url = state.get("branding_logo_url")
+        if not logo_url:
+            # Fallback check for any image files in project uploads could go here
+            pass
+        return logo_url
+    except Exception as e:
+        logger.error(f"Logo detection failed: {e}")
+        return None
+
 @app.post("/agent/regenerate_slide")
 async def regenerate_slide(request: Request, user_id: str = Depends(get_user_id), api_key: str = Depends(get_api_key)):
     try:
@@ -298,14 +315,18 @@ async def regenerate_slide(request: Request, user_id: str = Depends(get_user_id)
         slide_id = data.get("slide_id")
         prompt = data.get("image_prompt")
         aspect_ratio = data.get("aspect_ratio", "16:9")
+        project_id = data.get("project_id")
         surface_id = "infographic_workspace"
 
         async def event_generator():
             yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
                 {"id": f"card_{slide_id}", "component": "Text", "text": "🎨 Nano Banana is refining...", "status": "generating"}
             ]}}) + "\n"
+            
+            logo_url = await get_project_logo(user_id, project_id) if project_id else None
+            
             img_tool = ImageGenerationTool(api_key=api_key)
-            img_url = await asyncio.to_thread(img_tool.generate_and_save, prompt, aspect_ratio=aspect_ratio, user_id=user_id)
+            img_url = await asyncio.to_thread(img_tool.generate_and_save, prompt, aspect_ratio=aspect_ratio, user_id=user_id, project_id=project_id, logo_url=logo_url)
 
             if "Error" not in img_url:
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
