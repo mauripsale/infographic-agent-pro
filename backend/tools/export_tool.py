@@ -55,24 +55,71 @@ class ExportTool:
             return ""
 
     def create_pdf(self, file_paths: list[str], title: str = "Presentation") -> str:
-        """Creates a PDF file from a list of images."""
+        """Creates a PDF file from a list of images, adapting orientation to image ratio."""
         try:
             if not file_paths:
                 return ""
+
+            # Defer import to avoid circular dependency issues if any
+            from PIL import Image
 
             pdf = FPDF()
             pdf.set_auto_page_break(0)
             
             files_added = 0
             for file_path in file_paths:
+                # Clean filename from potential query params or URL junk
                 filename = os.path.basename(file_path.split("?")[0])
                 local_path = self.static_dir / filename
                 
                 if local_path.exists():
-                    pdf.add_page()
-                    # A4 size roughly, fitting image to width (keep aspect ratio logic simple for now)
-                    pdf.image(str(local_path), x=10, y=10, w=190)
-                    files_added += 1
+                    try:
+                        # 1. Analyze Image
+                        with Image.open(local_path) as img:
+                            width_px, height_px = img.size
+                            aspect_ratio = width_px / height_px
+                        
+                        # 2. Determine Orientation
+                        # > 1.1 means Landscape (e.g. 16:9 ~ 1.77). Square/near-square (1.0) stays Portrait.
+                        orientation = 'L' if aspect_ratio > 1.1 else 'P' 
+                        
+                        pdf.add_page(orientation=orientation)
+                        
+                        # 3. Calculate Dimensions & Centering
+                        # A4 Dimensions in mm
+                        a4_w_portrait = 210
+                        a4_h_portrait = 297
+                        
+                        if orientation == 'L':
+                            page_w = a4_h_portrait # 297
+                            page_h = a4_w_portrait # 210
+                        else:
+                            page_w = a4_w_portrait # 210
+                            page_h = a4_h_portrait # 297
+                            
+                        margin = 10
+                        printable_w = page_w - (2 * margin)
+                        printable_h = page_h - (2 * margin)
+                        
+                        # Fit Logic: maximize width/height while keeping AR
+                        # Calculate target dimensions
+                        target_w = printable_w
+                        target_h = target_w / aspect_ratio
+                        
+                        if target_h > printable_h:
+                            # Too tall, fit to height
+                            target_h = printable_h
+                            target_w = target_h * aspect_ratio
+                            
+                        # Centering
+                        x = (page_w - target_w) / 2
+                        y = (page_h - target_h) / 2
+                        
+                        pdf.image(str(local_path), x=x, y=y, w=target_w)
+                        files_added += 1
+                        
+                    except Exception as img_err:
+                        logger.error(f"Error processing image {local_path}: {img_err}")
                 else:
                     logger.warning(f"File missing for PDF: {local_path}")
 
