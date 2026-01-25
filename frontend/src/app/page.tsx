@@ -1169,12 +1169,12 @@ export default function App() {
                         )}
                     </div>
                     {isGenerating && (
-                        <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center z-20 animate-pulse">
+                        <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center z-20 backdrop-blur-sm">
                             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-                            <span className="text-xs font-bold text-blue-400 uppercase mb-4">Drawing...</span>
+                            <span className="text-xs font-bold text-blue-400 uppercase mb-4 animate-pulse">Drawing...</span>
                             <button 
                                 onClick={(e) => { e.stopPropagation(); skipSlide(s.id); }} 
-                                className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-[10px] font-bold uppercase rounded border border-slate-700 transition-all pointer-events-auto"
+                                className="px-4 py-2 bg-red-900/80 hover:bg-red-600 text-white text-[10px] font-bold uppercase rounded border border-red-500/50 hover:border-red-400 transition-all shadow-lg cursor-pointer z-30"
                             >
                                 Skip Generation
                             </button>
