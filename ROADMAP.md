@@ -27,42 +27,36 @@ This document tracks the planned features, architectural improvements, and futur
 
 ---
 
-## 🎨 Phase 3: Advanced Styling & Polish (In Progress)
+## 🎨 Phase 3: Advanced Styling & Polish (Completed)
 
-### 3.1 Advanced Styling (Deployed)
+### 3.1 Advanced Styling & Branding
 - [x] **Brand Awareness**: Agent prompt updated to analyze "Brand Guide" files.
 - [x] **Visual Injection**: Automatically extracts hex colors and style keywords to enforce visual consistency in image prompts.
+- [x] **Logo Watermarking**: Backend automatically detects uploaded logo images and overlays them on generated slides using Pillow.
 
-### 3.2 UX & Interface Polish (In Progress - Branch feat/multi-upload-ux)
+### 3.2 UX & Interface Polish
 - [x] **Header Redesign**: Explicitly expand "IPSA" acronym and reposition the "Visual Data Architect" tagline.
-- [x] **Multi-Upload UX**: 
-    -   **Quantity**: Support multiple source files (N documents) and multiple brand assets.
-    -   **Quality**: Implement a clear "Staged Files" list with badges and remove buttons to give users full visibility before generation.
+- [x] **Multi-Upload UX**: Support for multiple source files and clear "Staged Files" list.
+- [x] **Smart Skip**: Implemented "Skip Generation" button visible and clickable *during* the generation process.
 
-### 3.4 Persistence Purist: DB Sessions (In Progress - Branch feat/firestore-sessions)
-- [x] **Goal**: Replace `InMemorySessionService` with a persistent database.
-- [x] **Implementation**: Created `FirestoreSessionService` implementing ADK `BaseSessionService` interface.
-- [ ] **Optimization**: Migrate from synchronous `firestore.Client` (wrapped in `to_thread`) to native `firestore.AsyncClient` for better performance and resource management.
+### 3.3 Advanced Export Formats
+- [x] **Smart PDF**: Auto-detection of image aspect ratio. Switches PDF page to Landscape if images are wide (16:9).
+- [x] **Handout Mode**: New export format (`pdf_handout`) creating vertical A4 pages with Slide Image (top) + Title & Description (bottom).
 
-### 3.5 DevOps Optimization (Completed)
-- [x] **Goal**: Reduce Cloud Run deployment time (currently ~5m).
-- [x] **Implementation**: Implement `cloudbuild.yaml` with Kaniko cache or `--cache-from` to reuse Docker layers for dependencies.
-
-### 3.5 Advanced Export Formats (Pending)
-- [ ] **Goal**: Better PDF layouts and Landscape support.
-- [ ] **Implementation**: Refactor `ExportTool` to support `F_LANDSCAPE` and "Handout" modes (3 slides per page with notes).
-
-### 3.6 Resilience & Speed (Backlog)
-- [ ] **Goal**: Handle large projects without timeout.
-- [ ] **Implementation**: 
-    *   Implement `asyncio.gather` for parallel image generation (with rate limiting).
-    *   Add retry logic with exponential backoff for GCS/Gemini API calls.
+### 3.4 Resilience & Optimization
+- [x] **Request Batching**: Frontend refactored to request slides in chunks (batch size: 3) to prevent Cloud Run timeouts on large presentations.
+- [x] **DevOps**: Optimized `cloudbuild.yaml` with caching to reduce deployment times.
+- [x] **Sessions**: Migrated to `FirestoreSessionService` for persistent state management across reloads.
 
 ---
 
 ## 🔮 Phase 4: Moonshots (Future Vision)
 
-### 4.1 Multi-Agent Team (Orchestration)
+### 4.1 Advanced Brand Control
+- [ ] **Brand Kit UI**: Dedicated sidebar section to manually input Hex Colors and Fonts, overriding the AI's auto-detection.
+- [ ] **Logo Preview**: Visual indicator in the upload area showing the currently active logo for watermarking.
+
+### 4.2 Multi-Agent Team (Orchestration)
 *   **Goal**: Higher quality content by specializing roles.
 *   **Implementation**:
     *   **Researcher Agent**: Reads the doc and extracts key facts (RAG).
@@ -70,7 +64,7 @@ This document tracks the planned features, architectural improvements, and futur
     *   **Art Director Agent**: Writes the visual prompts.
     *   *Coordinator*: Manages the workflow using ADK's `SequentialAgent` or `ParallelAgent` patterns.
 
-### 4.2 Voice Interaction (Bidi-Streaming)
+### 4.3 Voice Interaction (Bidi-Streaming)
 *   **Goal**: "Talk to your designer".
 *   **Implementation**:
     *   Use Gemini's Native Audio capabilities.
