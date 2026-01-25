@@ -111,7 +111,7 @@ class ImageGenerationTool:
                 try:
                     response = client.models.generate_content(
                         model=model_id,
-                        contents=f"Generate a professional infographic image. Style: {prompt}. Aspect Ratio: {aspectRatio if 'aspectRatio' in locals() else aspect_ratio}"
+                        contents=f"Generate a professional infographic image. Style: {prompt}. Aspect Ratio: {aspect_ratio}"
                     )
                     if response.candidates and response.candidates[0].content.parts:
                         for part in response.candidates[0].content.parts:

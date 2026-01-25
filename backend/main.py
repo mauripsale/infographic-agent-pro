@@ -5,6 +5,7 @@ import asyncio
 import re
 import tempfile
 import uuid
+from typing import Optional
 from pathlib import Path
 
 from fastapi import FastAPI, Request, UploadFile, File, Depends, HTTPException, Body
