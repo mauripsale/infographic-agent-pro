@@ -772,6 +772,23 @@ export default function App() {
       setVisiblePrompts(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  // --- Handlers for UX Controls ---
+  const handleLogout = async () => {
+    localStorage.removeItem("lastProjectId");
+    handleResetSession();
+    await logout();
+  };
+
+  const skipSlide = (slideId: string) => {
+      setSurfaceState((prev: any) => ({
+          ...prev,
+          components: {
+              ...prev.components,
+              [`card_${slideId}`]: { ...prev.components[`card_${slideId}`], status: "skipped", text: "Skipped by user" }
+          }
+      }));
+  };
+
   if (authLoading) return <div className="min-h-screen bg-[#030712] flex items-center justify-center text-white font-bold animate-pulse">Loading Identity...</div>;
   
   if (!user) {
