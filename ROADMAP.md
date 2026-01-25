@@ -44,9 +44,9 @@ This document tracks the planned features, architectural improvements, and futur
 - [x] **Implementation**: Created `FirestoreSessionService` implementing ADK `BaseSessionService` interface.
 - [ ] **Optimization**: Migrate from synchronous `firestore.Client` (wrapped in `to_thread`) to native `firestore.AsyncClient` for better performance and resource management.
 
-### 3.5 DevOps Optimization (Planned)
-- [ ] **Goal**: Reduce Cloud Run deployment time (currently ~5m).
-- [ ] **Implementation**: Implement `cloudbuild.yaml` with Kaniko cache or `--cache-from` to reuse Docker layers for dependencies.
+### 3.5 DevOps Optimization (Completed)
+- [x] **Goal**: Reduce Cloud Run deployment time (currently ~5m).
+- [x] **Implementation**: Implement `cloudbuild.yaml` with Kaniko cache or `--cache-from` to reuse Docker layers for dependencies.
 
 ### 3.5 Advanced Export Formats (Pending)
 - [ ] **Goal**: Better PDF layouts and Landscape support.
