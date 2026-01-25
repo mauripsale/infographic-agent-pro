@@ -54,8 +54,15 @@ class ExportTool:
             logger.error(f"ZIP Creation Error: {e}")
             return ""
 
-    def create_pdf(self, file_paths: list[str], title: str = "Presentation") -> str:
-        """Creates a PDF file from a list of images, adapting orientation to image ratio."""
+    def create_pdf(self, file_paths: list[str], slides_data: list[dict] = None, format_type: str = "pdf") -> str:
+        """
+        Creates a PDF file from images.
+        
+        Args:
+            file_paths: List of local image paths.
+            slides_data: List of dicts with 'title' and 'description' keys (for handout mode).
+            format_type: 'pdf' (standard) or 'pdf_handout' (vertical with notes).
+        """
         try:
             if not file_paths:
                 return ""
@@ -67,25 +74,76 @@ class ExportTool:
             pdf.set_auto_page_break(0)
             
             files_added = 0
-            for file_path in file_paths:
+            
+            # Ensure slides_data aligns with file_paths if missing
+            if not slides_data or len(slides_data) != len(file_paths):
+                slides_data = [{"title": f"Slide {i+1}", "description": ""} for i in range(len(file_paths))]
+
+            for idx, file_path in enumerate(file_paths):
                 # Clean filename from potential query params or URL junk
                 filename = os.path.basename(file_path.split("?")[0])
                 local_path = self.static_dir / filename
                 
-                if local_path.exists():
-                    try:
-                        # 1. Analyze Image
-                        with Image.open(local_path) as img:
-                            width_px, height_px = img.size
-                            aspect_ratio = width_px / height_px
+                if not local_path.exists():
+                    logger.warning(f"File missing for PDF: {local_path}")
+                    continue
+
+                try:
+                    with Image.open(local_path) as img:
+                        width_px, height_px = img.size
+                        aspect_ratio = width_px / height_px
+
+                    # --- HANDOUT MODE (Portrait + Text) ---
+                    if format_type == "pdf_handout":
+                        pdf.add_page(orientation='P')
+                        page_w = 210
+                        page_h = 297
+                        margin = 15
                         
-                        # 2. Determine Orientation
+                        # 1. Image (Top Half)
+                        # Max height ~ 120mm to leave room for text
+                        max_img_h = 120
+                        printable_w = page_w - (2 * margin)
+                        
+                        img_w = printable_w
+                        img_h = img_w / aspect_ratio
+                        
+                        if img_h > max_img_h:
+                            img_h = max_img_h
+                            img_w = img_h * aspect_ratio
+                            
+                        # Center image horizontally
+                        img_x = (page_w - img_w) / 2
+                        img_y = margin
+                        
+                        pdf.image(str(local_path), x=img_x, y=img_y, w=img_w)
+                        
+                        # 2. Text (Bottom Half)
+                        text_y = img_y + img_h + 10
+                        pdf.set_y(text_y)
+                        
+                        # Title
+                        slide_title = slides_data[idx].get("title", f"Slide {idx+1}")
+                        pdf.set_font("Arial", 'B', 16)
+                        # Latin-1 encoding hack for FPDF
+                        slide_title = slide_title.encode('latin-1', 'replace').decode('latin-1')
+                        pdf.cell(0, 10, txt=slide_title, ln=1, align='L')
+                        
+                        # Description / Notes
+                        slide_desc = slides_data[idx].get("description") or slides_data[idx].get("image_prompt", "")
+                        
+                        pdf.set_y(pdf.get_y() + 5)
+                        pdf.set_font("Arial", '', 11)
+                        slide_desc = slide_desc.encode('latin-1', 'replace').decode('latin-1')
+                        pdf.multi_cell(0, 6, txt=slide_desc)
+                        
+                    # --- STANDARD MODE (Smart Landscape) ---
+                    else:
                         # > 1.1 means Landscape (e.g. 16:9 ~ 1.77). Square/near-square (1.0) stays Portrait.
                         orientation = 'L' if aspect_ratio > 1.1 else 'P' 
                         
                         pdf.add_page(orientation=orientation)
                         
-                        # 3. Calculate Dimensions & Centering
                         # A4 Dimensions in mm
                         a4_w_portrait = 210
                         a4_h_portrait = 297
@@ -116,17 +174,17 @@ class ExportTool:
                         y = (page_h - target_h) / 2
                         
                         pdf.image(str(local_path), x=x, y=y, w=target_w)
-                        files_added += 1
+
+                    files_added += 1
                         
-                    except Exception as img_err:
-                        logger.error(f"Error processing image {local_path}: {img_err}")
-                else:
-                    logger.warning(f"File missing for PDF: {local_path}")
+                except Exception as img_err:
+                    logger.error(f"Error processing image {local_path}: {img_err}")
 
             if files_added == 0:
                 return ""
 
-            pdf_filename = f"presentation_export_{uuid.uuid4().hex}.pdf"
+            suffix = "_handout" if format_type == "pdf_handout" else ""
+            pdf_filename = f"presentation_export_{uuid.uuid4().hex}{suffix}.pdf"
             pdf_path = self.static_dir / pdf_filename
             pdf.output(str(pdf_path))
             

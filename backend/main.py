@@ -244,9 +244,16 @@ async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
         images = data.get("images", [])
         fmt = data.get("format", "zip")
         project_id = data.get("project_id")
+        slides_data = data.get("slides_data", [])
 
         tool = ExportTool()
-        relative_url = await asyncio.to_thread(tool.create_pdf, images) if fmt == "pdf" else await asyncio.to_thread(tool.create_zip, images)
+        
+        if fmt == "pdf":
+            relative_url = await asyncio.to_thread(tool.create_pdf, images, None, "pdf")
+        elif fmt == "pdf_handout":
+            relative_url = await asyncio.to_thread(tool.create_pdf, images, slides_data, "pdf_handout")
+        else:
+            relative_url = await asyncio.to_thread(tool.create_zip, images)
 
         if not relative_url:
             return JSONResponse(status_code=500, content={"error": "Export failed"})

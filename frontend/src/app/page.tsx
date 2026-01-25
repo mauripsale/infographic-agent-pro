@@ -639,7 +639,7 @@ export default function App() {
     }
   };
 
-  const handleExport = async (fmt: "zip" | "pdf" | "slides") => {
+  const handleExport = async (fmt: "zip" | "pdf" | "slides" | "pdf_handout") => {
     if (!hasApiKey) { setShowSettings(true); return; }
     if (!surfaceState.components || !script) return;
     setIsExporting(true);
@@ -713,6 +713,12 @@ export default function App() {
         return;
     }
 
+    // Prep text data for handout
+    const slidesData = script.slides.map((s: Slide) => ({
+        title: s.title,
+        description: s.description || s.image_prompt // Fallback
+    }));
+
     try {
         const res = await fetch(`${BACKEND_URL}/agent/export`, {
             method: "POST",
@@ -720,7 +726,12 @@ export default function App() {
                 "Content-Type": "application/json", 
                 "Authorization": `Bearer ${token}`
             },
-            body: JSON.stringify({ images: imgUrls, format: fmt, project_id: currentProjectId })
+            body: JSON.stringify({ 
+                images: imgUrls, 
+                format: fmt, 
+                project_id: currentProjectId,
+                slides_data: slidesData 
+            })
         });
         const data = await res.json();
         if (data.url) {
@@ -735,7 +746,7 @@ export default function App() {
             link.target = '_blank';
             link.rel = 'noopener noreferrer';
             // Force filename if backend didn't provide Content-Disposition, helps browser treat as download
-            if (fmt === 'pdf') link.download = `presentation-${new Date().getTime()}.pdf`;
+            if (fmt.startsWith('pdf')) link.download = `presentation-${new Date().getTime()}.pdf`;
             else if (fmt === 'zip') link.download = `presentation-${new Date().getTime()}.zip`;
             
             document.body.appendChild(link);
