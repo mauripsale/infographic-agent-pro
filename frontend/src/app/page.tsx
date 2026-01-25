@@ -131,6 +131,10 @@ export default function App() {
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [language, setLanguage] = useState("English");
   
+  // Brand Kit State
+  const [brandPrimary, setBrandPrimary] = useState("");
+  const [brandSecondary, setBrandSecondary] = useState("");
+  
   const [phase, setPhase] = useState<"input" | "review" | "graphics">("input");
   const [script, setScript] = useState<any>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -570,7 +574,8 @@ export default function App() {
             if (fid) fileIds.push(fid);
         }
 
-        const effectiveQuery = `[GENERATION SETTINGS] Slides: ${numSlides}, Style: ${style || "Professional"}, Detail: ${detailLevel}, AR: ${aspectRatio}, Lang: ${language}\n\n[USER REQUEST]\n${query}`;
+        const effectiveQuery = `[GENERATION SETTINGS] Slides: ${numSlides}, Style: ${style || "Professional"}, Detail: ${detailLevel}, AR: ${aspectRatio}, Lang: ${language}
+Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N/A"}\n\n[USER REQUEST]\n${query}`;
 
         try {
             const res = await fetch(`${BACKEND_URL}/agent/stream`, {
@@ -1088,7 +1093,7 @@ export default function App() {
         <section className="grid grid-cols-1 md:grid-cols-12 gap-8">
           
           {/* SIDEBAR / MOBILE DRAWER */}
-          <aside className={`col-span-1 md:col-span-3 bg-[#111827] rounded-2xl border border-slate-800 shadow-xl overflow-hidden transition-all duration-300 ${showMobileSettings ? "max-h-[500px] mb-6" : "max-h-0 md:max-h-none opacity-0 md:opacity-100 hidden md:flex flex-col gap-6 p-6"}`}>
+          <aside className={`col-span-1 md:col-span-3 bg-[#111827] rounded-2xl border border-slate-800 shadow-xl overflow-hidden transition-all duration-300 ${showMobileSettings ? "max-h-[800px] mb-6" : "max-h-0 md:max-h-none opacity-0 md:opacity-100 hidden md:flex flex-col gap-6 p-6"}`}>
              {/* Duplicate Settings Content for Mobile Toggle logic */}
              <div className="p-6 flex flex-col gap-6">
                 <div className="flex items-center gap-2 text-slate-100 font-semibold border-b border-slate-800 pb-4">
@@ -1103,6 +1108,29 @@ export default function App() {
                 <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Lang</label><select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option>English</option><option>Italian</option></select></div>
                 <div className="md:hidden"><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Model</label><select value={modelType} onChange={(e:any) => setModelType(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option value="flash">2.5 Flash</option><option value="pro">3 Pro</option></select></div>
                 <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Style</label><input type="text" value={style} onChange={(e) => setStyle(e.target.value)} placeholder="e.g. Minimalist" className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none" /></div>
+                
+                {/* BRAND KIT SECTION */}
+                <div className="pt-4 border-t border-slate-800">
+                    <div className="flex items-center gap-2 text-slate-100 font-semibold mb-4">
+                        <PaletteIcon /><span className="uppercase tracking-wider text-xs">Brand Kit</span>
+                    </div>
+                    <div className="flex flex-col gap-4">
+                        <div>
+                            <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">Primary Color</label>
+                            <div className="flex gap-2">
+                                <input type="text" value={brandPrimary} onChange={(e) => setBrandPrimary(e.target.value)} placeholder="#HEX" className="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs outline-none font-mono" />
+                                <div className="w-8 h-8 rounded border border-slate-700" style={{ backgroundColor: brandPrimary || "transparent" }}></div>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">Secondary Color</label>
+                            <div className="flex gap-2">
+                                <input type="text" value={brandSecondary} onChange={(e) => setBrandSecondary(e.target.value)} placeholder="#HEX" className="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs outline-none font-mono" />
+                                <div className="w-8 h-8 rounded border border-slate-700" style={{ backgroundColor: brandSecondary || "transparent" }}></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
              </div>
           </aside>
 
