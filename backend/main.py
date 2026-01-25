@@ -381,10 +381,12 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
         data = await request.json()
         phase = data.get("phase", "script")
         project_id = data.get("project_id") or uuid.uuid4().hex
+        skip_grid_init = data.get("skip_grid_init", False)
 
         async def event_generator():
             surface_id = "infographic_workspace"
-            yield json.dumps({"createSurface": {"surfaceId": surface_id, "catalogId": "https://a2ui.dev/specification/0.9/standard_catalog_definition.json"}}) + "\n"
+            if not skip_grid_init:
+                yield json.dumps({"createSurface": {"surfaceId": surface_id, "catalogId": "https://a2ui.dev/specification/0.9/standard_catalog_definition.json"}}) + "\n"
 
             if phase == "script":
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["l"]}, {"id": "l", "component": "Text", "text": "🧠 Agent is analyzing source material..."}]}}) + "\n"
@@ -474,33 +476,65 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 ar = script.get("global_settings", {}).get("aspect_ratio", "16:9")
                 children_ids = [f"card_{s['id']}" for s in slides]
                 card_comps = [{"id": f"card_{s['id']}", "component": "Text", "text": "Waiting...", "status": "waiting"} for s in slides]
-                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["status", "grid"]}, {"id": "status", "component": "Text", "text": "🎨 Starting production..."}, {"id": "grid", "component": "Column", "children": children_ids}] + card_comps}}) + "\n"
+                
+                if not skip_grid_init:
+                    yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["status", "grid"]}, {"id": "status", "component": "Text", "text": "🎨 Starting production..."}, {"id": "grid", "component": "Column", "children": children_ids}] + card_comps}}) + "\n"
 
+                # Get logo for the batch
+                logo_url = await get_project_logo(user_id, project_id) if project_id else None
                 img_tool = ImageGenerationTool(api_key=api_key)
+                
                 for idx, slide in enumerate(slides):
                     if await request.is_disconnected(): break
                     sid = slide['id']
                     msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": "🖌️ Nano Banana is drawing...", "status": "generating"}]}})
                     yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
-                    img_url = await asyncio.to_thread(img_tool.generate_and_save, slide['image_prompt'], aspect_ratio=ar, user_id=user_id)
+                    
+                    img_url = await asyncio.to_thread(img_tool.generate_and_save, slide['image_prompt'], aspect_ratio=ar, user_id=user_id, project_id=project_id, logo_url=logo_url)
 
                     if "Error" not in img_url:
                         slide["image_url"] = img_url
-                        msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"}, {"id": f"title_{sid}", "component": "Text", "text": f"{idx+1}. {slide['title']}"}, {"id": f"img_{sid}", "component": "Image", "src": img_url}]}})
+                        # IMPORTANT: We send the title as well, matching the original script logic
+                        # But we might need to know the true index if this is a partial batch.
+                        # For now, let's assume the frontend updates the title correctly or we send just the image.
+                        # Actually, title relies on 'idx' which is local to this loop. 
+                        # If batching, idx 0 is the first slide of the batch, not the presentation.
+                        # We should trust the frontend's static title or pass the real index in slide data.
+                        # Let's keep it simple: update image and card structure. The text "1. Title" might be wrong if we regenerate just one.
+                        # FIX: Use slide['title'] directly without index prefix if we can't determine global index easily, 
+                        # OR better: The frontend already rendered the title correct?
+                        # The component update overrides the content.
+                        # We should try to preserve the prefix if possible or just show the title.
+                        display_title = slide.get('title', 'Slide')
+                        msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"}, {"id": f"title_{sid}", "component": "Text", "text": display_title}, {"id": f"img_{sid}", "component": "Image", "src": img_url}]}})
                     else:
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}})
                     yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
 
+                # Only mark as completed if this was the final batch or if we want to force save.
+                # Since we don't know if it's the last batch easily here, we rely on frontend to orchestrate final save?
+                # Or we just save what we have. Saving partial progress is good.
                 if db and not await request.is_disconnected():
-                    db.collection("users").document(user_id).collection("projects").document(project_id).update({
-                        "script": script,
-                        "status": "completed",
-                        "updated_at": firestore.SERVER_TIMESTAMP
-                    })
+                    # We need to be careful not to overwrite the WHOLE script with a partial one.
+                    # This endpoint receives 'script' which might be partial.
+                    # Best practice: Fetch current script from DB, update just these slides, save back.
+                    # But that's complex and racy.
+                    # Alternative: Frontend sends FULL script but only wants us to generate SOME slides.
+                    # That's cleaner. But then we iterate over all?
+                    # Let's stick to the plan: Frontend sends PARTIAL script for generation.
+                    # Backend should NOT overwrite the full script in DB with the partial one.
+                    # So we SKIP the DB update here for batching, or we do a smart merge.
+                    # Let's SKIP DB update if skip_grid_init is True (implies batching/partial).
+                    if not skip_grid_init:
+                         db.collection("users").document(user_id).collection("projects").document(project_id).update({
+                            "script": script,
+                            "status": "completed",
+                            "updated_at": firestore.SERVER_TIMESTAMP
+                        })
 
-                if not await request.is_disconnected():
+                if not await request.is_disconnected() and not skip_grid_init:
                     yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✨ Done!"}]}}) + "\n"
 
         return StreamingResponse(event_generator(), media_type="application/x-ndjson")

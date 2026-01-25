@@ -525,6 +525,7 @@ export default function App() {
     setIsStreaming(true);
     const token = await getToken();
     
+    // --- PHASE 1: SCRIPT GENERATION (Single Request) ---
     if (targetPhase === "script") {
         setPhase("review");
         setScript({
@@ -536,97 +537,180 @@ export default function App() {
         });
         setSurfaceState({ components: {}, dataModel: {} });
         setVisiblePrompts({});
-        setCurrentProjectId(null); // Reset for new project
-    } else {
-        setPhase("graphics");
-    }
+        setCurrentProjectId(null);
 
-    setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+        setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
 
-    const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
-    
-    let effectiveQuery = query;
-    let fileIds: string[] = [];
-
-    const uploadFile = async (file: File) => {
-        const formData = new FormData();
-        formData.append("file", file);
-        try {
-            const uploadRes = await fetch(`${BACKEND_URL}/agent/upload`, {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${token}` },
-                body: formData
-            });
-            const uploadData = await uploadRes.json();
-            if (uploadData.file_id) return uploadData.file_id;
-            else throw new Error("Upload failed");
-        } catch (e) {
-            console.error(`Upload failed for ${file.name}`, e);
-            return null;
-        }
-    };
-
-    if (targetPhase === "script") {
-        // Upload all files in parallel-ish or sequence
+        const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
+        
+        // Upload files logic...
+        let fileIds: string[] = [];
         const allFiles = [...uploadedFiles, ...brandingFiles];
+        
+        const uploadFile = async (file: File) => {
+            const formData = new FormData();
+            formData.append("file", file);
+            try {
+                const uploadRes = await fetch(`${BACKEND_URL}/agent/upload`, {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${token}` },
+                    body: formData
+                });
+                const uploadData = await uploadRes.json();
+                if (uploadData.file_id) return uploadData.file_id;
+                else throw new Error("Upload failed");
+            } catch (e) {
+                console.error(`Upload failed for ${file.name}`, e);
+                return null;
+            }
+        };
+
         for (const f of allFiles) {
             const fid = await uploadFile(f);
             if (fid) fileIds.push(fid);
         }
+
+        const effectiveQuery = `[GENERATION SETTINGS] Slides: ${numSlides}, Style: ${style || "Professional"}, Detail: ${detailLevel}, AR: ${aspectRatio}, Lang: ${language}\n\n[USER REQUEST]\n${query}`;
+
+        try {
+            const res = await fetch(`${BACKEND_URL}/agent/stream`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json", 
+                    "X-GenAI-Model": selectedModel,
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    query: effectiveQuery, 
+                    phase: "script", 
+                    session_id: "s1",
+                    project_id: currentProjectId,
+                    file_ids: fileIds
+                }),
+                signal: abortController.signal
+            });
+            
+            await processStream(res.body!.getReader(), (msg) => {
+                if (msg.updateComponents) {
+                    setSurfaceState((prev: any) => {
+                        const nextComps = { ...prev.components };
+                        msg.updateComponents.components.forEach((c: any) => nextComps[c.id] = c);
+                        return { ...prev, components: nextComps };
+                    });
+                }
+                if (msg.updateDataModel) {
+                    if (msg.updateDataModel.value?.script) setScript(msg.updateDataModel.value.script);
+                    if (msg.updateDataModel.value?.project_id) {
+                        setCurrentProjectId(msg.updateDataModel.value.project_id);
+                        localStorage.setItem("lastProjectId", msg.updateDataModel.value.project_id);
+                    }
+                }
+            });
+        } catch (e: any) { 
+            if (e.name !== 'AbortError') console.error("Script stream error:", e); 
+        } finally { 
+            setIsStreaming(false); 
+            abortControllerRef.current = null;
+            fetchProjects(); 
+        }
+        return;
     }
 
-    if (targetPhase === "script") {
-        effectiveQuery = `[GENERATION SETTINGS] Slides: ${numSlides}, Style: ${style || "Professional"}, Detail: ${detailLevel}, AR: ${aspectRatio}, Lang: ${language}\n\n[USER REQUEST]\n${query}`;
-    }
+    // --- PHASE 2: GRAPHICS GENERATION (Batched Requests) ---
+    if (targetPhase === "graphics" && currentScript) {
+        setPhase("graphics");
+        setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
 
-    let payloadScript = currentScript;
-    if (targetPhase === "graphics" && payloadScript) {
-        if (!payloadScript.global_settings) payloadScript.global_settings = {};
-        payloadScript.global_settings.aspect_ratio = aspectRatio;
-    }
+        if (!currentScript.global_settings) currentScript.global_settings = {};
+        currentScript.global_settings.aspect_ratio = aspectRatio;
 
-    try {
-      const res = await fetch(`${BACKEND_URL}/agent/stream`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json", 
-            "X-GenAI-Model": selectedModel,
-            "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-            query: effectiveQuery, 
-            phase: targetPhase, 
-            script: payloadScript, 
-            session_id: "s1",
-            project_id: currentProjectId,
-            file_ids: fileIds
-        }),
-        signal: abortController.signal
-      });
-      
-      await processStream(res.body!.getReader(), (msg) => {
-          if (msg.updateComponents) {
-              setSurfaceState((prev: any) => {
-              const nextComps = { ...prev.components };
-              msg.updateComponents.components.forEach((c: any) => nextComps[c.id] = c);
-              return { ...prev, components: nextComps };
-              });
-          }
-          if (msg.updateDataModel) {
-              if (msg.updateDataModel.value?.script) setScript(msg.updateDataModel.value.script);
-              if (msg.updateDataModel.value?.project_id) {
-                  setCurrentProjectId(msg.updateDataModel.value.project_id);
-                  localStorage.setItem("lastProjectId", msg.updateDataModel.value.project_id);
-              }
-          }
-      });
+        const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
+        
+        // Identify slides needing generation (those without image_url or with placeholders)
+        // We use the current script passed in argument as source of truth
+        const allSlides = currentScript.slides || [];
+        const pendingSlides = allSlides.filter((s: Slide) => !s.image_url);
+        
+        if (pendingSlides.length === 0) {
+            setIsStreaming(false);
+            return;
+        }
 
-    } catch (e: any) { 
-        if (e.name !== 'AbortError') console.error("Stream error:", e); 
-    } finally { 
-        setIsStreaming(false); 
-        abortControllerRef.current = null;
-        fetchProjects(); // Refresh history
+        const BATCH_SIZE = 3;
+        
+        try {
+            for (let i = 0; i < pendingSlides.length; i += BATCH_SIZE) {
+                if (abortController.signal.aborted) break;
+
+                const batchSlides = pendingSlides.slice(i, i + BATCH_SIZE);
+                const isFirstBatch = i === 0;
+                
+                // Create a partial script for this batch
+                const batchScript = {
+                    ...currentScript,
+                    slides: batchSlides
+                };
+
+                // Update UI to show waiting state for this batch immediately (optional, handled by backend too)
+                // But we want to ensure other slides stay visible.
+                
+                await fetch(`${BACKEND_URL}/agent/stream`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json", 
+                        "X-GenAI-Model": selectedModel,
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        phase: "graphics", 
+                        script: batchScript, 
+                        session_id: "s1",
+                        project_id: currentProjectId,
+                        skip_grid_init: !isFirstBatch // Critical: only init grid once
+                    }),
+                    signal: abortController.signal
+                }).then(async (res) => {
+                    await processStream(res.body!.getReader(), (msg) => {
+                        if (msg.updateComponents) {
+                            setSurfaceState((prev: any) => {
+                                const nextComps = { ...prev.components };
+                                msg.updateComponents.components.forEach((c: any) => {
+                                    // Special handling: if backend sends "waiting" status for cards,
+                                    // ensure we don't overwrite "success" cards from previous batches.
+                                    // Backend sends by ID, so it should be fine as IDs are unique.
+                                    nextComps[c.id] = c;
+                                });
+                                return { ...prev, components: nextComps };
+                            });
+                            
+                            // Capture Image URLs to update local script state for next batch logic?
+                            // Actually, processStream updates surfaceState (visuals).
+                            // We also need to update 'script' state so if user stops and resumes, we know what's done.
+                            // The backend sends components with 'src'. We can extract that.
+                            const comps = msg.updateComponents.components;
+                            comps.forEach((c: any) => {
+                                if (c.component === "Image" && c.src) {
+                                    // Extract slide ID from component ID "img_{id}"
+                                    const sid = c.id.replace("img_", "");
+                                    setScript((prevScript: any) => ({
+                                        ...prevScript,
+                                        slides: prevScript.slides.map((s: Slide) => 
+                                            s.id === sid ? { ...s, image_url: c.src } : s
+                                        )
+                                    }));
+                                }
+                            });
+                        }
+                    });
+                });
+            }
+        } catch (e: any) {
+            if (e.name !== 'AbortError') console.error("Graphics stream error:", e);
+        } finally {
+            setIsStreaming(false);
+            abortControllerRef.current = null;
+            fetchProjects();
+        }
     }
   };
 
