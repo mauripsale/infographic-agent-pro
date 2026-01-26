@@ -230,7 +230,7 @@ export default function App() {
         
         // Auto-Resume Last Session
         const lastPid = localStorage.getItem("lastProjectId");
-        if (lastPid) {
+        if (lastPid && lastPid !== "undefined" && lastPid !== "null") {
             // We need to fetch the summary first or just try to load by ID directly?
             // To reuse loadProject, we need a summary object. 
             // Or we can just fetch details directly. Let's do direct fetch.
@@ -240,6 +240,8 @@ export default function App() {
   }, [user]);
 
   const fetchDetailsDirectly = async (pid: string) => {
+      if (!pid || pid === "undefined" || pid === "null") return;
+      
       setIsLoadingHistory(true);
       try {
           const token = await getToken();
@@ -680,9 +682,13 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                             setSurfaceState((prev: any) => {
                                 const nextComps = { ...prev.components };
                                 msg.updateComponents.components.forEach((c: any) => {
+                                    // Protect skipped slides from being overwritten by delayed backend responses
+                                    const currentComp = prev.components[c.id];
+                                    if (currentComp?.status === "skipped") {
+                                        return; // Ignore update if user skipped this slide
+                                    }
                                     // Special handling: if backend sends "waiting" status for cards,
                                     // ensure we don't overwrite "success" cards from previous batches.
-                                    // Backend sends by ID, so it should be fine as IDs are unique.
                                     nextComps[c.id] = c;
                                 });
                                 return { ...prev, components: nextComps };

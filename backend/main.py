@@ -215,6 +215,8 @@ async def get_project(project_id: str, user_id: str = Depends(get_user_id)):
         if not doc.exists:
             raise HTTPException(status_code=404, detail="Project not found")
         return doc.to_dict()
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Get Project Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve project")
