@@ -1249,12 +1249,45 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                         return !s.image_url && !comp?.src;
                     }).length || 0;
                     
-                    if (script && pendingSlides > 0 && !isStreaming) {
-                        return (
-                            <button onClick={() => handleStream("graphics", script)} className="bg-green-600 hover:bg-green-500 px-6 md:px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-900/20 text-sm whitespace-nowrap w-full md:w-auto">
-                                {hasGeneratedImages ? `Generate Remaining (${pendingSlides})` : "Generate Graphics"}
-                            </button>
-                        );
+                    if (script && !isStreaming) {
+                        if (pendingSlides > 0) {
+                            return (
+                                <button onClick={() => handleStream("graphics", script)} className="bg-green-600 hover:bg-green-500 px-6 md:px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-900/20 text-sm whitespace-nowrap w-full md:w-auto">
+                                    {hasGeneratedImages ? `Generate Remaining (${pendingSlides})` : "Generate Graphics"}
+                                </button>
+                            );
+                        } else {
+                            // All slides technically "done" (or broken old links). Show Regenerate All.
+                            return (
+                                <button 
+                                    onClick={() => {
+                                        if (confirm("Regenerate ALL slides? This will replace existing images.")) {
+                                            // Reset local state to force regeneration
+                                            const resetScript = {
+                                                ...script,
+                                                slides: script.slides.map((s: Slide) => ({ ...s, image_url: undefined }))
+                                            };
+                                            setScript(resetScript);
+                                            // Reset UI components
+                                            setSurfaceState((prev: any) => {
+                                                const nextComps = { ...prev.components };
+                                                script.slides.forEach((s: Slide) => {
+                                                    nextComps[`card_${s.id}`] = { id: `card_${s.id}`, component: "Text", text: "Waiting...", status: "waiting" };
+                                                    delete nextComps[`img_${s.id}`];
+                                                    delete nextComps[`title_${s.id}`];
+                                                });
+                                                return { ...prev, components: nextComps };
+                                            });
+                                            // Trigger generation
+                                            setTimeout(() => handleStream("graphics", resetScript), 100);
+                                        }
+                                    }} 
+                                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-4 py-3 rounded-lg font-bold text-sm whitespace-nowrap flex items-center gap-2"
+                                >
+                                    <RefreshIcon /> Regenerate All
+                                </button>
+                            );
+                        }
                     }
                     return null;
                 })()}
