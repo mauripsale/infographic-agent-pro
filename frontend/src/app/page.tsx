@@ -1117,16 +1117,16 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                     <div className="flex flex-col gap-4">
                         <div>
                             <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">Primary Color</label>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 items-center">
+                                <input type="color" value={brandPrimary || "#3b82f6"} onChange={(e) => setBrandPrimary(e.target.value)} className="w-8 h-8 rounded-lg bg-transparent border-none cursor-pointer p-0 overflow-hidden" />
                                 <input type="text" value={brandPrimary} onChange={(e) => setBrandPrimary(e.target.value)} placeholder="#HEX" className="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs outline-none font-mono" />
-                                <div className="w-8 h-8 rounded border border-slate-700" style={{ backgroundColor: brandPrimary || "transparent" }}></div>
                             </div>
                         </div>
                         <div>
                             <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">Secondary Color</label>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 items-center">
+                                <input type="color" value={brandSecondary || "#1e293b"} onChange={(e) => setBrandSecondary(e.target.value)} className="w-8 h-8 rounded-lg bg-transparent border-none cursor-pointer p-0 overflow-hidden" />
                                 <input type="text" value={brandSecondary} onChange={(e) => setBrandSecondary(e.target.value)} placeholder="#HEX" className="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs outline-none font-mono" />
-                                <div className="w-8 h-8 rounded border border-slate-700" style={{ backgroundColor: brandSecondary || "transparent" }}></div>
                             </div>
                         </div>
                     </div>
