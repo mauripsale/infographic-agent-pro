@@ -1,6 +1,7 @@
 from google.adk.agents import LlmAgent
 from google.adk.tools import google_search, url_context
 from google.adk.tools.agent_tool import AgentTool
+from google.adk.planners import BuiltInPlanner
 import os
 from tools.image_gen import ImageGenerationTool
 
@@ -11,6 +12,7 @@ def create_refiner_agent(api_key: str = None):
     return LlmAgent(
         name="ContentRefiner",
         model="gemini-2.5-flash",
+        planner=BuiltInPlanner(), # Ensure structured reasoning for JSON output
         instruction="""You are an expert Content Editor.
 You will receive a JSON object containing:
 - 'title': Current title
@@ -39,6 +41,7 @@ def create_image_artist_agent(api_key: str, img_tool: ImageGenerationTool, user_
     return LlmAgent(
         name="ImageArtist",
         model="gemini-2.5-flash", 
+        planner=BuiltInPlanner(), # Required to trigger tool usage
         instruction="""You are an expert AI Artist.
 Your task is to generate an infographic image using the 'generate_infographic' tool.
 You will receive a visual description (prompt) and an aspect ratio.

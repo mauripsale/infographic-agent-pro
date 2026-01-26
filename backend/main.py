@@ -346,7 +346,7 @@ async def refine_text(request: Request, user_id: str = Depends(get_user_id), api
             "instruction": instruction
         })
 
-        agent_response = ""
+        agent_output = ""
         # ADK Agent Execution
         async for event in runner.run_async(session_id=session.id, user_id=user_id, new_message=types.Content(role="user", parts=[types.Part(text=input_payload)])):
             if event.content and event.content.parts:
