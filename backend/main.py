@@ -332,6 +332,29 @@ async def regenerate_slide(request: Request, user_id: str = Depends(get_user_id)
             img_url = await asyncio.to_thread(img_tool.generate_and_save, prompt, aspect_ratio=aspect_ratio, user_id=user_id, project_id=project_id, logo_url=logo_url)
 
             if "Error" not in img_url:
+                # ---------------- CRITICAL: SAVE TO FIRESTORE ----------------
+                if db and project_id:
+                    try:
+                        doc_ref = db.collection("users").document(user_id).collection("projects").document(project_id)
+                        doc = await asyncio.to_thread(doc_ref.get)
+                        if doc.exists:
+                            project_data = doc.to_dict()
+                            script = project_data.get("script", {})
+                            slides = script.get("slides", [])
+                            updated = False
+                            for s in slides:
+                                if s.get("id") == slide_id:
+                                    s["image_url"] = img_url
+                                    updated = True
+                                    break
+                            
+                            if updated:
+                                await asyncio.to_thread(doc_ref.update, {"script": script, "updated_at": firestore.SERVER_TIMESTAMP})
+                                logger.info(f"Saved regenerated slide {slide_id} to DB")
+                    except Exception as db_err:
+                        logger.error(f"DB Save Failed for slide {slide_id}: {db_err}")
+                # -------------------------------------------------------------
+
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [
                     {"id": f"card_{slide_id}", "component": "Column", "children": [f"title_{slide_id}", f"img_{slide_id}"], "status": "success"},
                     {"id": f"img_{slide_id}", "component": "Image", "src": img_url}
