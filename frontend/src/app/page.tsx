@@ -1192,7 +1192,14 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                   disabled={isStreaming || !hasApiKey || (!query && uploadedFiles.length === 0)} 
                   className="w-full md:w-[50%] bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 min-h-[48px]"
                 >
-                    {isStreaming && phase === "review" ? "Generating..." : <><SparklesIcon /> Generate Script</>}
+                    {isStreaming && phase === "review" ? (
+                        <>
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            <span>Architecting...</span>
+                        </>
+                    ) : (
+                        <><SparklesIcon /> Generate Script</>
+                    )}
                 </button>
               </div>
 
@@ -1255,10 +1262,10 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
             </div>
 
             {isStreaming && phase === "review" && !script && (
-                <div className="flex flex-col items-center justify-center py-20 animate-fade-in border border-dashed border-slate-800 rounded-xl bg-slate-900/30">
-                    <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-6 shadow-lg shadow-blue-900/50"></div>
-                    <h3 className="text-2xl font-bold text-white mb-2 animate-pulse">Architecting your story...</h3>
-                    <p className="text-slate-400 font-mono text-sm">Analyzing data • Structuring narrative • Planning visuals</p>
+                <div className="flex flex-col items-center justify-center py-24 animate-fade-in border border-dashed border-slate-800 rounded-xl bg-slate-900/30">
+                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+                    <h3 className="text-xl font-bold text-white mb-2 animate-pulse">Architecting your story...</h3>
+                    <p className="text-slate-500 font-mono text-xs uppercase tracking-widest">Analyzing Data • Structuring • Planning</p>
                 </div>
             )}
 
