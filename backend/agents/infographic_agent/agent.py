@@ -4,6 +4,50 @@ from google.adk.tools.agent_tool import AgentTool
 import os
 from tools.image_gen import ImageGenerationTool
 
+def create_refiner_agent(api_key: str = None):
+    if api_key:
+        os.environ["GOOGLE_API_KEY"] = api_key
+    
+    return LlmAgent(
+        name="ContentRefiner",
+        model="gemini-2.5-flash",
+        instruction="""You are an expert Content Editor.
+You will receive a JSON object containing:
+- 'title': Current title
+- 'description': Current description
+- 'instruction': User's editing instruction (e.g., "Make it shorter", "Translate to Spanish")
+
+Your task is to rewrite the 'title' and 'description' according to the 'instruction'.
+
+**RULES:**
+1. Respect the user's instruction precisely.
+2. Maintain the original meaning unless asked to change it.
+3. Output MUST be a valid JSON object with 'title' and 'description' keys.
+4. Do NOT output markdown code blocks, just the raw JSON string.
+"""
+    )
+
+def create_image_artist_agent(api_key: str, img_tool: ImageGenerationTool, user_id: str, project_id: str, logo_url: str = None):
+    if api_key:
+        os.environ["GOOGLE_API_KEY"] = api_key
+    
+    # Closure to bind context to the tool
+    def generate_infographic(prompt: str, aspect_ratio: str = "16:9") -> str:
+        """Generates an infographic image based on the prompt and aspect ratio."""
+        return img_tool.generate_and_save(prompt, aspect_ratio=aspect_ratio, user_id=user_id, project_id=project_id, logo_url=logo_url)
+
+    return LlmAgent(
+        name="ImageArtist",
+        model="gemini-2.5-flash", 
+        instruction="""You are an expert AI Artist.
+Your task is to generate an infographic image using the 'generate_infographic' tool.
+You will receive a visual description (prompt) and an aspect ratio.
+Call the tool with these parameters.
+Output ONLY the URL returned by the tool.
+""",
+        tools=[generate_infographic]
+    )
+
 def create_infographic_agent(api_key: str = None):
     if api_key:
         os.environ["GOOGLE_API_KEY"] = api_key

@@ -31,7 +31,7 @@ except ImportError:
     from contextvars import ContextVar
     model_context = ContextVar("model_context", default="gemini-2.5-flash-image")
 
-from agents.infographic_agent.agent import create_infographic_agent
+from agents.infographic_agent.agent import create_infographic_agent, create_refiner_agent, create_image_artist_agent
 from tools.image_gen import ImageGenerationTool
 from tools.export_tool import ExportTool
 from tools.security_tool import security_service
@@ -44,14 +44,22 @@ logger = logging.getLogger(__name__)
 
 # --- INITIALIZATION ---
 
-# 1. Artifact Service
+# 1. Artifact Service (Robust GCS Bucket Detection)
 gcs_bucket = os.environ.get("GCS_BUCKET_NAME")
+if not gcs_bucket:
+    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    if project_id:
+        gcs_bucket = f"{project_id}-infographic-assets"
+        logger.info(f"GCS_BUCKET_NAME not set. Falling back to default project bucket: {gcs_bucket}")
+        # Inject back into env for tools to pick up
+        os.environ["GCS_BUCKET_NAME"] = gcs_bucket
+
 if gcs_bucket:
     artifact_service = GcsArtifactService(bucket_name=gcs_bucket)
     logger.info(f"Initialized GcsArtifactService with bucket: {gcs_bucket}")
 else:
     artifact_service = InMemoryArtifactService()
-    logger.warning("GCS_BUCKET_NAME not set. Using InMemoryArtifactService (artifacts will be lost on restart).")
+    logger.warning("CRITICAL: GCS_BUCKET_NAME not found and GOOGLE_CLOUD_PROJECT unknown. Using InMemoryArtifactService (Data LOSS imminent on restart).")
 
 # 2. Storage Tool
 storage_tool = StorageTool(artifact_service)
@@ -311,6 +319,76 @@ async def get_project_logo(user_id: str, project_id: str) -> Optional[str]:
         logger.error(f"Logo detection failed: {e}")
         return None
 
+@app.post("/agent/refine_text")
+async def refine_text(request: Request, user_id: str = Depends(get_user_id), api_key: str = Depends(get_api_key)):
+    """
+    Refines slide text using an ADK Agent.
+    """
+    try:
+        data = await request.json()
+        slide_id = data.get("slide_id")
+        current_title = data.get("current_title")
+        current_description = data.get("current_description")
+        instruction = data.get("instruction")
+        project_id = data.get("project_id")
+
+        if not instruction:
+             raise HTTPException(status_code=400, detail="Missing instruction")
+
+        agent = create_refiner_agent(api_key=api_key)
+        runner = Runner(agent=agent, app_name="infographic-pro", session_service=InMemorySessionService())
+        # Use an ephemeral session
+        session = await runner.session_service.create_session(app_name="infographic-pro", user_id=user_id)
+
+        input_payload = json.dumps({
+            "title": current_title,
+            "description": current_description,
+            "instruction": instruction
+        })
+
+        agent_response = ""
+        # ADK Agent Execution
+        async for event in runner.run_async(session_id=session.id, user_id=user_id, new_message=types.Content(role="user", parts=[types.Part(text=input_payload)])):
+            if event.content and event.content.parts:
+                 for part in event.content.parts:
+                     if part.text: agent_output += part.text
+        
+        if not agent_output:
+             raise HTTPException(status_code=500, detail="Agent returned empty response")
+
+        # Clean markdown code blocks if any
+        cleaned_response = agent_output.strip().replace("```json", "").replace("```", "")
+        refined_data = json.loads(cleaned_response)
+        
+        # Update Firestore
+        if db and project_id:
+            try:
+                doc_ref = db.collection("users").document(user_id).collection("projects").document(project_id)
+                doc = await asyncio.to_thread(doc_ref.get)
+                if doc.exists:
+                    project_data = doc.to_dict()
+                    script = project_data.get("script", {})
+                    slides = script.get("slides", [])
+                    updated = False
+                    for s in slides:
+                        if s.get("id") == slide_id:
+                            s["title"] = refined_data.get("title", s["title"])
+                            s["description"] = refined_data.get("description", s["description"])
+                            updated = True
+                            break
+                    
+                    if updated:
+                        await asyncio.to_thread(doc_ref.update, {"script": script, "updated_at": firestore.SERVER_TIMESTAMP})
+                        logger.info(f"Saved refined text for slide {slide_id}")
+            except Exception as db_err:
+                logger.error(f"DB Save Failed for refined text: {db_err}")
+        
+        return refined_data
+
+    except Exception as e:
+        logger.error(f"Refine Text Error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @app.post("/agent/regenerate_slide")
 async def regenerate_slide(request: Request, user_id: str = Depends(get_user_id), api_key: str = Depends(get_api_key)):
     try:
@@ -508,8 +586,25 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
 
                 # Get logo for the batch
                 logo_url = await get_project_logo(user_id, project_id) if project_id else None
+                
                 img_tool = ImageGenerationTool(api_key=api_key)
                 
+                # Fetch FULL project to perform smart updates
+                current_full_script = None
+                if db and project_id:
+                    try:
+                        doc = await asyncio.to_thread(db.collection("users").document(user_id).collection("projects").document(project_id).get)
+                        if doc.exists:
+                            current_full_script = doc.to_dict().get("script", {})
+                    except Exception as e:
+                        logger.error(f"Failed to fetch existing project for update: {e}")
+
+                # Use local script if DB fetch failed (fallback, though DB is preferred)
+                if not current_full_script:
+                    current_full_script = script
+
+                batch_updates = {} # id -> image_url
+
                 for idx, slide in enumerate(slides):
                     if await request.is_disconnected(): break
                     sid = slide['id']
@@ -517,21 +612,28 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
                     
-                    img_url = await asyncio.to_thread(img_tool.generate_and_save, slide['image_prompt'], aspect_ratio=ar, user_id=user_id, project_id=project_id, logo_url=logo_url)
+                    # ADK NATIVE CHANGE: Use ImageArtistAgent + Runner
+                    artist_agent = create_image_artist_agent(api_key, img_tool, user_id, project_id, logo_url)
+                    artist_runner = Runner(agent=artist_agent, app_name="infographic-pro", session_service=InMemorySessionService())
+                    artist_session = await artist_runner.session_service.create_session(app_name="infographic-pro", user_id=user_id)
+                    
+                    prompt_text = f"Generate infographic image for: {slide['image_prompt']} with aspect ratio {ar}"
+                    img_url = ""
+                    
+                    try:
+                        async for event in artist_runner.run_async(session_id=artist_session.id, user_id=user_id, new_message=types.Content(role="user", parts=[types.Part(text=prompt_text)])):
+                            if event.content and event.content.parts:
+                                for part in event.content.parts:
+                                    if part.text: img_url += part.text
+                    except Exception as e:
+                         img_url = f"Error in agent: {str(e)}"
+                    
+                    img_url = img_url.strip()
 
                     if "Error" not in img_url:
                         slide["image_url"] = img_url
-                        # IMPORTANT: We send the title as well, matching the original script logic
-                        # But we might need to know the true index if this is a partial batch.
-                        # For now, let's assume the frontend updates the title correctly or we send just the image.
-                        # Actually, title relies on 'idx' which is local to this loop. 
-                        # If batching, idx 0 is the first slide of the batch, not the presentation.
-                        # We should trust the frontend's static title or pass the real index in slide data.
-                        # Let's keep it simple: update image and card structure. The text "1. Title" might be wrong if we regenerate just one.
-                        # FIX: Use slide['title'] directly without index prefix if we can't determine global index easily, 
-                        # OR better: The frontend already rendered the title correct?
-                        # The component update overrides the content.
-                        # We should try to preserve the prefix if possible or just show the title.
+                        batch_updates[sid] = img_url
+                        
                         display_title = slide.get('title', 'Slide')
                         msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"}, {"id": f"title_{sid}", "component": "Text", "text": display_title}, {"id": f"img_{sid}", "component": "Image", "src": img_url}]}})
                     else:
@@ -539,26 +641,23 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
 
-                # Only mark as completed if this was the final batch or if we want to force save.
-                # Since we don't know if it's the last batch easily here, we rely on frontend to orchestrate final save?
-                # Or we just save what we have. Saving partial progress is good.
-                if db and not await request.is_disconnected():
-                    # We need to be careful not to overwrite the WHOLE script with a partial one.
-                    # This endpoint receives 'script' which might be partial.
-                    # Best practice: Fetch current script from DB, update just these slides, save back.
-                    # But that's complex and racy.
-                    # Alternative: Frontend sends FULL script but only wants us to generate SOME slides.
-                    # That's cleaner. But then we iterate over all?
-                    # Let's stick to the plan: Frontend sends PARTIAL script for generation.
-                    # Backend should NOT overwrite the full script in DB with the partial one.
-                    # So we SKIP the DB update here for batching, or we do a smart merge.
-                    # Let's SKIP DB update if skip_grid_init is True (implies batching/partial).
-                    if not skip_grid_init:
-                         db.collection("users").document(user_id).collection("projects").document(project_id).update({
-                            "script": script,
-                            "status": "completed",
+                # SAVE TO FIRESTORE (Incremental Update)
+                if db and project_id and batch_updates:
+                    try:
+                        # Apply updates to the FULL script
+                        if "slides" in current_full_script:
+                            for s in current_full_script["slides"]:
+                                if s["id"] in batch_updates:
+                                    s["image_url"] = batch_updates[s["id"]]
+                        
+                        db.collection("users").document(user_id).collection("projects").document(project_id).update({
+                            "script": current_full_script,
+                            "status": "completed", # Should likely stay completed
                             "updated_at": firestore.SERVER_TIMESTAMP
                         })
+                        logger.info(f"Updated DB for batch of {len(batch_updates)} slides.")
+                    except Exception as db_err:
+                        logger.error(f"Firestore Update Failed for batch: {db_err}")
 
                 if not await request.is_disconnected() and not skip_grid_init:
                     yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✨ Done!"}]}}) + "\n"
