@@ -1236,9 +1236,31 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                     </button>
                     </>
                 )}
-                {phase === "review" && script && (<button onClick={() => handleStream("graphics", script)} className="bg-green-600 hover:bg-green-500 px-6 md:px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-900/20 text-sm whitespace-nowrap w-full md:w-auto">Generate Graphics</button>)}
+                {(() => {
+                    const pendingSlides = script?.slides.filter((s: Slide) => {
+                        const comp = surfaceState.components[`img_${s.id}`];
+                        return !s.image_url && !comp?.src;
+                    }).length || 0;
+                    
+                    if (script && pendingSlides > 0 && !isStreaming) {
+                        return (
+                            <button onClick={() => handleStream("graphics", script)} className="bg-green-600 hover:bg-green-500 px-6 md:px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-900/20 text-sm whitespace-nowrap w-full md:w-auto">
+                                {hasGeneratedImages ? `Generate Remaining (${pendingSlides})` : "Generate Graphics"}
+                            </button>
+                        );
+                    }
+                    return null;
+                })()}
               </div>
             </div>
+
+            {isStreaming && phase === "review" && !script && (
+                <div className="flex flex-col items-center justify-center py-20 animate-fade-in border border-dashed border-slate-800 rounded-xl bg-slate-900/30">
+                    <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-6 shadow-lg shadow-blue-900/50"></div>
+                    <h3 className="text-2xl font-bold text-white mb-2 animate-pulse">Architecting your story...</h3>
+                    <p className="text-slate-400 font-mono text-sm">Analyzing data • Structuring narrative • Planning visuals</p>
+                </div>
+            )}
 
             {script && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
