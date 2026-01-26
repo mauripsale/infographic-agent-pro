@@ -45,13 +45,13 @@ logger = logging.getLogger(__name__)
 # --- INITIALIZATION ---
 
 # 1. Artifact Service
-gcs_bucket = os.environ.get("GCS_BUCKET_NAME") or "infographic-agent-pro-assets"
+gcs_bucket = os.environ.get("GCS_BUCKET_NAME")
 if gcs_bucket:
     artifact_service = GcsArtifactService(bucket_name=gcs_bucket)
     logger.info(f"Initialized GcsArtifactService with bucket: {gcs_bucket}")
 else:
     artifact_service = InMemoryArtifactService()
-    logger.warning("GCS_BUCKET_NAME not set and no fallback. Using InMemoryArtifactService (artifacts will be lost on restart).")
+    logger.warning("GCS_BUCKET_NAME not set. Using InMemoryArtifactService (artifacts will be lost on restart).")
 
 # 2. Storage Tool
 storage_tool = StorageTool(artifact_service)
