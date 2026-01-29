@@ -575,9 +575,9 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     if code_blocks:
                         for block in reversed(code_blocks):
                             try:
-                                data = json.loads(block)
-                                if "slides" in data: # Validation check
-                                    script_data = data
+                                parsed_data = json.loads(block)
+                                if "slides" in parsed_data: # Validation check
+                                    script_data = parsed_data
                                     break
                             except json.JSONDecodeError:
                                 continue
@@ -592,11 +592,11 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                             
                             if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
                                 potential_json = agent_output[start_idx:end_idx+1]
-                                data = json.loads(potential_json)
-                                if "slides" in data:
-                                    script_data = data
-                        except Exception:
-                            # Last Resort: Regex search for specific structure
+                                parsed_data = json.loads(potential_json)
+                                if "slides" in parsed_data:
+                                    script_data = parsed_data
+                        except json.JSONDecodeError:
+                            # This heuristic failed, try the final fallback.
                             pass
                     
                     # Strategy 3: Regex fallback (same as before but safer)
@@ -604,10 +604,11 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                         match = re.search(r'(\{.*\})', agent_output.replace("\n", ""), re.DOTALL)
                         if match:
                              try:
-                                data = json.loads(match.group(1))
-                                if "slides" in data:
-                                    script_data = data
-                             except: pass
+                                parsed_data = json.loads(match.group(1))
+                                if "slides" in parsed_data:
+                                    script_data = parsed_data
+                             except json.JSONDecodeError:
+                                 pass
 
                     if script_data:
                         # Extract Metadata for History
