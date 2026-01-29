@@ -567,10 +567,50 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 if await request.is_disconnected(): return
 
                 try:
-                    match = re.search(r'(\{.*\})', agent_output.replace("\n", ""), re.DOTALL)
-                    if match:
-                        script_data = json.loads(match.group(1))
-                        
+                    # --- ROBUST JSON EXTRACTION STRATEGY ---
+                    script_data = None
+                    
+                    # Strategy 1: Look for ```json ... ``` blocks (take the last valid one)
+                    code_blocks = re.findall(r'```json\s*(.*?)\s*```', agent_output, re.DOTALL)
+                    if code_blocks:
+                        for block in reversed(code_blocks):
+                            try:
+                                parsed_data = json.loads(block)
+                                if "slides" in parsed_data: # Validation check
+                                    script_data = parsed_data
+                                    break
+                            except json.JSONDecodeError:
+                                continue
+
+                    # Strategy 2: Look for raw JSON object if no code block worked
+                    if not script_data:
+                        try:
+                            # Heuristic: Find the sub-string starting from the first "{" 
+                            # and ending at the last "}".
+                            start_idx = agent_output.find("{")
+                            end_idx = agent_output.rfind("}")
+                            
+                            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                                potential_json = agent_output[start_idx:end_idx+1]
+                                parsed_data = json.loads(potential_json)
+                                if "slides" in parsed_data:
+                                    script_data = parsed_data
+                        except json.JSONDecodeError:
+                            # This heuristic failed, try the final fallback.
+                            pass
+                    
+                    # Strategy 3: Regex fallback (same as before but safer)
+                    if not script_data:
+                        match = re.search(r'(\{.*\})', agent_output.replace("\n", ""), re.DOTALL)
+                        if match:
+                             try:
+                                parsed_data = json.loads(match.group(1))
+                                if "slides" in parsed_data:
+                                    script_data = parsed_data
+                             except json.JSONDecodeError:
+                                 pass
+
+                    if script_data:
                         # Extract Metadata for History
                         query = data.get("query", "")
                         if "[USER REQUEST]" in query:

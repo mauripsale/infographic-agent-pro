@@ -73,6 +73,9 @@ The 'image_prompt' must be a detailed English description for an AI image genera
 - **Branding:** If brand colors are mentioned in the context (e.g., #FF5500), include them in every prompt.
 
 **FINAL FORMAT:**
+You MUST wrap the final JSON in a markdown code block exactly like this:
+
+```json
 {
   "global_settings": {
       "aspect_ratio": "16:9",
@@ -85,10 +88,10 @@ The 'image_prompt' must be a detailed English description for an AI image genera
       "description": "Description from Copywriter",
       "image_prompt": "A detailed infographic showing... [Style Keywords] [Colors]"
     }
-    ...
   ]
 }
-Output ONLY the final JSON block.
+```
+Output ONLY the code block. Do not add any other text.
 """
     )
 
