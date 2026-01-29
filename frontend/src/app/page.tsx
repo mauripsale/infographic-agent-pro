@@ -782,6 +782,11 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
     }
   };
 
+  const handleConfirmRegenerate = () => {
+      setShowConfirm(false);
+      handleStream("script");
+  };
+
   const handleExport = async (fmt: "zip" | "pdf" | "slides" | "pdf_handout") => {
     if (!hasApiKey) { setShowSettings(true); return; }
     if (!surfaceState.components || !script) return;
@@ -984,6 +989,30 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                         <button onClick={resetGenerationOnly} className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition-all">Restart Generation</button>
                       </div>
                       <button onClick={handleResetSession} className="w-full px-4 py-2 bg-red-900/30 hover:bg-red-900/50 border border-red-900 text-red-400 rounded-lg font-medium text-xs transition-all">Fully Reset Project</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* REGENERATE SCRIPT CONFIRMATION MODAL (For existing scripts) */}
+      {showConfirm && (
+          <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center backdrop-blur-sm animate-fade-in px-4">
+              <div className="bg-[#1e293b] border border-amber-900/30 p-8 rounded-2xl max-w-sm w-full shadow-2xl relative text-center">
+                  <div className="w-16 h-16 bg-amber-900/20 rounded-full flex items-center justify-center text-amber-500 mx-auto mb-4">
+                      <RefreshIcon />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Regenerate Script?</h3>
+                  <p className="text-slate-400 text-sm mb-6">
+                      You already have a script. Generating a new one will <span className="text-amber-400 font-bold">overwrite</span> the current plan and slide text.
+                  </p>
+                  <div className="flex gap-3">
+                    <button onClick={() => setShowConfirm(false)} className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium transition-all">Cancel</button>
+                    <button 
+                        onClick={handleConfirmRegenerate} 
+                        className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition-all"
+                    >
+                        Confirm
+                    </button>
                   </div>
               </div>
           </div>
