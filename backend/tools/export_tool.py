@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 STATIC_DIR = Path("static")
 
 class ExportTool:
+    _DOWNLOAD_TIMEOUT = 5
+
     def __init__(self):
         self.static_dir = STATIC_DIR
 
