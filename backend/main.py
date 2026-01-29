@@ -496,7 +496,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
             if phase == "script":
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Column", "children": ["l"]}, {"id": "l", "component": "Text", "text": "🧠 Agent is analyzing source material..."}]}}) + "\n"
 
-                agent = create_infographic_agent(api_key=api_key)
+                agent = create_infographic_team(api_key=api_key)
                 if await request.is_disconnected(): return
 
                 runner = Runner(agent=agent, app_name="infographic-pro", session_service=session_service)
