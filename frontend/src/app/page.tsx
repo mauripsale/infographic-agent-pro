@@ -782,6 +782,11 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
     }
   };
 
+  const handleConfirmRegenerate = () => {
+      setShowConfirm(false);
+      handleStream("script");
+  };
+
   const handleExport = async (fmt: "zip" | "pdf" | "slides" | "pdf_handout") => {
     if (!hasApiKey) { setShowSettings(true); return; }
     if (!surfaceState.components || !script) return;
@@ -1003,10 +1008,7 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                   <div className="flex gap-3">
                     <button onClick={() => setShowConfirm(false)} className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium transition-all">Cancel</button>
                     <button 
-                        onClick={() => {
-                            setShowConfirm(false);
-                            handleStream("script");
-                        }} 
+                        onClick={handleConfirmRegenerate} 
                         className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition-all"
                     >
                         Confirm
