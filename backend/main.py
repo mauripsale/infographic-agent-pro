@@ -31,7 +31,8 @@ except ImportError:
     from contextvars import ContextVar
     model_context = ContextVar("model_context", default="gemini-2.5-flash-image")
 
-from agents.infographic_agent.agent import create_infographic_agent, create_refiner_agent, create_image_artist_agent
+from agents.infographic_agent.agent import create_refiner_agent, create_image_artist_agent
+from agents.infographic_agent.team import create_infographic_team
 from tools.image_gen import ImageGenerationTool
 from tools.export_tool import ExportTool
 from tools.security_tool import security_service
