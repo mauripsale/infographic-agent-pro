@@ -5,14 +5,16 @@ from google.adk.planners import BuiltInPlanner
 import os
 from tools.image_gen import ImageGenerationTool
 
+# Use a constant for the model name to improve maintainability across all agents
+AGENT_MODEL = "gemini-2.5-flash"
+
 def create_refiner_agent(api_key: str = None):
     if api_key:
         os.environ["GOOGLE_API_KEY"] = api_key
     
     return LlmAgent(
         name="ContentRefiner",
-        model="gemini-2.5-flash",
-        planner=BuiltInPlanner(), # Ensure structured reasoning for JSON output
+        model=AGENT_MODEL,
         instruction="""You are an expert Content Editor.
 You will receive a JSON object containing:
 - 'title': Current title
@@ -33,8 +35,6 @@ def create_image_artist_agent(api_key: str, img_tool: ImageGenerationTool, user_
     if api_key:
         os.environ["GOOGLE_API_KEY"] = api_key
     
-    AGENT_MODEL = "gemini-2.5-flash"
-
     # Closure to bind context to the tool
     def generate_infographic(prompt: str, aspect_ratio: str = "16:9") -> str:
         """Generates an infographic image based on the prompt and aspect ratio."""
@@ -43,7 +43,6 @@ def create_image_artist_agent(api_key: str, img_tool: ImageGenerationTool, user_
     return LlmAgent(
         name="ImageArtist",
         model=AGENT_MODEL, 
-        planner=BuiltInPlanner(), # Required to trigger tool usage
         instruction="""You are an expert AI Artist.
 Your task is to generate an infographic image using the 'generate_infographic' tool.
 You will receive a visual description (prompt) and an aspect ratio.
@@ -56,9 +55,6 @@ Output ONLY the URL returned by the tool.
 def create_infographic_agent(api_key: str = None):
     if api_key:
         os.environ["GOOGLE_API_KEY"] = api_key
-    
-    # Use a constant for the model name to improve maintainability
-    AGENT_MODEL = "gemini-2.5-flash"
     
     # 1. Specialist: Search Agent (Isolated for Google Search Tool)
     search_agent = LlmAgent(
