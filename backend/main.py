@@ -382,6 +382,7 @@ async def refine_text(request: Request, user_id: str = Depends(get_user_id), api
                         logger.info(f"Saved refined text for slide {slide_id}")
             except Exception as db_err:
                 logger.error(f"DB Save Failed for refined text: {db_err}")
+                raise
         
         return refined_data
 
@@ -642,6 +643,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                                 for part in event.content.parts:
                                     if part.text: img_url += part.text
                     except Exception as e:
+                         logger.error(f"Image artist agent failed for slide '{sid}': {e}")
                          img_url = f"Error in agent: {str(e)}"
                     
                     img_url = img_url.strip()
