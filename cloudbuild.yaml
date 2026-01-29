@@ -20,6 +20,9 @@ steps:
       - '--platform=managed'
       - '--allow-unauthenticated'
       - '--set-secrets=ENCRYPTION_KEY=${_ENCRYPTION_KEY_SECRET}:latest,GCS_BUCKET_NAME=${_GCS_BUCKET_NAME_SECRET}:latest'
+      # Note: We rely on --set-secrets to expose GCS_BUCKET_NAME as an env var. 
+      # If this fails, we can fallback to explicit --set-env-vars if the secret value is known at build time, 
+      # but utilizing secrets is safer.
     id: 'Deploy to Cloud Run'
 
 timeout: '1200s'

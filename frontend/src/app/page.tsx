@@ -70,6 +70,7 @@ const PaletteIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" hei
 const HistoryIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="m12 7 0 5 3 3"/></svg>;
 const PlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
 const TrashIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+const MagicWandIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 2 2 2-2 2-2-2 2-2Z"/><path d="m5 7 2 2-2 2-2-2 2-2Z"/><path d="m15 4-5.38 10.75a1.86 1.86 0 0 0 0 1.63l2.25 4.5c.32.65 1.18.65 1.5 0l2.25-4.5c.32-.65 1.18-.65 1.5 0l4.5-2.25c.65-.32.65-1.18 0-1.5l-4.5-2.25a1.86 1.86 0 0 0-1.63 0z"/><path d="M11 2 9 7"/></svg>;
 
 // --- Shared Stream Helper ---
 const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>, onMessage: (msg: any) => void) => {
@@ -156,10 +157,15 @@ export default function App() {
   const [visiblePrompts, setVisiblePrompts] = useState<Record<string, boolean>>({});
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
+  // Refine State
+  const [refiningSlideId, setRefiningSlideId] = useState<string | null>(null);
+  const [refineInstruction, setRefineInstruction] = useState("");
+  const [isRefining, setIsRefining] = useState(false);
+
   // --- Helper: Parse Query Settings ---
   const parseQueryToSettings = (fullQuery: string) => {
       // Use [\s\S]* instead of . with /s flag for better compatibility
-      const settingsRegex = /\[GENERATION SETTINGS\] Slides: (\d+), Style: (.*?), Detail: (.*?), AR: (.*?), Lang: (.*)\n\n\[USER REQUEST\]\n([\s\S]*)/;
+      const settingsRegex = /\ \[GENERATION SETTINGS\] Slides: (\d+), Style: (.*?), Detail: (.*?), AR: (.*?), Lang: (.*)\n\n\[USER REQUEST\]\n([\s\S]*)/;
       const match = fullQuery.match(settingsRegex);
       
       if (match) {
@@ -496,7 +502,8 @@ export default function App() {
               body: JSON.stringify({
                   slide_id: slideId, 
                   image_prompt: slide.image_prompt, 
-                  aspect_ratio: aspectRatio 
+                  aspect_ratio: aspectRatio,
+                  project_id: currentProjectId
               })
           });
           
@@ -519,6 +526,47 @@ export default function App() {
                   [`card_${slideId}`]: { ...prev.components[`card_${slideId}`], status: "error", text: "Retry Failed" }
               }
           }));
+      }
+  };
+
+  const handleRefine = async (slide: Slide) => {
+      if (!refineInstruction) return;
+      setIsRefining(true);
+      try {
+          const token = await getToken();
+          const res = await fetch(`${BACKEND_URL}/agent/refine_text`, {
+              method: "POST",
+              headers: {
+                  "Content-Type": "application/json", 
+                  "Authorization": `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                  slide_id: slide.id,
+                  current_title: slide.title,
+                  current_description: slide.description,
+                  instruction: refineInstruction,
+                  project_id: currentProjectId
+              })
+          });
+          
+          if (!res.ok) throw new Error("Refinement failed");
+          
+          const refinedData = await res.json();
+          
+          setScript((prev: any) => ({
+              ...prev,
+              slides: prev.slides.map((s: Slide) => 
+                  s.id === slide.id ? { ...s, title: refinedData.title, description: refinedData.description } : s
+              )
+          }));
+          
+          setRefiningSlideId(null);
+          setRefineInstruction("");
+      } catch (e) {
+          console.error("Refine Error", e);
+          alert("Failed to refine text. Try again.");
+      } finally {
+          setIsRefining(false);
       }
   };
 
@@ -1281,7 +1329,7 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                                             // Trigger generation
                                             setTimeout(() => handleStream("graphics", resetScript), 100);
                                         }
-                                    }} 
+                                    }}
                                     className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-4 py-3 rounded-lg font-bold text-sm whitespace-nowrap flex items-center gap-2"
                                 >
                                     <RefreshIcon /> Regenerate All
@@ -1311,17 +1359,34 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                   const hasError = cardComp?.status === "error";
                   const isSkipped = cardComp?.status === "skipped";
                   const isLoadingScript = s.id.startsWith("loading_");
+                  const isRefiningThis = refiningSlideId === s.id;
                   
                   if (isLoadingScript) return <div key={s.id} className="bg-[#111827] border border-slate-800 rounded-xl p-4 h-64 animate-pulse"></div>;
 
                   const src = imageComponent?.src || s.image_url;
 
                   return (
-                  <div key={s.id} className={`bg-[#111827] border border-slate-800 rounded-xl p-4 flex flex-col gap-3 shadow-xl transition-all relative overflow-hidden group ${isGenerating ? "ring-2 ring-blue-500" : ""} ${isSkipped ? "opacity-50 grayscale" : ""}`}>
+                  <div key={s.id} className={`bg-[#111827] border border-slate-800 rounded-xl p-4 flex flex-col gap-3 shadow-xl transition-all relative overflow-hidden group ${isGenerating ? "ring-2 ring-blue-500" : ""} ${isSkipped ? "opacity-50 grayscale" : ""} ${isRefiningThis ? "ring-2 ring-purple-500" : ""}`}>
                     <div className="flex justify-between items-center border-b border-slate-800 pb-2 z-10 relative">
                       <span className="text-xs font-bold text-blue-500 uppercase">{s.id}</span>
                       {src ? (
                           <div className="flex gap-2">
+                              {/* Magic Wand Button */}
+                              <button 
+                                onClick={() => {
+                                    if (isRefiningThis) {
+                                        setRefiningSlideId(null);
+                                    } else {
+                                        setRefiningSlideId(s.id);
+                                        setRefineInstruction("");
+                                    }
+                                }}
+                                disabled={isRefining}
+                                className={`text-slate-500 hover:text-purple-400 text-[10px] flex items-center gap-1 ${isRefiningThis ? 'text-purple-400' : ''}`}
+                                title="AI Refine Text"
+                              >
+                                <MagicWandIcon />
+                              </button>
                               <button onClick={() => setSurfaceState((prev: any) => {
                                   const { [`img_${s.id}`]: _, ...restComps } = prev.components;
                                   return { ...prev, components: restComps };
@@ -1335,7 +1400,31 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                           </div>
                       )}
                     </div>
+                    
                     <div className="flex-1 flex flex-col gap-3">
+                        {isRefiningThis && (
+                            <div className="bg-purple-900/20 border border-purple-500/50 p-2 rounded-lg mb-2 animate-fade-in">
+                                <input 
+                                    type="text" 
+                                    value={refineInstruction}
+                                    onChange={(e) => setRefineInstruction(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleRefine(s)}
+                                    placeholder="e.g. Make it punchier..."
+                                    className="w-full bg-transparent text-white text-xs outline-none placeholder-purple-300/50"
+                                    autoFocus
+                                />
+                                <div className="flex justify-end mt-2">
+                                    <button 
+                                        onClick={() => handleRefine(s)} 
+                                        disabled={!refineInstruction || isRefining}
+                                        className="text-[10px] font-bold text-purple-400 hover:text-white uppercase disabled:opacity-50"
+                                    >
+                                        {isRefining ? "Refining..." : "Apply"}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         {src && !visiblePrompts[s.id] ? (
                             <div className="relative group min-h-[200px] bg-slate-900 rounded-lg overflow-hidden animate-fade-in flex items-center justify-center cursor-pointer" onClick={() => setLightboxIndex(idx)}>
                                 <img src={src} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={s.title} />
@@ -1353,7 +1442,7 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
                             <span className="text-xs font-bold text-blue-400 uppercase mb-4 animate-pulse">Drawing...</span>
                             <button 
-                                onClick={(e) => { e.stopPropagation(); skipSlide(s.id); }} 
+                                onClick={(e) => { e.stopPropagation(); skipSlide(s.id); }}
                                 className="px-4 py-2 bg-red-900/80 hover:bg-red-600 text-white text-[10px] font-bold uppercase rounded border border-red-500/50 hover:border-red-400 transition-all shadow-lg cursor-pointer z-30"
                             >
                                 Skip Generation
