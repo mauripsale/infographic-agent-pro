@@ -4,6 +4,10 @@ import uuid
 from fpdf import FPDF
 from pathlib import Path
 import logging
+import requests
+import ipaddress
+import socket
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 STATIC_DIR = Path("static")
@@ -11,6 +15,65 @@ STATIC_DIR = Path("static")
 class ExportTool:
     def __init__(self):
         self.static_dir = STATIC_DIR
+
+    def _is_safe_url(self, url: str) -> bool:
+        """
+        Validates URL to prevent SSRF attacks.
+        Blocks access to metadata servers and private internal ranges.
+        """
+        try:
+            parsed = urlparse(url)
+            hostname = parsed.hostname
+            if not hostname:
+                return False
+            
+            # Allow safe schemes only
+            if parsed.scheme not in ('http', 'https'):
+                return False
+
+            # Resolve hostname to IP
+            try:
+                ip_str = socket.gethostbyname(hostname)
+                ip = ipaddress.ip_address(ip_str)
+            except socket.gaierror:
+                return False # Cannot resolve, unsafe
+
+            # Block Cloud Metadata IP (Critical)
+            if ip_str == "169.254.169.254":
+                return False
+            
+            # Check for private/loopback addresses
+            # We explicitly allow loopback for local dev/testing
+            if ip.is_loopback:
+                return True
+                
+            # Block private ranges (10.x, 172.16.x, 192.168.x)
+            # CAUTION: In some internal Cloud Run configs, services talk on private IPs.
+            # But generally, we expect to fetch public URLs of our own service.
+            if ip.is_private:
+                logger.warning(f"Blocked private IP access to {ip_str} for URL {url}")
+                return False
+                
+            return True
+        except Exception as e:
+            logger.error(f"URL Validation Error: {e}")
+            return False
+
+    def _download_file_content(self, url: str) -> bytes | None:
+        """Helper to safely download file content from a URL."""
+        if not self._is_safe_url(url):
+            logger.warning(f"Skipping unsafe URL: {url}")
+            return None
+
+        _DOWNLOAD_TIMEOUT = 5
+        try:
+            response = requests.get(url, timeout=_DOWNLOAD_TIMEOUT)
+            response.raise_for_status()
+            logger.info(f"Downloaded {len(response.content)} bytes from {url}.")
+            return response.content
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Download attempt failed for {url}: {e}")
+            return None
 
     def create_zip(self, file_paths: list[str]) -> str:
         """Creates a ZIP file from a list of local file paths or URLs, preserving order in filenames."""
@@ -20,8 +83,6 @@ class ExportTool:
                 
             zip_filename = f"presentation_export_{uuid.uuid4().hex}.zip"
             zip_path = self.static_dir / zip_filename
-            
-            import requests # Ensure requests is available
             
             files_added = 0
             with zipfile.ZipFile(zip_path, 'w') as zipf:
@@ -42,25 +103,16 @@ class ExportTool:
                         logger.info(f"Adding to ZIP: {local_path} as {arcname}")
                         zipf.write(local_path, arcname=arcname)
                         files_added += 1
+                    elif file_path.startswith("http"):
+                        # Fallback: Try to download
+                        content = self._download_file_content(file_path)
+                        if content:
+                            zipf.writestr(arcname, content)
+                            files_added += 1
+                        else:
+                            logger.warning(f"File missing/failed for ZIP: {local_path} (from {file_path})")
                     else:
-                        # Fallback: Try to download if it's a URL
-                        if file_path.startswith("http"):
-                            try:
-                                logger.info(f"Local file missing. Attempting download from: {file_path}")
-                                response = requests.get(file_path, timeout=5)
-                                if response.status_code == 200:
-                                    # Write to temp file or directly to zip? 
-                                    # ZipFile.writestr is cleaner for in-memory/downloaded content
-                                    logger.info(f"Downloaded {len(response.content)} bytes. Adding to ZIP.")
-                                    zipf.writestr(arcname, response.content)
-                                    files_added += 1
-                                    continue # Success, move to next file
-                                else:
-                                    logger.warning(f"Download failed with status: {response.status_code}")
-                            except Exception as dl_err:
-                                logger.warning(f"Download attempt failed: {dl_err}")
-
-                        logger.warning(f"File missing for ZIP: {local_path} (from {file_path})")
+                        logger.warning(f"File missing for ZIP: {local_path}")
             
             if files_added == 0:
                 logger.error("No files were added to the ZIP archive.")
@@ -88,6 +140,7 @@ class ExportTool:
 
             # Defer import to avoid circular dependency issues if any
             from PIL import Image
+            import io # Needed for ByteIO with downloaded content
 
             pdf = FPDF()
             pdf.set_auto_page_break(0)
@@ -98,34 +151,37 @@ class ExportTool:
             if not slides_data or len(slides_data) != len(file_paths):
                 slides_data = [{"title": f"Slide {i+1}", "description": ""} for i in range(len(file_paths))]
 
-            import requests # Ensure requests is available
-
             for idx, file_path in enumerate(file_paths):
                 # Clean filename from potential query params or URL junk
                 filename = os.path.basename(file_path.split("?")[0])
                 local_path = self.static_dir / filename
                 
+                img_source = None
+                
                 # Check if file exists locally, otherwise try to download
-                if not local_path.exists():
-                    if file_path.startswith("http"):
+                if local_path.exists():
+                    img_source = str(local_path)
+                elif file_path.startswith("http"):
+                    content = self._download_file_content(file_path)
+                    if content:
+                        # Save to temp file for FPDF or use stream if FPDF supports it?
+                        # FPDF typically expects a file path. Let's write it to the local path temporarily.
+                        # This also "heals" the local state for this instance.
                         try:
-                            logger.info(f"Local file missing for PDF. Attempting download from: {file_path}")
-                            response = requests.get(file_path, timeout=5)
-                            if response.status_code == 200:
-                                with open(local_path, "wb") as f:
-                                    f.write(response.content)
-                                logger.info(f"Downloaded {len(response.content)} bytes to {local_path}")
-                            else:
-                                logger.warning(f"PDF Download failed with status: {response.status_code}")
-                        except Exception as dl_err:
-                            logger.warning(f"PDF Download attempt failed: {dl_err}")
+                            with open(local_path, "wb") as f:
+                                f.write(content)
+                            img_source = str(local_path)
+                            logger.info(f"Restored local file from URL: {local_path}")
+                        except Exception as write_err:
+                            logger.error(f"Failed to write downloaded content to {local_path}: {write_err}")
+                            continue
 
-                if not local_path.exists():
+                if not img_source:
                     logger.warning(f"File missing for PDF: {local_path}")
                     continue
 
                 try:
-                    with Image.open(local_path) as img:
+                    with Image.open(img_source) as img:
                         width_px, height_px = img.size
                         aspect_ratio = width_px / height_px
 
@@ -152,7 +208,7 @@ class ExportTool:
                         img_x = (page_w - img_w) / 2
                         img_y = margin
                         
-                        pdf.image(str(local_path), x=img_x, y=img_y, w=img_w)
+                        pdf.image(img_source, x=img_x, y=img_y, w=img_w)
                         
                         # 2. Text (Bottom Half)
                         text_y = img_y + img_h + 10
@@ -209,7 +265,7 @@ class ExportTool:
                         x = (page_w - target_w) / 2
                         y = (page_h - target_h) / 2
                         
-                        pdf.image(str(local_path), x=x, y=y, w=target_w)
+                        pdf.image(img_source, x=x, y=y, w=target_w)
 
                     files_added += 1
                         
