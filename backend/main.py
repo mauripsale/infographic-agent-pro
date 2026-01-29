@@ -520,6 +520,16 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     for fid in file_ids:
                         try:
                             g_file = client.files.get(name=fid)
+                            
+                            # Validate File State
+                            state = getattr(g_file, "state", "ACTIVE")
+                            state_str = state.name if hasattr(state, "name") else str(state)
+                            
+                            if state_str != "ACTIVE":
+                                logger.warning(f"File {fid} is in state {state_str}. Skipping.")
+                                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "l", "component": "Text", "text": f"⚠️ File {fid} is {state_str}. Skipping..."}]}}) + "\n"
+                                continue
+
                             prompt_parts.append(types.Part.from_uri(file_uri=g_file.uri, mime_type=g_file.mime_type))
                             logger.info(f"Attached file {fid}")
                         except Exception as fe:
@@ -529,11 +539,17 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 content = types.Content(role="user", parts=prompt_parts)
                 agent_output = ""
 
-                async for event in runner.run_async(session_id=session.id, user_id=user_id, new_message=content):
-                    if await request.is_disconnected(): break
-                    if event.content and event.content.parts:
-                        for part in event.content.parts:
-                            if part.text: agent_output += part.text
+                try:
+                    async for event in runner.run_async(session_id=session.id, user_id=user_id, new_message=content):
+                        if await request.is_disconnected(): break
+                        if event.content and event.content.parts:
+                            for part in event.content.parts:
+                                if part.text: agent_output += part.text
+                except Exception as run_err:
+                    logger.error(f"Agent Execution Error: {run_err}")
+                    yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "root", "component": "Text", "text": f"⚠️ Error generating script: {str(run_err)}"}]}}) + "\n"
+                    return
+
 
                 if await request.is_disconnected(): return
 
