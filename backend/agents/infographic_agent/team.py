@@ -1,6 +1,5 @@
 from google.adk.agents import LlmAgent, SequentialAgent
 from google.adk.tools import google_search, url_context
-from google.adk.tools.agent_tool import AgentTool
 import os
 
 # Use a constant for the model name to improve maintainability across all agents
