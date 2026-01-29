@@ -21,6 +21,8 @@ class ExportTool:
             zip_filename = f"presentation_export_{uuid.uuid4().hex}.zip"
             zip_path = self.static_dir / zip_filename
             
+            import requests # Ensure requests is available
+            
             files_added = 0
             with zipfile.ZipFile(zip_path, 'w') as zipf:
                 for idx, file_path in enumerate(file_paths):
@@ -41,6 +43,23 @@ class ExportTool:
                         zipf.write(local_path, arcname=arcname)
                         files_added += 1
                     else:
+                        # Fallback: Try to download if it's a URL
+                        if file_path.startswith("http"):
+                            try:
+                                logger.info(f"Local file missing. Attempting download from: {file_path}")
+                                response = requests.get(file_path, timeout=5)
+                                if response.status_code == 200:
+                                    # Write to temp file or directly to zip? 
+                                    # ZipFile.writestr is cleaner for in-memory/downloaded content
+                                    logger.info(f"Downloaded {len(response.content)} bytes. Adding to ZIP.")
+                                    zipf.writestr(arcname, response.content)
+                                    files_added += 1
+                                    continue # Success, move to next file
+                                else:
+                                    logger.warning(f"Download failed with status: {response.status_code}")
+                            except Exception as dl_err:
+                                logger.warning(f"Download attempt failed: {dl_err}")
+
                         logger.warning(f"File missing for ZIP: {local_path} (from {file_path})")
             
             if files_added == 0:
@@ -79,11 +98,28 @@ class ExportTool:
             if not slides_data or len(slides_data) != len(file_paths):
                 slides_data = [{"title": f"Slide {i+1}", "description": ""} for i in range(len(file_paths))]
 
+            import requests # Ensure requests is available
+
             for idx, file_path in enumerate(file_paths):
                 # Clean filename from potential query params or URL junk
                 filename = os.path.basename(file_path.split("?")[0])
                 local_path = self.static_dir / filename
                 
+                # Check if file exists locally, otherwise try to download
+                if not local_path.exists():
+                    if file_path.startswith("http"):
+                        try:
+                            logger.info(f"Local file missing for PDF. Attempting download from: {file_path}")
+                            response = requests.get(file_path, timeout=5)
+                            if response.status_code == 200:
+                                with open(local_path, "wb") as f:
+                                    f.write(response.content)
+                                logger.info(f"Downloaded {len(response.content)} bytes to {local_path}")
+                            else:
+                                logger.warning(f"PDF Download failed with status: {response.status_code}")
+                        except Exception as dl_err:
+                            logger.warning(f"PDF Download attempt failed: {dl_err}")
+
                 if not local_path.exists():
                     logger.warning(f"File missing for PDF: {local_path}")
                     continue
