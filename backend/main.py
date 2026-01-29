@@ -508,8 +508,8 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     # This prevents "poisoned" history with bad file references
                     try:
                         await session_service.delete_session(app_name="infographic-pro", user_id=user_id, session_id=namespaced_session_id)
-                    except Exception:
-                        pass # Ignore if it didn't exist
+                    except Exception as e:
+                        logger.warning(f"Failed to delete session '{namespaced_session_id}' before creation, continuing anyway: {e}")
 
                     session = await session_service.create_session(app_name="infographic-pro", user_id=user_id, session_id=namespaced_session_id)
                 except Exception as sess_err:
