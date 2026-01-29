@@ -504,10 +504,19 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 namespaced_session_id = f"{user_id}_{session_id}"
 
                 try:
+                    # FORCE FRESH SESSION: If session exists, delete it first to ensure clean context
+                    # This prevents "poisoned" history with bad file references
+                    try:
+                        await session_service.delete_session(app_name="infographic-pro", user_id=user_id, session_id=namespaced_session_id)
+                    except Exception as e:
+                        logger.warning(f"Failed to delete session '{namespaced_session_id}' before creation, continuing anyway: {e}")
+
                     session = await session_service.create_session(app_name="infographic-pro", user_id=user_id, session_id=namespaced_session_id)
                 except Exception as sess_err:
-                    logger.warning(f"Session error, using existing: {sess_err}")
-                    session = await session_service.get_session(app_name="infographic-pro", user_id=user_id, session_id=namespaced_session_id)
+                    logger.error(f"Critical Session Error: {sess_err}")
+                    # Fallback to a random session ID if the main one is locked/broken
+                    random_sid = f"{namespaced_session_id}_{uuid.uuid4().hex[:6]}"
+                    session = await session_service.create_session(app_name="infographic-pro", user_id=user_id, session_id=random_sid)
 
                 prompt_parts = [types.Part(text=data.get("query", ""))]
 
@@ -520,6 +529,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     client = genai.Client(api_key=api_key)
                     for fid in file_ids:
                         try:
+                            # Explicitly handle 403/404 by wrapping get()
                             g_file = client.files.get(name=fid)
                             
                             # Validate File State
@@ -534,8 +544,9 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                             prompt_parts.append(types.Part.from_uri(file_uri=g_file.uri, mime_type=g_file.mime_type))
                             logger.info(f"Attached file {fid}")
                         except Exception as fe:
-                            logger.error(f"Failed to attach file {fid}: {fe}")
-                            yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "l", "component": "Text", "text": f"⚠️ Failed to read file {fid}. Proceeding..."}]}}) + "\n"
+                            # Catch 403, 404, or any other API error here
+                            logger.error(f"Failed to attach file {fid} (likely deleted or permission denied): {fe}")
+                            yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "l", "component": "Text", "text": f"⚠️ Could not read file {fid}. Proceeding without it..."}]}}) + "\n"
 
                 content = types.Content(role="user", parts=prompt_parts)
                 agent_output = ""
