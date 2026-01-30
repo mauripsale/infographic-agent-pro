@@ -7,7 +7,8 @@ import {
   MonitorIcon, SettingsIcon, SparklesIcon, FileUpIcon, RefreshIcon,
   ChevronLeft, ChevronRight, XIcon, MaximizeIcon,
   EditIcon, KeyIcon, HistoryIcon, PlusIcon, MinusIcon,
-  TrashIcon, MagicWandIcon, DownloadIcon,
+  TrashIcon, MagicWandIcon, DownloadIcon, GoogleIcon,
+  PresentationIcon, PaletteIcon
 } from "@/components/Icons";
 
 // Constants
@@ -55,7 +56,7 @@ interface A2UIComponent {
 }
 
 // --- UI Components ---
-const SegmentedControl = ({ options, value, onChange, label }: { options: string[], value: string | number, onChange: (val: any) => void, label: string }) => (
+const SegmentedControl = ({ options, value, onChange, label }: { options: string[], value: string, onChange: (val: string) => void, label: string }) => (
   <div className="mb-6">
     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 block pl-1">{label}</label>
     <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 overflow-hidden">
@@ -715,7 +716,7 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
       <div className="flex-1 flex overflow-hidden relative z-10 px-6 pb-6 gap-6">
         
         {/* LEFT SIDEBAR (SETTINGS) */}
-        <aside className={`w-[340px] glass-panel rounded-3xl flex flex-col transition-all duration-500 transform ${!showRightSidebar ? "translate-x-0" : "translate-x-0"}`}>
+        <aside className="w-[340px] glass-panel rounded-3xl flex flex-col transition-all duration-500 transform translate-x-0">
             <div className="p-8 flex-1 overflow-y-auto custom-scrollbar">
                 
                 {/* Model Selector Pille */}
@@ -746,7 +747,7 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                 </div>
 
                 <div className="pt-8 border-t border-white/5">
-                     <div className="flex items-center gap-2 mb-6"><PaletteIcon className="text-[#0066FF]"/><span className="text-[10px] font-bold text-white uppercase tracking-widest">Brand Kit</span></div>
+                     <div className="flex items-center gap-2 mb-4"><PaletteIcon className="text-[#0066FF]"/><span className="text-[10px] font-bold text-white uppercase tracking-widest">Brand Kit</span></div>
                      <div className="grid grid-cols-2 gap-4">
                         <div className="flex items-center gap-2 bg-black/40 p-2 rounded-xl border border-white/5"><div className="w-6 h-6 rounded-lg overflow-hidden border border-white/10 relative"><input type="color" value={brandPrimary} onChange={(e) => setBrandPrimary(e.target.value)} className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer"/></div><input type="text" value={brandPrimary} onChange={(e) => setBrandPrimary(e.target.value)} placeholder="#Primary" className="w-full bg-transparent text-[10px] font-mono outline-none text-slate-300"/></div>
                         <div className="flex items-center gap-2 bg-black/40 p-2 rounded-xl border border-white/5"><div className="w-6 h-6 rounded-lg overflow-hidden border border-white/10 relative"><input type="color" value={brandSecondary} onChange={(e) => setBrandSecondary(e.target.value)} className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer"/></div><input type="text" value={brandSecondary} onChange={(e) => setBrandSecondary(e.target.value)} placeholder="#Sec" className="w-full bg-transparent text-[10px] font-mono outline-none text-slate-300"/></div>
@@ -852,7 +853,7 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                                                         <div className="p-8 w-full h-full flex flex-col justify-center text-center">
                                                             {refiningSlideId === s.id ? (
                                                                 <div className="flex flex-col gap-4 animate-fade-in h-full justify-center">
-                                                                    <input value={s.title} onChange={(e) => handleSlideChange(s.id, "title", e.target.value)} className="bg-transparent border-b border-white/10 text-lg font-bold text-white outline-none pb-2 text-center focus:border-[#0066FF]" />
+                                                                    <input value={s.title} onChange={(e) => handleSlideChange(s.id, "title", e.target.value)} className="bg-transparent border-b border-white/10 text-lg font-bold text-white outline-none pb-2 focus:border-[#0066FF] text-center" />
                                                                     <textarea value={refineInstruction} onChange={(e) => setRefineInstruction(e.target.value)} placeholder="How should we change this?" className="bg-white/5 rounded-xl p-4 text-xs text-slate-300 resize-none outline-none h-24" />
                                                                     <div className="flex justify-center gap-3">
                                                                         <button onClick={() => setRefiningSlideId(null)} className="text-xs font-bold text-slate-500 hover:text-white px-4 py-2">Cancel</button>
@@ -956,7 +957,7 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                               <img src={src} className="max-w-full max-h-[85%] object-contain shadow-2xl shadow-black/80 rounded-lg" alt={slide.title} />
                               <div className="mt-8 text-center max-w-2xl glass-panel p-8 rounded-2xl border border-white/5">
                                   <h2 className="text-3xl font-black text-white mb-3">{slide.title}</h2>
-                                  <p className="text-slate-400 text-sm leading-relaxed">{slide.description || slide.image_prompt}</p>
+                                  <p className="text-slate-300 text-sm leading-relaxed">{slide.description || slide.image_prompt}</p>
                               </div>
                           </div>
                       ) : <div className="text-slate-500 animate-pulse font-bold tracking-widest">RENDERING...</div>;
