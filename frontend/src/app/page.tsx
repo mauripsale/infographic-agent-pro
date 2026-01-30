@@ -941,8 +941,11 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
   
   if (!user) {
       return (
-          <div className="min-h-screen bg-[#030712] flex items-center justify-center p-6">
-              <div className="max-w-md w-full bg-[#111827] border border-slate-800 p-10 rounded-3xl shadow-2xl text-center flex flex-col gap-8 animate-fade-in">
+          <div className="min-h-screen bg-[#030712] flex items-center justify-center p-6 relative overflow-hidden">
+              {/* Background Grid Overlay */}
+              <div className="absolute inset-0 z-0 bg-grid pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:30px_30px]"></div>
+              
+              <div className="max-w-md w-full bg-[#111827]/80 backdrop-blur-xl border border-slate-800 p-10 rounded-3xl shadow-2xl text-center flex flex-col gap-8 animate-fade-in relative z-10">
                   <div className="mx-auto w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/40"><MonitorIcon /></div>
                   <div>
                       <h1 className="text-6xl font-black text-white mb-2 tracking-tighter">IPSA</h1>
@@ -969,8 +972,11 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
   });
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative">
+    <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative overflow-hidden flex flex-col">
       
+      {/* Background Grid Overlay */}
+      <div className="absolute inset-0 z-0 bg-grid pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:30px_30px]"></div>
+
       {/* RESET CONFIRMATION MODAL */}
       {showResetConfirm && (
           <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center backdrop-blur-sm animate-fade-in px-4">
@@ -1171,51 +1177,105 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
         </div>
       </header>
 
-      {/* MAIN CONTENT */}
-      <div className="max-w-7xl mx-auto px-6 pt-6 md:pt-10 flex flex-col gap-6 md:gap-12 pb-24">
-        <section className="grid grid-cols-1 md:grid-cols-12 gap-8">
-          
-          {/* SIDEBAR / MOBILE DRAWER */}
-          <aside className={`col-span-1 md:col-span-3 bg-[#111827] rounded-2xl border border-slate-800 shadow-xl overflow-hidden transition-all duration-300 ${showMobileSettings ? "max-h-[800px] mb-6" : "max-h-0 md:max-h-none opacity-0 md:opacity-100 hidden md:flex flex-col gap-6 p-6"}`}>
-             {/* Duplicate Settings Content for Mobile Toggle logic */}
-             <div className="p-6 flex flex-col gap-6">
-                <div className="flex items-center gap-2 text-slate-100 font-semibold border-b border-slate-800 pb-4">
-                <SettingsIcon /><span className="uppercase tracking-wider text-xs">Settings</span>
+      {/* MAIN LAYOUT */}
+      <div className="flex-1 flex overflow-hidden relative z-10">
+        
+        {/* SIDEBAR (Settings) */}
+        <aside className={`w-[320px] h-full z-30 flex flex-col glass-panel border-r border-slate-800 transition-all duration-300 absolute md:relative ${showMobileSettings ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+                <div className="flex items-center gap-2 text-sm font-semibold tracking-wider text-gray-200 border-b border-slate-800/50 pb-4">
+                    <SettingsIcon />
+                    <span>SETTINGS</span>
                 </div>
-                <div>
-                <div className="flex justify-between text-sm mb-2"><span className="block text-xs text-slate-500 uppercase font-bold">Slides</span><span className="text-blue-400 font-bold bg-blue-900/30 px-2 py-0.5 rounded text-xs">{numSlides}</span></div>
-                <input type="range" min="1" max="30" value={numSlides} onChange={(e) => setNumSlides(Number(e.target.value))} className="w-full h-2 bg-slate-800 rounded-lg cursor-pointer accent-blue-600" />
-                </div>
-                <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Detail</label><select value={detailLevel} onChange={(e) => setDetailLevel(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option>1 - Super Simple</option><option>2 - Basic</option><option>3 - Average</option><option>4 - Detailed</option><option>5 - Super Detailed</option></select></div>
-                <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Format</label><select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option value="16:9">16:9 (Wide)</option><option value="4:3">4:3 (Standard)</option></select></div>
-                <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Lang</label><select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option>English</option><option>Italian</option></select></div>
-                <div className="md:hidden"><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Model</label><select value={modelType} onChange={(e:any) => setModelType(e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none"><option value="flash">2.5 Flash</option><option value="pro">3 Pro</option></select></div>
-                <div><label className="block text-xs text-slate-500 mb-2 uppercase font-bold">Style</label><input type="text" value={style} onChange={(e) => setStyle(e.target.value)} placeholder="e.g. Minimalist" className="w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm outline-none" /></div>
-                
-                {/* BRAND KIT SECTION */}
-                <div className="pt-4 border-t border-slate-800">
-                    <div className="flex items-center gap-2 text-slate-100 font-semibold mb-4">
-                        <PaletteIcon /><span className="uppercase tracking-wider text-xs">Brand Kit</span>
+
+                {/* Slides Control */}
+                <section>
+                    <label className="block text-xs text-slate-500 mb-2 uppercase tracking-wide font-bold">Slides</label>
+                    <div className="flex items-center justify-between glass-input rounded-lg mb-3">
+                        <button onClick={() => setNumSlides(prev => Math.max(1, prev - 1))} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 rounded-l-lg transition-colors">
+                            <PlusIcon className="rotate-45" />
+                        </button>
+                        <span className="text-sm font-medium text-blue-400">{numSlides}</span>
+                        <button onClick={() => setNumSlides(prev => Math.min(30, prev + 1))} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 rounded-r-lg transition-colors">
+                            <PlusIcon />
+                        </button>
                     </div>
-                    <div className="flex flex-col gap-4">
+                    <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${(numSlides / 30) * 100}%` }}></div>
+                    </div>
+                </section>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-xs text-slate-500 mb-1.5 uppercase font-bold tracking-wide">Detail</label>
+                        <div className="relative">
+                            <select value={detailLevel} onChange={(e) => setDetailLevel(e.target.value)} className="w-full glass-input rounded-lg py-2.5 px-3 text-sm appearance-none cursor-pointer focus:ring-0 outline-none">
+                                <option>1 - Super Simple</option>
+                                <option>2 - Basic</option>
+                                <option>3 - Average</option>
+                                <option>4 - Detailed</option>
+                                <option>5 - Super Detailed</option>
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"><ChevronDown /></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs text-slate-500 mb-1.5 uppercase font-bold tracking-wide">Format</label>
+                        <div className="relative">
+                            <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full glass-input rounded-lg py-2.5 px-3 text-sm appearance-none cursor-pointer focus:ring-0 outline-none">
+                                <option value="16:9">16:9 (Wide)</option>
+                                <option value="4:3">4:3 (Standard)</option>
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"><ChevronDown /></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs text-slate-500 mb-1.5 uppercase font-bold tracking-wide">Lang</label>
+                        <div className="relative">
+                            <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full glass-input rounded-lg py-2.5 px-3 text-sm appearance-none cursor-pointer focus:ring-0 outline-none">
+                                <option>English</option>
+                                <option>Italian</option>
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"><ChevronDown /></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-xs text-slate-500 mb-1.5 uppercase font-bold tracking-wide">Style</label>
+                    <input type="text" value={style} onChange={(e) => setStyle(e.target.value)} placeholder="e.g. Minimalist" className="w-full glass-input rounded-lg py-2.5 px-3 text-sm outline-none" />
+                </div>
+                
+                {/* BRAND KIT */}
+                <div className="pt-4 border-t border-slate-800/50">
+                    <div className="flex items-center gap-2 text-xs font-bold text-gray-300 mb-4 uppercase tracking-wide">
+                        <PaletteIcon />
+                        <span>Brand Kit</span>
+                    </div>
+                    <div className="space-y-4">
                         <div>
                             <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">Primary Color</label>
-                            <div className="flex gap-2 items-center">
-                                <input type="color" value={brandPrimary || "#3b82f6"} onChange={(e) => setBrandPrimary(e.target.value)} className="w-10 h-10 rounded-md border border-slate-700 bg-transparent cursor-pointer p-0 overflow-hidden" />
-                                <input type="text" value={brandPrimary} onChange={(e) => setBrandPrimary(e.target.value)} placeholder="#HEX" className="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs outline-none font-mono" />
+                            <div className="flex items-center gap-2">
+                                <input type="text" value={brandPrimary} onChange={(e) => setBrandPrimary(e.target.value)} placeholder="#0066FF" className="flex-1 glass-input rounded-lg py-2 px-3 text-xs outline-none font-mono" />
+                                <div className="relative w-8 h-8 rounded-lg border border-white/10 overflow-hidden">
+                                    <input type="color" value={brandPrimary || "#3b82f6"} onChange={(e) => setBrandPrimary(e.target.value)} className="absolute inset-0 scale-150 cursor-pointer" />
+                                </div>
                             </div>
                         </div>
                         <div>
                             <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">Secondary Color</label>
-                            <div className="flex gap-2 items-center">
-                                <input type="color" value={brandSecondary || "#1e293b"} onChange={(e) => setBrandSecondary(e.target.value)} className="w-10 h-10 rounded-md border border-slate-700 bg-transparent cursor-pointer p-0 overflow-hidden" />
-                                <input type="text" value={brandSecondary} onChange={(e) => setBrandSecondary(e.target.value)} placeholder="#HEX" className="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs outline-none font-mono" />
+                            <div className="flex items-center gap-2">
+                                <input type="text" value={brandSecondary} onChange={(e) => setBrandSecondary(e.target.value)} placeholder="#1E293B" className="flex-1 glass-input rounded-lg py-2 px-3 text-xs outline-none font-mono" />
+                                <div className="relative w-8 h-8 rounded-lg border border-white/10 overflow-hidden">
+                                    <input type="color" value={brandSecondary || "#1e293b"} onChange={(e) => setBrandSecondary(e.target.value)} className="absolute inset-0 scale-150 cursor-pointer" />
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-             </div>
-          </aside>
+                <div className="h-10"></div>
+            </div>
+        </aside>
 
           {/* MOBILE TOGGLE BUTTON */}
           <div className="md:hidden col-span-1">
@@ -1224,50 +1284,79 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
               </button>
           </div>
 
-          <div className="col-span-1 md:col-span-9 flex flex-col gap-6"> 
+        {/* CORE CONTENT AREA */}
+        <main className="flex-1 flex flex-col relative p-4 md:p-6 overflow-y-auto custom-scrollbar">
             
             {/* MISSING API KEY BANNER */}
             {!hasApiKey && (
-                <div className="bg-amber-900/30 border border-amber-600/50 p-4 rounded-xl flex items-center gap-3 text-amber-200 text-sm animate-pulse">
+                <div className="mb-6 bg-amber-900/30 border border-amber-600/50 p-4 rounded-xl flex items-center gap-3 text-amber-200 text-sm animate-pulse z-10">
                     <KeyIcon />
                     <span><strong>Action Required:</strong> Please configure your Gemini API Key in Settings to start.</span>
                 </div>
             )}
 
-            <div className="bg-[#0f172a] rounded-xl border border-slate-800 p-4 md:p-6 shadow-inner min-h-[200px] md:min-h-[300px]">
-              <textarea 
-                value={query} 
-                onChange={(e) => setQuery(e.target.value)} 
-                placeholder="Describe your topic (e.g. 'History of Rome'), paste a URL, or upload files..." 
-                className="w-full h-full bg-transparent resize-none outline-none text-slate-300 text-base md:text-lg font-mono placeholder-slate-600 leading-relaxed" 
-              />
+            {/* Central Text Area (Glassmorphism Style) */}
+            <div className={`flex-1 flex flex-col pt-4 px-2 min-h-[300px] md:min-h-[400px] transition-all duration-500 ${phase !== 'input' ? 'flex-none h-48' : ''}`}>
+                <div className="w-full h-full relative group">
+                    <div className="absolute inset-0 glass-panel rounded-2xl opacity-50 pointer-events-none group-focus-within:opacity-80 transition-opacity"></div>
+                    <textarea 
+                        value={query} 
+                        onChange={(e) => setQuery(e.target.value)} 
+                        placeholder="Describe your topic (e.g. 'History of Rome'), paste a URL, or upload files..." 
+                        className="w-full h-full bg-transparent border-0 text-slate-200 placeholder-slate-600 text-lg leading-relaxed resize-none p-6 outline-none relative z-10 focus:ring-0" 
+                    />
+                </div>
             </div>
-            
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col md:flex-row gap-4">
-                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".pdf,.txt,.md" multiple />
-                <input type="file" ref={brandingInputRef} className="hidden" onChange={handleBrandingUpload} accept=".pdf,.txt,.md,.png,.jpg,.jpeg" multiple />
-                
-                <button 
-                  onClick={() => fileInputRef.current?.click()} 
-                  disabled={!hasApiKey} 
-                  className={`w-full md:w-[25%] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-medium py-4 rounded-xl flex items-center justify-center gap-2 transition-all min-h-[48px] ${uploadedFiles.length > 0 ? "border-green-500 text-green-400 bg-green-900/10" : ""} disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                    <FileUpIcon /> {uploadedFiles.length > 0 ? `Add Source (${uploadedFiles.length})` : "Source Docs"}
-                </button>
 
+            {/* Bottom Actions Floating Section */}
+            <div className="mt-4 flex flex-col gap-3">
+                {/* File Uploads Display */}
+                {(uploadedFiles.length > 0 || brandingFiles.length > 0) && (
+                    <div className="flex flex-wrap gap-2 p-3 glass-panel rounded-xl animate-fade-in">
+                        {uploadedFiles.map((f, i) => (
+                            <div key={`s-${i}`} className="bg-green-900/20 border border-green-500/30 px-3 py-1 rounded-full flex items-center gap-2 text-[10px] text-green-400 shadow-sm transition-all group">
+                                <FileUpIcon /> <span className="max-w-[150px] truncate">{f.name}</span>
+                                <button onClick={() => removeFile('source', i)} className="hover:text-white ml-1 font-black">×</button>
+                            </div>
+                        ))}
+                        {brandingFiles.map((f, i) => (
+                            <div key={`b-${i}`} className="bg-blue-900/20 border border-blue-500/30 px-3 py-1 rounded-full flex items-center gap-2 text-[10px] text-blue-400 shadow-sm transition-all group">
+                                <PaletteIcon /> <span className="max-w-[150px] truncate">{f.name}</span>
+                                <button onClick={() => removeFile('brand', i)} className="hover:text-white ml-1 font-black">×</button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Secondary Actions Row */}
+                <div className="grid grid-cols-2 gap-3">
+                    <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".pdf,.txt,.md" multiple />
+                    <input type="file" ref={brandingInputRef} className="hidden" onChange={handleBrandingUpload} accept=".pdf,.txt,.md,.png,.jpg,.jpeg" multiple />
+                    
+                    <button 
+                        onClick={() => fileInputRef.current?.click()} 
+                        disabled={!hasApiKey} 
+                        className="flex items-center justify-center gap-2 hover:bg-white/10 py-3 rounded-xl transition-all active:scale-95 group bg-transparent border border-white/10 disabled:opacity-50"
+                    >
+                        <FileUpIcon className="w-5 h-5" />
+                        <span className="text-sm font-medium text-gray-300 group-hover:text-white">Source Docs</span>
+                    </button>
+
+                    <button 
+                        onClick={() => brandingInputRef.current?.click()} 
+                        disabled={!hasApiKey} 
+                        className="flex items-center justify-center gap-2 hover:bg-white/10 py-3 rounded-xl transition-all active:scale-95 group bg-transparent border border-white/10 disabled:opacity-50"
+                    >
+                        <PaletteIcon className="w-5 h-5" />
+                        <span className="text-sm font-medium text-gray-300 group-hover:text-white">Brand Guide</span>
+                    </button>
+                </div>
+
+                {/* Primary Generate Action */}
                 <button 
-                  onClick={() => brandingInputRef.current?.click()} 
-                  disabled={!hasApiKey} 
-                  className={`w-full md:w-[25%] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-medium py-4 rounded-xl flex items-center justify-center gap-2 transition-all min-h-[48px] ${brandingFiles.length > 0 ? "border-blue-500 text-blue-400 bg-blue-900/10" : ""} disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                    <PaletteIcon /> {brandingFiles.length > 0 ? `Add Brand (${brandingFiles.length})` : "Brand Guide"}
-                </button>
-                
-                <button 
-                  onClick={startScriptGen} 
-                  disabled={isStreaming || !hasApiKey || (!query && uploadedFiles.length === 0)} 
-                  className="w-full md:w-[50%] bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 min-h-[48px]"
+                    onClick={startScriptGen} 
+                    disabled={isStreaming || !hasApiKey || (!query && uploadedFiles.length === 0)} 
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all active:scale-95 disabled:opacity-50"
                 >
                     {isStreaming && phase === "review" ? (
                         <>
@@ -1275,219 +1364,92 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                             <span>Architecting...</span>
                         </>
                     ) : (
-                        <><SparklesIcon /> Generate Script</>
+                        <>
+                            <SparklesIcon className="w-5 h-5" />
+                            <span>Generate Script</span>
+                        </>
                     )}
                 </button>
-              </div>
-
-              {/* READY FILES DISPLAY */}
-              {(uploadedFiles.length > 0 || brandingFiles.length > 0) && (
-                  <div className="flex flex-col gap-2 animate-fade-in p-4 bg-slate-900/50 rounded-xl border border-slate-800/50">
-                      <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Files Ready for Agent:</span>
-                      <div className="flex flex-wrap gap-2">
-                        {uploadedFiles.map((f, i) => (
-                            <div key={`s-${i}`} className="bg-green-900/20 border border-green-500/30 px-3 py-1.5 rounded-full flex items-center gap-2 text-xs text-green-400 shadow-sm transition-all group">
-                                <FileUpIcon /> <span className="max-w-[150px] truncate">{f.name}</span>
-                                <button onClick={() => removeFile('source', i)} className="hover:text-white ml-1 text-green-700 font-black">×</button>
-                            </div>
-                        ))}
-                        {brandingFiles.map((f, i) => (
-                            <div key={`b-${i}`} className="bg-blue-900/20 border border-blue-500/30 px-3 py-1.5 rounded-full flex items-center gap-2 text-xs text-blue-400 shadow-sm transition-all group">
-                                <PaletteIcon /> <span className="max-w-[150px] truncate">{f.name}</span>
-                                <button onClick={() => removeFile('brand', i)} className="hover:text-white ml-1 text-blue-700 font-black">×</button>
-                            </div>
-                        ))}
-                      </div>
-                  </div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {(phase !== "input" || isStreaming) && (
-          <section ref={resultsRef} className="mt-4 md:mt-10 border-t border-slate-800 pt-8 md:pt-12 animate-fade-in">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4">
-              <h2 className="text-xl md:text-2xl font-bold text-white">Final Presentation</h2>
-              <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-                {isStreaming && (<button onClick={handleStop} className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded-lg font-bold text-sm shadow-lg animate-pulse flex items-center gap-2 whitespace-nowrap">STOP</button>)}
-                {(phase === "graphics" || (phase === "review" && hasGeneratedImages)) && !isStreaming && (
-                    <>
-                    <button type="button" onClick={() => handleExport("zip")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">ZIP</button>
-                    <button type="button" onClick={() => handleExport("pdf")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">PDF</button>
-                    <button type="button" onClick={() => handleExport("pdf_handout")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">Handout</button>
-                    <button type="button" onClick={() => handleExport("slides")} disabled={isExporting} className="bg-[#fbbc04]/20 hover:bg-[#fbbc04]/30 border border-[#fbbc04]/50 text-[#fbbc04] px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap flex items-center gap-2">
-                        <PresentationIcon /> Google Slides
-                    </button>
-                    </>
-                )}
-                {(() => {
-                    const pendingSlides = script?.slides.filter((s: Slide) => {
-                        const comp = surfaceState.components[`img_${s.id}`];
-                        return !s.image_url && !comp?.src;
-                    }).length || 0;
-                    
-                    if (script && !isStreaming) {
-                        if (pendingSlides > 0) {
-                            return (
-                                <button onClick={() => handleStream("graphics", script)} className="bg-green-600 hover:bg-green-500 px-6 md:px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-900/20 text-sm whitespace-nowrap w-full md:w-auto">
-                                    {hasGeneratedImages ? `Generate Remaining (${pendingSlides})` : "Generate Graphics"}
-                                </button>
-                            );
-                        } else {
-                            // All slides technically "done" (or broken old links). Show Regenerate All.
-                            return (
-                                <button 
-                                    onClick={() => {
-                                        if (confirm("Regenerate ALL slides? This will replace existing images.")) {
-                                            // Reset local state to force regeneration
-                                            const resetScript = {
-                                                ...script,
-                                                slides: script.slides.map((s: Slide) => ({ ...s, image_url: undefined }))
-                                            };
-                                            setScript(resetScript);
-                                            // Reset UI components
-                                            setSurfaceState((prev: any) => {
-                                                const nextComps = { ...prev.components };
-                                                script.slides.forEach((s: Slide) => {
-                                                    nextComps[`card_${s.id}`] = { id: `card_${s.id}`, component: "Text", text: "Waiting...", status: "waiting" };
-                                                    delete nextComps[`img_${s.id}`];
-                                                    delete nextComps[`title_${s.id}`];
-                                                });
-                                                return { ...prev, components: nextComps };
-                                            });
-                                            // Trigger generation
-                                            setTimeout(() => handleStream("graphics", resetScript), 100);
-                                        }
-                                    }}
-                                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-4 py-3 rounded-lg font-bold text-sm whitespace-nowrap flex items-center gap-2"
-                                >
-                                    <RefreshIcon /> Regenerate All
-                                </button>
-                            );
-                        }
-                    }
-                    return null;
-                })()}
-              </div>
             </div>
 
-            {isStreaming && phase === "review" && !script && (
-                <div className="flex flex-col items-center justify-center py-24 animate-fade-in border border-dashed border-slate-800 rounded-xl bg-slate-900/30">
-                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                    <h3 className="text-xl font-bold text-white mb-2 animate-pulse">Architecting your story...</h3>
-                    <p className="text-slate-500 font-mono text-xs uppercase tracking-widest">Analyzing Data • Structuring • Planning</p>
-                </div>
-            )}
-
-            {script && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {script.slides.map((s: Slide, idx: number) => {
-                  const cardComp = surfaceState.components[`card_${s.id}`];
-                  const imageComponent = surfaceState.components[`img_${s.id}`];
-                  const isGenerating = cardComp?.status === "generating";
-                  const hasError = cardComp?.status === "error";
-                  const isSkipped = cardComp?.status === "skipped";
-                  const isLoadingScript = s.id.startsWith("loading_");
-                  const isRefiningThis = refiningSlideId === s.id;
-                  
-                  if (isLoadingScript) return <div key={s.id} className="bg-[#111827] border border-slate-800 rounded-xl p-4 h-64 animate-pulse"></div>;
-
-                  const src = imageComponent?.src || s.image_url;
-
-                  return (
-                  <div key={s.id} className={`bg-[#111827] border border-slate-800 rounded-xl p-4 flex flex-col gap-3 shadow-xl transition-all relative overflow-hidden group ${isGenerating ? "ring-2 ring-blue-500" : ""} ${isSkipped ? "opacity-50 grayscale" : ""} ${isRefiningThis ? "ring-2 ring-purple-500" : ""}`}>
-                    <div className="flex justify-between items-center border-b border-slate-800 pb-2 z-10 relative">
-                      <span className="text-xs font-bold text-blue-500 uppercase">{s.id}</span>
-                      {src ? (
-                          <div className="flex gap-2">
-                              {/* Magic Wand Button */}
-                              <button 
-                                onClick={() => {
-                                    if (isRefiningThis) {
-                                        setRefiningSlideId(null);
-                                    } else {
-                                        setRefiningSlideId(s.id);
-                                        setRefineInstruction("");
-                                    }
-                                }}
-                                disabled={isRefining}
-                                className={`text-slate-500 hover:text-purple-400 text-[10px] flex items-center gap-1 ${isRefiningThis ? 'text-purple-400' : ''}`}
-                                title="AI Refine Text"
-                              >
-                                <MagicWandIcon />
-                              </button>
-                              <button onClick={() => setSurfaceState((prev: any) => {
-                                  const { [`img_${s.id}`]: _, ...restComps } = prev.components;
-                                  return { ...prev, components: restComps };
-                              })} className="text-slate-500 hover:text-white text-[10px] flex items-center gap-1"><EditIcon /> Edit Text</button>
-                              <button onClick={() => togglePrompt(s.id)} className="text-slate-500 hover:text-white text-[10px] uppercase">Prompt</button>
-                          </div>
-                      ) : (
-                          <div className="flex gap-2">
-                             {!isSkipped && <button onClick={() => skipSlide(s.id)} className="text-slate-600 hover:text-slate-400 text-[10px] uppercase font-bold px-2 py-1 rounded hover:bg-slate-800 transition-colors">Skip</button>}
-                             <button onClick={() => retrySlide(s.id)} className="text-green-500 hover:text-green-400 text-[10px] uppercase font-bold flex items-center gap-1 bg-green-900/20 px-2 py-1 rounded"><PaintBrushIcon /> {isSkipped ? "Restore" : "Generate"}</button>
-                          </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex-1 flex flex-col gap-3">
-                        {isRefiningThis && (
-                            <div className="bg-purple-900/20 border border-purple-500/50 p-2 rounded-lg mb-2 animate-fade-in">
-                                <input 
-                                    type="text" 
-                                    value={refineInstruction}
-                                    onChange={(e) => setRefineInstruction(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleRefine(s)}
-                                    placeholder="e.g. Make it punchier..."
-                                    className="w-full bg-transparent text-white text-xs outline-none placeholder-purple-300/50"
-                                    autoFocus
-                                />
-                                <div className="flex justify-end mt-2">
-                                    <button 
-                                        onClick={() => handleRefine(s)} 
-                                        disabled={!refineInstruction || isRefining}
-                                        className="text-[10px] font-bold text-purple-400 hover:text-white uppercase disabled:opacity-50"
-                                    >
-                                        {isRefining ? "Refining..." : "Apply"}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {src && !visiblePrompts[s.id] ? (
-                            <div className="relative group min-h-[200px] bg-slate-900 rounded-lg overflow-hidden animate-fade-in flex items-center justify-center cursor-pointer" onClick={() => setLightboxIndex(idx)}>
-                                <img src={src} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={s.title} />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><EyeIcon /> <span className="ml-2 font-bold text-white">View</span></div>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col gap-3 h-full">
-                                <input value={s.title} onChange={(e) => handleSlideChange(s.id, "title", e.target.value)} className="bg-transparent font-bold text-white outline-none border-b border-transparent focus:border-blue-500" />
-                                <textarea value={s.image_prompt} onChange={(e) => handleSlideChange(s.id, "image_prompt", e.target.value)} className="bg-slate-900/50 p-2 text-xs text-slate-400 rounded outline-none h-32 resize-none border border-transparent focus:border-blue-500 custom-scrollbar" />
-                            </div>
-                        )}
-                    </div>
-                    {isGenerating && (
-                        <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center z-20 backdrop-blur-sm">
-                            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-                            <span className="text-xs font-bold text-blue-400 uppercase mb-4 animate-pulse">Drawing...</span>
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); skipSlide(s.id); }}
-                                className="px-4 py-2 bg-red-900/80 hover:bg-red-600 text-white text-[10px] font-bold uppercase rounded border border-red-500/50 hover:border-red-400 transition-all shadow-lg cursor-pointer z-30"
-                            >
-                                Skip Generation
+            {/* RESULTS SECTION */}
+            {(phase !== "input" || isStreaming) && (
+            <section ref={resultsRef} className="mt-8 border-t border-slate-800/50 pt-12 animate-fade-in pb-20">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <h2 className="text-2xl font-bold text-white tracking-tight">Final Presentation</h2>
+                    <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2">
+                        {isStreaming && (<button onClick={handleStop} className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded-lg font-bold text-sm shadow-lg animate-pulse flex items-center gap-2 whitespace-nowrap">STOP</button>)}
+                        {!isStreaming && script && (
+                            <>
+                            <button type="button" onClick={() => handleExport("zip")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">ZIP</button>
+                            <button type="button" onClick={() => handleExport("pdf")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">PDF</button>
+                            <button type="button" onClick={() => handleExport("pdf_handout")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">Handout</button>
+                            <button type="button" onClick={() => handleExport("slides")} disabled={isExporting} className="bg-[#fbbc04]/20 hover:bg-[#fbbc04]/30 border border-[#fbbc04]/50 text-[#fbbc04] px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap flex items-center gap-2">
+                                <PresentationIcon /> Google Slides
                             </button>
+                            </>
+                        )}
+                        {script && !isStreaming && (
+                            <button onClick={() => handleStream("graphics", script)} className="bg-green-600 hover:bg-green-500 px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-900/20 text-sm whitespace-nowrap">
+                                {hasGeneratedImages ? "Generate Remaining" : "Generate Graphics"}
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {isStreaming && phase === "review" && !script && (
+                    <div className="flex flex-col items-center justify-center py-24 glass-panel rounded-2xl">
+                        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+                        <h3 className="text-xl font-bold text-white mb-2 animate-pulse">Architecting your story...</h3>
+                        <p className="text-slate-500 font-mono text-xs uppercase tracking-widest">Analyzing Data • Structuring • Planning</p>
+                    </div>
+                )}
+
+                {script && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {script.slides.map((s: Slide, idx: number) => {
+                    const cardComp = surfaceState.components[`card_${s.id}`];
+                    const imageComponent = surfaceState.components[`img_${s.id}`];
+                    const isGenerating = cardComp?.status === "generating";
+                    const isSkipped = cardComp?.status === "skipped";
+                    const src = imageComponent?.src || s.image_url;
+
+                    return (
+                    <div key={s.id} className={`glass-panel p-4 flex flex-col gap-3 rounded-2xl shadow-xl transition-all relative overflow-hidden group ${isGenerating ? "ring-2 ring-blue-500" : ""} ${isSkipped ? "opacity-50 grayscale" : ""}`}>
+                        <div className="flex justify-between items-center border-b border-slate-800/50 pb-2 z-10 relative">
+                            <span className="text-xs font-bold text-blue-500 uppercase">{s.id}</span>
+                            <div className="flex gap-2">
+                                {src ? (
+                                    <button onClick={() => togglePrompt(s.id)} className="text-slate-500 hover:text-white text-[10px] uppercase font-bold">Prompt</button>
+                                ) : (
+                                    <button onClick={() => retrySlide(s.id)} className="text-green-500 hover:text-green-400 text-[10px] uppercase font-bold flex items-center gap-1 bg-green-900/10 px-2 py-1 rounded">Generate</button>
+                                )}
+                            </div>
                         </div>
-                    )}
-                    {hasError && <div className="absolute inset-0 bg-red-900/80 flex flex-col items-center justify-center z-20"><span className="text-xs font-bold text-red-200">FAILED</span><button onClick={() => retrySlide(s.id)} className="mt-2 text-[10px] underline text-white">Retry</button></div>}
-                    {isSkipped && <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none"><span className="text-xs font-bold text-slate-500 uppercase rotate-[-15deg] border-2 border-slate-700 px-4 py-2 rounded opacity-50">SKIPPED</span></div>}
-                    {src && !visiblePrompts[s.id] && (<div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-4 right-4 z-10"><button onClick={(e) => { e.stopPropagation(); retrySlide(s.id); }} className="bg-slate-800 p-2 rounded-full hover:bg-white/10 text-white transition-colors" title="Regenerate"><RefreshIcon /></button></div>)}
-                  </div>
-                )})
-              }
-              </div>
+                        
+                        <div className="flex-1 flex flex-col gap-3 min-h-[200px] justify-center items-center">
+                            {src && !visiblePrompts[s.id] ? (
+                                <img src={src} className="w-full h-full object-cover rounded-lg cursor-pointer" onClick={() => setLightboxIndex(idx)} alt={s.title} />
+                            ) : (
+                                <div className="flex flex-col gap-2 w-full h-full">
+                                    <span className="font-bold text-white text-sm">{s.title}</span>
+                                    <p className="text-[10px] text-slate-400 leading-relaxed overflow-hidden line-clamp-6">{s.description || s.image_prompt}</p>
+                                </div>
+                            )}
+                        </div>
+                        {isGenerating && (
+                            <div className="absolute inset-0 bg-[#030712]/80 flex flex-col items-center justify-center z-20 backdrop-blur-sm">
+                                <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Drawing...</span>
+                            </div>
+                        )}
+                    </div>
+                    )})}
+                </div>
+                )}
+            </section>
             )}
-          </section>
-        )}
+        </main>
       </div>
 
       <footer className="w-full bg-[#030712]/95 backdrop-blur-md border-t border-slate-800/50 py-4 px-6 text-center z-30 mt-auto md:fixed md:bottom-0">
