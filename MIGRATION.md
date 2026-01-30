@@ -1,6 +1,38 @@
 # Migration Guide
 
-This document tracks changes required when moving between environments (e.g., from Dev to Prod) or updating infrastructure.
+This document tracks changes required when moving between environments (e.g., from Dev to Prod), switching GCP projects, or updating infrastructure.
+
+## 🚀 Quick Project Switch Guide
+
+The architecture is designed to be **project-agnostic**. You do **not** need to modify the source code logic to switch environments. Just update these 3 configuration points:
+
+### 1. Frontend Connection
+The frontend connects to the backend via an Environment Variable. The default hardcoded URL in `page.tsx` is just a fallback.
+*   **Action:** Set the `NEXT_PUBLIC_BACKEND_URL` environment variable in your frontend deployment platform (Vercel, Firebase Hosting, or Cloud Run) to your new Backend URL.
+    *   *Example:* `https://infographic-agent-backend-new-project-id.us-central1.run.app`
+
+### 2. Firebase Deployment (.firebaserc)
+If you use Firebase Hosting, the project alias is stored in `.firebaserc`.
+*   **Action:** Edit `.firebaserc` in the `frontend` folder:
+    ```json
+    {
+      "projects": {
+        "default": "your-new-project-id"
+      }
+    }
+    ```
+    *   *Alternatively:* Run `firebase use <NEW_PROJECT_ID>` in your terminal.
+
+### 3. Backend Deployment (gcloud)
+The Python backend automatically detects its GCP Project ID at runtime using the `google-cloud` libraries.
+*   **Action:** Before running `gcloud run deploy`, simply switch your active CLI configuration:
+    ```bash
+    gcloud config set project <NEW_PROJECT_ID>
+    # Then deploy as normal
+    gcloud run deploy infographic-agent-backend ...
+    ```
+
+---
 
 ## 🗄️ Database (Firestore)
 
@@ -60,7 +92,7 @@ For security, sensitive environment variables like `ENCRYPTION_KEY` and `GCS_BUC
     export GCS_BUCKET_NAME="your-gcs-bucket-name"
 
     gcloud secrets create infographic-agent-encryption-key --data-file=- <<< "$ENCRYPTION_KEY"
-    gcloud secrets create infographic-agent-gcs-bucket-name --data-file=- <<< "$GCS_BUCKET_NAME"
+gcloud secrets create infographic-agent-gcs-bucket-name --data-file=- <<< "$GCS_BUCKET_NAME"
     ```
     *Note: The secret names (`infographic-agent-encryption-key`, etc.) correspond to the defaults in `cloudbuild.yaml`. If you change them, update the `_ENCRYPTION_KEY_SECRET` and `_GCS_BUCKET_NAME_SECRET` substitutions.*
 
@@ -86,15 +118,17 @@ Ensure the following secrets/vars are migrated to Cloud Run / Frontend:
 Managed via Secret Manager (see above).
 | Variable | Description |
 | :--- | :--- |
-| `GOOGLE_CLOUD_PROJECT` | GCP Project ID (Auto-set). |
+| `GOOGLE_CLOUD_PROJECT` | GCP Project ID (Auto-set by Cloud Run). |
 | `ENCRYPTION_KEY` | **CRITICAL**: 32-byte string for AES. |
 | `GCS_BUCKET_NAME` | The bucket for storing generated images. |
-| `FIREBASE_SERVICE_ACCOUNT` | (Optional) Full JSON key (Single Line). |
+| `FIREBASE_SERVICE_ACCOUNT` | (Optional) Full JSON key (Single Line) if standard auth fails. |
 
 ### Frontend (Environment Variables)
+These must be set in your CI/CD or Hosting configuration (e.g., `.env.local` for dev, Dashboard vars for prod).
+
 | Variable | Description |
 | :--- | :--- |
-| `NEXT_PUBLIC_BACKEND_URL` | The public URL of your Cloud Run service. |
+| `NEXT_PUBLIC_BACKEND_URL` | **Crucial:** The public URL of your Cloud Run service. |
 | `NEXT_PUBLIC_FIREBASE_API_KEY` | From Firebase Console -> Project Settings. |
 | `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | e.g. `<project-id>.firebaseapp.com` |
 | `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Your GCP/Firebase Project ID. |
