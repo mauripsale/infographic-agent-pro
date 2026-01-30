@@ -1139,17 +1139,17 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
           <img src="/logo.png" alt="IPSA Logo" className="w-8 h-8 rounded-lg" />
           <div className="flex flex-col">
             <span className="text-lg font-bold text-slate-50 tracking-tight leading-none">IPSA</span>
-            <span className="text-[9px] uppercase tracking-widest text-slate-500 font-medium hidden md:block mt-1">Infographic Presentation Sales Agent</span>
+            <span className="text-[9px] uppercase tracking-widest text-blue-400 font-bold hidden md:block mt-1">Your Visual Data Architect</span>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <div className="hidden lg:flex flex-col items-end mr-4">
-              <span className="text-[10px] uppercase tracking-[0.3em] text-blue-400 font-black">Your Visual Data Architect</span>
-          </div>
-
           <button onClick={() => setShowResetConfirm(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600/10 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white transition-all text-xs font-bold" title="Start New Project">
               <PlusIcon /> <span className="hidden sm:inline">New Project</span>
           </button>
+          
+          <div className="hidden lg:flex flex-col items-end mr-4">
+              <span className="text-[10px] uppercase tracking-[0.3em] text-slate-500 font-black">Infographic Presentation Sales Agent</span>
+          </div>
           
           <button onClick={() => setShowHistory(true)} className="p-2 rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition-all" title="View History">
               <HistoryIcon />
@@ -1201,14 +1201,14 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                         <div>
                             <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">Primary Color</label>
                             <div className="flex gap-2 items-center">
-                                <input type="color" value={brandPrimary || "#3b82f6"} onChange={(e) => setBrandPrimary(e.target.value)} className="w-8 h-8 rounded-lg bg-transparent border-none cursor-pointer p-0 overflow-hidden" />
+                                <input type="color" value={brandPrimary || "#3b82f6"} onChange={(e) => setBrandPrimary(e.target.value)} className="w-10 h-10 rounded-md border border-slate-700 bg-transparent cursor-pointer p-0 overflow-hidden" />
                                 <input type="text" value={brandPrimary} onChange={(e) => setBrandPrimary(e.target.value)} placeholder="#HEX" className="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs outline-none font-mono" />
                             </div>
                         </div>
                         <div>
                             <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">Secondary Color</label>
                             <div className="flex gap-2 items-center">
-                                <input type="color" value={brandSecondary || "#1e293b"} onChange={(e) => setBrandSecondary(e.target.value)} className="w-8 h-8 rounded-lg bg-transparent border-none cursor-pointer p-0 overflow-hidden" />
+                                <input type="color" value={brandSecondary || "#1e293b"} onChange={(e) => setBrandSecondary(e.target.value)} className="w-10 h-10 rounded-md border border-slate-700 bg-transparent cursor-pointer p-0 overflow-hidden" />
                                 <input type="text" value={brandSecondary} onChange={(e) => setBrandSecondary(e.target.value)} placeholder="#HEX" className="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs outline-none font-mono" />
                             </div>
                         </div>
