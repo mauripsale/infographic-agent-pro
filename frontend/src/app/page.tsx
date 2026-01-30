@@ -130,7 +130,7 @@ export default function App() {
   // Generation Settings
   const [numSlides, setNumSlides] = useState(5);
   const [style, setStyle] = useState("");
-  const [detailLevel, setDetailLevel] = useState("Average");
+  const [detailLevel, setDetailLevel] = useState("3"); // Default to average (1-5 scale)
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [language, setLanguage] = useState("English");
   
@@ -327,7 +327,7 @@ export default function App() {
       setSurfaceState({ components: {}, dataModel: {} });
       setUploadedFiles([]);
       setBrandingFiles([]);
-      setCurrentProjectId(null);
+      setCurrentProjectId(null); // CRITICAL: Ensure backend creates new ID
       setVisiblePrompts({});
       setShowResetConfirm(false);
   };
@@ -336,7 +336,7 @@ export default function App() {
       setPhase("input");
       setScript(null);
       setSurfaceState({ components: {}, dataModel: {} });
-      setCurrentProjectId(null);
+      setCurrentProjectId(null); // ALSO CRITICAL
       setVisiblePrompts({});
       setShowResetConfirm(false);
       setTimeout(() => handleStream("script"), 100);
@@ -474,7 +474,10 @@ export default function App() {
         setScript({ slides: Array.from({ length: numSlides }).map((_, i) => ({ id: `loading_${i}`, title: "Generating…", image_prompt: "…" })) });
         setSurfaceState({ components: {}, dataModel: {} });
         setVisiblePrompts({});
-        setCurrentProjectId(null);
+        // Force reset project ID if we are starting fresh (redundant but safe)
+        if (!currentProjectId) {
+            localStorage.removeItem("lastProjectId");
+        }
         setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
 
         const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
@@ -726,18 +729,30 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                 </div>
 
                 <div className="mb-8">
-                    <div className="flex justify-between mb-4 px-1"><label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Slide Count</label><span className="text-[#0066FF] font-mono text-sm font-bold">{numSlides}</span></div>
+                    <div className="flex justify-between mb-4 px-1"><label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Slide Count</label>
+                        <input 
+                            type="number" 
+                            min={MIN_SLIDES} 
+                            max={MAX_SLIDES} 
+                            value={numSlides} 
+                            onChange={(e) => {
+                                const num = parseInt(e.target.value, 10);
+                                if (!isNaN(num)) setNumSlides(Math.max(MIN_SLIDES, Math.min(MAX_SLIDES, num)));
+                            }}
+                            className="bg-transparent w-12 text-right outline-none text-[#0066FF] font-mono font-bold text-sm"
+                        />
+                    </div>
                     <div className="flex items-center gap-3 bg-black/40 p-2 rounded-xl border border-white/5">
                         <button onClick={() => setNumSlides(Math.max(MIN_SLIDES, numSlides - 1))} className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-lg text-slate-400 transition-colors"><MinusIcon width={14}/></button>
-                        <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-[#0066FF]" style={{ width: `${((numSlides - MIN_SLIDES) / (MAX_SLIDES - MIN_SLIDES)) * 100}%` }}></div>
+                        <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden relative">
+                            <div className="h-full bg-[#0066FF] absolute top-0 left-0 transition-all duration-300" style={{ width: `${((numSlides - MIN_SLIDES) / (MAX_SLIDES - MIN_SLIDES)) * 100}%` }}></div>
                         </div>
                         <input type="range" min={MIN_SLIDES} max={MAX_SLIDES} value={numSlides} onChange={(e) => setNumSlides(parseInt(e.target.value))} className="absolute opacity-0 w-full" />
                         <button onClick={() => setNumSlides(Math.min(MAX_SLIDES, numSlides + 1))} className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-lg text-slate-400 transition-colors"><PlusIcon width={14}/></button>
                     </div>
                 </div>
 
-                <SegmentedControl label="Detail Level" options={["Simple", "Average", "Complex"]} value={detailLevel} onChange={setDetailLevel} />
+                <SegmentedControl label="Detail Level" options={["1", "2", "3", "4", "5"]} value={detailLevel} onChange={setDetailLevel} />
                 <SegmentedControl label="Aspect Ratio" options={["16:9", "4:3", "9:16"]} value={aspectRatio} onChange={setAspectRatio} />
                 <SegmentedControl label="Language" options={["English", "Italian"]} value={language} onChange={setLanguage} />
 
@@ -747,7 +762,7 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                 </div>
 
                 <div className="pt-8 border-t border-white/5">
-                     <div className="flex items-center gap-2 mb-4"><PaletteIcon className="text-[#0066FF]"/><span className="text-[10px] font-bold text-white uppercase tracking-widest">Brand Kit</span></div>
+                     <div className="flex items-center gap-2 mb-6"><PaletteIcon className="text-[#0066FF]"/><span className="text-[10px] font-bold text-white uppercase tracking-widest">Brand Kit</span></div>
                      <div className="grid grid-cols-2 gap-4">
                         <div className="flex items-center gap-2 bg-black/40 p-2 rounded-xl border border-white/5"><div className="w-6 h-6 rounded-lg overflow-hidden border border-white/10 relative"><input type="color" value={brandPrimary} onChange={(e) => setBrandPrimary(e.target.value)} className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer"/></div><input type="text" value={brandPrimary} onChange={(e) => setBrandPrimary(e.target.value)} placeholder="#Primary" className="w-full bg-transparent text-[10px] font-mono outline-none text-slate-300"/></div>
                         <div className="flex items-center gap-2 bg-black/40 p-2 rounded-xl border border-white/5"><div className="w-6 h-6 rounded-lg overflow-hidden border border-white/10 relative"><input type="color" value={brandSecondary} onChange={(e) => setBrandSecondary(e.target.value)} className="absolute -top-2 -left-2 w-12 h-12 cursor-pointer"/></div><input type="text" value={brandSecondary} onChange={(e) => setBrandSecondary(e.target.value)} placeholder="#Sec" className="w-full bg-transparent text-[10px] font-mono outline-none text-slate-300"/></div>
@@ -761,9 +776,11 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
             <div className="flex-1 overflow-y-auto custom-scrollbar px-4 pb-32">
                 <div className={`transition-all duration-700 ease-out max-w-4xl mx-auto ${phase === 'input' ? 'mt-[12vh]' : 'mt-0'}`}>
                     <div className="relative group">
-                        <div className={`absolute -inset-1 bg-gradient-to-r from-[#0066FF] to-cyan-500 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000 ${phase !== 'input' ? 'hidden' : ''}`}></div>
+                        {/* Decorative Gradient - MUST have pointer-events-none to not block clicks */}
+                        <div className={`absolute -inset-1 bg-gradient-to-r from-[#0066FF] to-cyan-500 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000 pointer-events-none ${phase !== 'input' ? 'hidden' : ''}`}></div>
+                        
                         <div 
-                            className={`glass-panel rounded-3xl p-1 transition-all duration-500 border-0 ${phase !== 'input' ? 'h-24 flex items-center cursor-pointer hover:bg-white/5' : 'h-64'}`}
+                            className={`glass-panel rounded-3xl p-1 transition-all duration-500 border-0 relative z-10 ${phase !== 'input' ? 'h-24 flex items-center cursor-pointer hover:bg-white/5' : 'h-64'}`}
                             onClick={() => phase !== 'input' && setPhase('input')}
                         >
                             <textarea 
@@ -771,10 +788,10 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                                 onChange={(e) => setQuery(e.target.value)}
                                 onFocus={() => setPhase('input')}
                                 placeholder="What are we building today?"
-                                className={`w-full h-full bg-transparent border-0 text-slate-100 placeholder-slate-600 text-2xl p-8 outline-none resize-none font-medium ${phase !== 'input' ? 'cursor-pointer text-lg' : ''}`}
+                                className={`w-full h-full bg-transparent border-0 text-slate-100 placeholder-slate-600 text-2xl p-8 outline-none resize-none font-medium z-20 relative pointer-events-auto ${phase !== 'input' ? 'cursor-pointer text-lg' : ''}`}
                             />
                             {phase !== 'input' && (
-                                <div className="pr-8 flex flex-col gap-2">
+                                <div className="pr-8 flex flex-col gap-2 relative z-30">
                                      <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-colors"><EditIcon/></button>
                                 </div>
                             )}
@@ -853,7 +870,7 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                                                         <div className="p-8 w-full h-full flex flex-col justify-center text-center">
                                                             {refiningSlideId === s.id ? (
                                                                 <div className="flex flex-col gap-4 animate-fade-in h-full justify-center">
-                                                                    <input value={s.title} onChange={(e) => handleSlideChange(s.id, "title", e.target.value)} className="bg-transparent border-b border-white/10 text-lg font-bold text-white outline-none pb-2 focus:border-[#0066FF] text-center" />
+                                                                    <input value={s.title} onChange={(e) => handleSlideChange(s.id, "title", e.target.value)} className="bg-transparent border-b border-white/10 text-lg font-bold text-white outline-none pb-2 text-center focus:border-[#0066FF]" />
                                                                     <textarea value={refineInstruction} onChange={(e) => setRefineInstruction(e.target.value)} placeholder="How should we change this?" className="bg-white/5 rounded-xl p-4 text-xs text-slate-300 resize-none outline-none h-24" />
                                                                     <div className="flex justify-center gap-3">
                                                                         <button onClick={() => setRefiningSlideId(null)} className="text-xs font-bold text-slate-500 hover:text-white px-4 py-2">Cancel</button>
