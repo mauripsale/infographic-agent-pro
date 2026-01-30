@@ -1138,7 +1138,7 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="IPSA Logo" className="w-8 h-8 rounded-lg" />
           <div className="flex flex-col">
-            <span className="text-lg font-bold text-slate-50 tracking-tight leading-none">Infographic Presentation Sales Agent</span>
+            <span className="text-lg font-bold text-slate-50 tracking-tight leading-none">IPSA</span>
             <span className="text-[9px] uppercase tracking-widest text-blue-400 font-bold hidden md:block mt-1">Your Visual Data Architect</span>
           </div>
         </div>
@@ -1148,7 +1148,7 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
           </button>
           
           <div className="hidden lg:flex flex-col items-end mr-4">
-              <span className="text-[10px] uppercase tracking-[0.3em] text-slate-500 font-black">IPSA</span>
+              <span className="text-[10px] uppercase tracking-[0.3em] text-slate-500 font-black">Infographic Presentation Sales Agent</span>
           </div>
           
           <button onClick={() => setShowHistory(true)} className="p-2 rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition-all" title="View History">
