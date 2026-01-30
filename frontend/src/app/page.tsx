@@ -859,14 +859,77 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
       </div>
 
       {/* CONFIRM / SETTINGS MODALS */}
+      {showConfirm && (
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+              <div className="glass-panel p-8 rounded-3xl max-w-sm w-full text-center border border-amber-500/20 shadow-2xl shadow-amber-900/20">
+                  <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center text-amber-500 mx-auto mb-6"><RefreshIcon /></div>
+                  <h3 className="text-xl font-bold text-white mb-2">Regenerate Script?</h3>
+                  <p className="text-slate-400 text-sm mb-6">This will overwrite the current plan.</p>
+                  <div className="flex gap-3">
+                    <button onClick={() => setShowConfirm(false)} className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-sm">Cancel</button>
+                    <button onClick={() => { setShowConfirm(false); handleStream("script"); }} className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm">Confirm</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {showSettings && (
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+              <div className="glass-panel p-8 rounded-3xl max-w-md w-full relative border border-slate-700/50 shadow-2xl">
+                  <button onClick={() => setShowSettings(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white"><XIcon /></button>
+                  <div className="flex items-center gap-3 mb-6">
+                      <div className="w-12 h-12 bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-400"><KeyIcon /></div>
+                      <h3 className="text-xl font-bold text-white">Gemini Key</h3>
+                  </div>
+                  <div className="flex flex-col gap-4">
+                      <input type="password" value={inputApiKey} onChange={(e) => setInputApiKey(e.target.value)} placeholder="AIza..." className="w-full glass-input rounded-xl p-4 text-white font-mono text-sm" />
+                      <button onClick={saveSettings} disabled={!inputApiKey || isSavingKey} className="py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl font-bold shadow-lg shadow-blue-900/20">
+                          {isSavingKey ? "Saving..." : "Save Securely"}
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxIndex !== null && script && (
+          <div ref={lightboxRef} className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center backdrop-blur-xl animate-fade-in focus:outline-none overflow-hidden">
+              <div className="absolute top-6 right-6 z-20 flex gap-4">
+                  <button onClick={toggleFullscreen} className="text-white/50 hover:text-white p-2 rounded-full hover:bg-white/10"><MaximizeIcon /></button>
+                  <button onClick={() => setLightboxIndex(null)} className="text-white/50 hover:text-white p-2 rounded-full hover:bg-white/10"><XIcon /></button>
+              </div>
+              <button onClick={() => navigateLightbox(-1)} className="absolute left-6 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 rounded-full hover:bg-white/10 z-20 hidden md:block"><ChevronLeft /></button>
+              <button onClick={() => navigateLightbox(1)} className="absolute right-6 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 rounded-full hover:bg-white/10 z-20 hidden md:block"><ChevronRight /></button>
+              <div className="w-full h-full p-4 md:p-20 flex flex-col items-center justify-center">
+                  {(() => {
+                      const slide = script.slides[lightboxIndex];
+                      const src = (surfaceState.components[`img_${slide.id}`] as A2UIComponent)?.src || slide.image_url;
+                      return src ? (
+                          <div className="relative w-full h-full max-w-7xl flex flex-col items-center justify-center group">
+                              <img src={src} className="max-w-full max-h-[85%] object-contain shadow-2xl rounded-lg" alt={slide.title} />
+                              <div className="mt-8 text-center max-w-3xl glass-panel p-6 rounded-2xl border border-white/5">
+                                  <h2 className="text-2xl font-bold text-white mb-2">{slide.title}</h2>
+                                  <p className="text-slate-300 text-sm leading-relaxed">{slide.description || slide.image_prompt}</p>
+                              </div>
+                          </div>
+                      ) : <div className="text-slate-500 animate-pulse">Rendering...</div>;
+                  })()}
+              </div>
+          </div>
+      )}
+
       {showResetConfirm && (
           <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
               <div className="glass-panel p-8 rounded-3xl max-w-sm w-full text-center border border-red-500/20 shadow-2xl shadow-red-900/20">
                   <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mx-auto mb-6"><TrashIcon /></div>
-                  <h3 className="text-xl font-bold text-white mb-2">Start Fresh?</h3>
-                  <div className="flex gap-3 mt-6">
-                      <button onClick={() => setShowResetConfirm(false)} className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-sm">Cancel</button>
-                      <button onClick={handleResetSession} className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm">Reset</button>
+                  <h3 className="text-xl font-bold text-white mb-2">New Project?</h3>
+                  <p className="text-slate-400 text-sm mb-6">Choose how you want to proceed.</p>
+                  <div className="flex flex-col gap-3">
+                      <div className="flex gap-3">
+                        <button onClick={() => setShowResetConfirm(false)} className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-sm">Cancel</button>
+                        <button onClick={resetGenerationOnly} className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm">Restart</button>
+                      </div>
+                      <button onClick={handleResetSession} className="w-full py-3 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-900/20 font-bold text-xs transition-all">Full Reset</button>
                   </div>
               </div>
           </div>
