@@ -4,7 +4,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  /* Animation definitions matching your previous config */
+  /* Animation definitions */
   --animate-fade-in-up: fadeInUp 0.5s ease-out forwards;
   --animate-fade-in: fadeIn 0.5s ease-out;
   --animate-zoom-in: zoomIn 0.3s ease-out;
@@ -26,7 +26,7 @@
 /* Custom Utilities */
 @utility custom-scrollbar {
   &::-webkit-scrollbar {
-    width: 4px; /* Thinner scrollbar */
+    width: 4px;
   }
   &::-webkit-scrollbar-track {
     background: transparent;
@@ -42,39 +42,43 @@
 
 @utility bg-grid {
   background-size: 40px 40px;
-  mask-image: linear-gradient(to bottom, transparent, 5%, black, 95%, transparent);
-  -webkit-mask-image: linear-gradient(to bottom, transparent, 5%, black, 95%, transparent);
-  opacity: 0.4; /* More subtle */
+  mask-image: linear-gradient(to bottom, transparent, 2%, black, 98%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, 2%, black, 98%, transparent);
+  opacity: 0.25; /* Subtle and classy */
 }
 
 /* Floating Glass Aesthetic */
 @utility glass-panel {
-  background: rgba(3, 7, 18, 0.6); /* Deep dark blue/black alpha */
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.05); /* Super subtle border */
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); /* Deep shadow for float effect */
+  background: rgba(3, 7, 18, 0.7); /* Deep dark */
+  backdrop-filter: blur(32px); /* Intense blur */
+  -webkit-backdrop-filter: blur(32px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
 }
 
 @utility glass-input {
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid transparent; /* No visible border initially */
+  border: 1px solid transparent;
   color: #e2e8f0;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.07);
   }
 
   &:focus {
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5); /* Subtle blue ring */
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 0 1px #0066FF; /* Vibrant Blue */
     outline: none;
   }
 }
 
-@utility glow-blue {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+@utility glow-primary {
+  box-shadow: 0 0 40px rgba(0, 102, 255, 0.35); /* Electric Blue Glow */
+}
+
+@utility text-glow {
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
 }
 
 :root {
