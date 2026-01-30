@@ -3,12 +3,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./globals.css";
 import { useAuth } from "@/context/AuthContext";
-import { 
-  MonitorIcon, SettingsIcon, SparklesIcon, FileUpIcon, RefreshIcon, 
-  EyeIcon, ChevronLeft, ChevronRight, XIcon, MaximizeIcon, PaintBrushIcon, 
-  EditIcon, CheckIcon, GoogleIcon, KeyIcon, ChevronDown, ChevronUp, 
-  PresentationIcon, PaletteIcon, HistoryIcon, PlusIcon, MinusIcon, 
-  TrashIcon, MagicWandIcon 
+import {
+  MonitorIcon, SettingsIcon, SparklesIcon, FileUpIcon, RefreshIcon,
+  ChevronLeft, ChevronRight, XIcon, MaximizeIcon,
+  EditIcon, CheckIcon, GoogleIcon, KeyIcon, ChevronDown, ChevronUp,
+  PresentationIcon, PaletteIcon, HistoryIcon, PlusIcon, MinusIcon,
+  TrashIcon, MagicWandIcon
 } from "@/components/Icons";
 
 // Constants
@@ -43,7 +43,6 @@ interface ProjectDetails extends ProjectSummary {
   export_zip_url?: string;
 }
 
-// State compatibility
 type Project = ProjectSummary;
 
 interface A2UIComponent {
@@ -102,7 +101,7 @@ export default function App() {
   
   // Mobile UX
   const [showMobileSettings, setShowMobileSettings] = useState(false);
-  const [showRightSidebar, setShowRightSidebar] = useState(false);
+  const [showRightSidebar, setShowRightSidebar] = useState(true);
 
   // Projects State
   const [projects, setProjects] = useState<Project[]>([]);
@@ -148,7 +147,6 @@ export default function App() {
 
   // --- Helper: Parse Query Settings ---
   const parseQueryToSettings = (fullQuery: string) => {
-      // Use [\s\S]* instead of . with /s flag for better compatibility
       const settingsRegex = /\ \[GENERATION SETTINGS\] Slides: (\d+), Style: (.*?), Detail: (.*?), AR: (.*?), Lang: (.*)\n\n\[USER REQUEST\]\n([\s\S]*)/;
       const match = fullQuery.match(settingsRegex);
       
@@ -181,7 +179,7 @@ export default function App() {
           // Firestore Timestamp (seconds, nanoseconds)
           if (typeof timestamp === 'object' && timestamp !== null && 'seconds' in timestamp) {
               return new Date((timestamp as any).seconds * 1000).toLocaleDateString(undefined, { 
-                  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                  month: 'short', day: 'numeric'
               });
           }
           // ISO String or other
@@ -189,14 +187,14 @@ export default function App() {
           if (isNaN(dateObj.getTime())) return "Invalid date";
           
           return dateObj.toLocaleDateString(undefined, {
-               month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+               month: 'short', day: 'numeric'
           });
       } catch (e) {
           return "Invalid date";
       }
   };
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
       setIsLoadingHistory(true);
       try {
           const token = await getToken();
@@ -210,48 +208,23 @@ export default function App() {
       } finally {
           setIsLoadingHistory(false);
       }
-  };
+  }, [getToken]);
 
-  // Check for API Key on auth load & Auto-Resume
-  useEffect(() => {
-    if (user) {
-        checkSettings();
-        fetchProjects();
-        
-        // Auto-Resume Last Session
-        const lastPid = localStorage.getItem("lastProjectId");
-        if (lastPid && lastPid !== "undefined" && lastPid !== "null") {
-            // We need to fetch the summary first or just try to load by ID directly?
-            // To reuse loadProject, we need a summary object. 
-            // Or we can just fetch details directly. Let's do direct fetch.
-            fetchDetailsDirectly(lastPid);
-        }
-    }
-  }, [user]);
-
-  const fetchDetailsDirectly = async (pid: string) => {
-      if (!pid || pid === "undefined" || pid === "null") return;
-      
-      setIsLoadingHistory(true);
+  const checkSettings = useCallback(async () => {
       try {
           const token = await getToken();
-          const res = await fetch(`${BACKEND_URL}/user/projects/${pid}`, {
+          const res = await fetch(`${BACKEND_URL}/user/settings`, {
               headers: { "Authorization": `Bearer ${token}` }
           });
-          if (res.ok) {
-              const fullProject: ProjectDetails = await res.json();
-              restoreProjectState(fullProject);
-          } else {
-              localStorage.removeItem("lastProjectId"); // Invalid ID
-          }
+          const data = await res.json();
+          setHasApiKey(data.has_api_key);
+          if (!data.has_api_key) setShowSettings(true); // Force open if missing
       } catch (e) {
-          console.error("Auto-resume failed", e);
-      } finally {
-          setIsLoadingHistory(false);
+          console.error("Failed to check settings", e);
       }
-  };
+  }, [getToken]);
 
-  const restoreProjectState = (fullProject: ProjectDetails) => {
+  const restoreProjectState = useCallback((fullProject: ProjectDetails) => {
       setCurrentProjectId(fullProject.id);
       
       // Parse settings from query
@@ -284,9 +257,43 @@ export default function App() {
       });
       
       setSurfaceState({ components: comps, dataModel: { script: fullProject.script } });
-      setShowHistory(false);
-      // Don't auto-scroll on resume, it might be jarring
-  };
+      // On resume, don't necessarily hide the sidebar if it was open
+  }, []);
+
+  const fetchDetailsDirectly = useCallback(async (pid: string) => {
+      if (!pid || pid === "undefined" || pid === "null") return;
+      
+      setIsLoadingHistory(true);
+      try {
+          const token = await getToken();
+          const res = await fetch(`${BACKEND_URL}/user/projects/${pid}`, {
+              headers: { "Authorization": `Bearer ${token}` }
+          });
+          if (res.ok) {
+              const fullProject: ProjectDetails = await res.json();
+              restoreProjectState(fullProject);
+          } else {
+              localStorage.removeItem("lastProjectId"); // Invalid ID
+          }
+      } catch (e) {
+          console.error("Auto-resume failed", e);
+      } finally {
+          setIsLoadingHistory(false);
+      }
+  }, [getToken, restoreProjectState]);
+
+  useEffect(() => {
+    if (user) {
+        checkSettings();
+        fetchProjects();
+        
+        // Auto-Resume Last Session
+        const lastPid = localStorage.getItem("lastProjectId");
+        if (lastPid && lastPid !== "undefined" && lastPid !== "null") {
+            fetchDetailsDirectly(lastPid);
+        }
+    }
+  }, [user, checkSettings, fetchProjects, fetchDetailsDirectly]);
 
   const loadProject = async (projectSummary: ProjectSummary) => {
       setIsLoadingHistory(true);
@@ -315,53 +322,6 @@ export default function App() {
       }
   };
 
-  const checkSettings = async () => {
-      try {
-          const token = await getToken();
-          const res = await fetch(`${BACKEND_URL}/user/settings`, {
-              headers: { "Authorization": `Bearer ${token}` }
-          });
-          const data = await res.json();
-          setHasApiKey(data.has_api_key);
-          if (!data.has_api_key) setShowSettings(true); // Force open if missing
-      } catch (e) {
-          console.error("Failed to check settings", e);
-      }
-  };
-
-  const saveSettings = async () => {
-      if (!inputApiKey.startsWith("AIza")) {
-          alert("Invalid API Key format. Must start with 'AIza'.");
-          return;
-      }
-      setIsSavingKey(true);
-      try {
-          const token = await getToken();
-          const res = await fetch(`${BACKEND_URL}/user/settings`, {
-              method: "POST",
-              headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${token}` 
-              },
-              body: JSON.stringify({ api_key: inputApiKey })
-          });
-          if (res.ok) {
-              setHasApiKey(true);
-              setShowSettings(false);
-              setInputApiKey(""); 
-              alert("API Key saved securely!");
-          } else {
-              const err = await res.json();
-              alert(`Error: ${err.detail}`);
-          }
-      } catch (e) {
-          console.error("Save failed", e);
-          alert("Failed to save API Key.");
-      } finally {
-          setIsSavingKey(false);
-      }
-  };
-
   const handleResetSession = () => {
       setQuery("");
       setPhase("input");
@@ -385,34 +345,11 @@ export default function App() {
       setTimeout(() => handleStream("script"), 100);
   };
 
-  // Lightbox Navigation
-  const navigateLightbox = useCallback((dir: number) => {
-      if (!script || lightboxIndex === null) return;
-      const newIndex = lightboxIndex + dir;
-      if (newIndex >= 0 && newIndex < script.slides.length) {
-          setLightboxIndex(newIndex);
-      }
-  }, [script, lightboxIndex]);
-
-  useEffect(() => { 
-      const handleKeyDown = (e: KeyboardEvent) => {
-          if (lightboxIndex === null) return;
-          if (e.key === "ArrowLeft") navigateLightbox(-1);
-          if (e.key === "ArrowRight") navigateLightbox(1);
-          if (e.key === "Escape") setLightboxIndex(null);
-      };
-      window.addEventListener("keydown", handleKeyDown);
-      return () => window.removeEventListener("keydown", handleKeyDown); 
-  }, [lightboxIndex, navigateLightbox]); 
-
-  const toggleFullscreen = () => {
-      if (!lightboxRef.current) return;
-      if (!document.fullscreenElement) {
-          lightboxRef.current.requestFullscreen().catch(err => console.error(err));
-      } else {
-          document.exitFullscreen();
-      }
-  };
+  const handleLogout = useCallback(async () => {
+    localStorage.removeItem("lastProjectId");
+    handleResetSession();
+    await logout();
+  }, [logout]);
 
   const handleStop = () => {
       if (abortControllerRef.current) {
@@ -425,7 +362,7 @@ export default function App() {
               let changed = false;
               Object.keys(newComps).forEach(key => {
                   if (newComps[key].status === "generating") {
-                      newComps[key] = { ...newComps[key], status: "error", text: "Stopped by user" };
+                      newComps[key] = { ...newComps[key], status: "error", text: "Stopped" };
                       changed = true;
                   }
               });
@@ -468,7 +405,7 @@ export default function App() {
           ...prev,
           components: {
               ...prev.components,
-              [`card_${slideId}`]: { ...prev.components[`card_${slideId}`], status: "generating", text: "Generating..." }
+              [`card_${slideId}`]: { ...prev.components[`card_${slideId}`], status: "generating", text: "Drawing..." }
           }
       }));
 
@@ -503,13 +440,6 @@ export default function App() {
 
       } catch (e) {
           console.error("Retry failed", e);
-          setSurfaceState((prev: any) => ({
-              ...prev,
-              components: {
-                  ...prev.components,
-                  [`card_${slideId}`]: { ...prev.components[`card_${slideId}`], status: "error", text: "Retry Failed" }
-              }
-          }));
       }
   };
 
@@ -548,7 +478,7 @@ export default function App() {
           setRefineInstruction("");
       } catch (e) {
           console.error("Refine Error", e);
-          alert("Failed to refine text. Try again.");
+          alert("Failed to refine text.");
       } finally {
           setIsRefining(false);
       }
@@ -582,12 +512,12 @@ export default function App() {
         const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
         
         // Upload files logic...
-        let fileIds: string[] = [];
+        const fileIds: string[] = [];
         const allFiles = [...uploadedFiles, ...brandingFiles];
         
-        const uploadFile = async (file: File) => {
+        for (const f of allFiles) {
             const formData = new FormData();
-            formData.append("file", file);
+            formData.append("file", f);
             try {
                 const uploadRes = await fetch(`${BACKEND_URL}/agent/upload`, {
                     method: "POST",
@@ -595,17 +525,8 @@ export default function App() {
                     body: formData
                 });
                 const uploadData = await uploadRes.json();
-                if (uploadData.file_id) return uploadData.file_id;
-                else throw new Error("Upload failed");
-            } catch (e) {
-                console.error(`Upload failed for ${file.name}`, e);
-                return null;
-            }
-        };
-
-        for (const f of allFiles) {
-            const fid = await uploadFile(f);
-            if (fid) fileIds.push(fid);
+                if (uploadData.file_id) fileIds.push(uploadData.file_id);
+            } catch (e) { console.error(e); }
         }
 
         const effectiveQuery = `[GENERATION SETTINGS] Slides: ${numSlides}, Style: ${style || "Professional"}, Detail: ${detailLevel}, AR: ${aspectRatio}, Lang: ${language}
@@ -622,7 +543,6 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                 body: JSON.stringify({
                     query: effectiveQuery, 
                     phase: "script", 
-                    session_id: "s1",
                     project_id: currentProjectId,
                     file_ids: fileIds
                 }),
@@ -645,11 +565,8 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                     }
                 }
             });
-        } catch (e: any) { 
-            if (e.name !== 'AbortError') console.error("Script stream error:", e); 
-        } finally { 
+        } catch (e: any) { } finally { 
             setIsStreaming(false); 
-            abortControllerRef.current = null;
             fetchProjects(); 
         }
         return;
@@ -660,28 +577,22 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
         setPhase("graphics");
         setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
 
-        if (!currentScript.global_settings) currentScript.global_settings = {};
-        currentScript.global_settings.aspect_ratio = aspectRatio;
-
         const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
         
         // Identify slides needing generation (those without image_url or with placeholders)
         // We use the current script passed in argument as source of truth
-        const allSlides = currentScript.slides || [];
-        const pendingSlides = allSlides.filter((s: Slide) => !s.image_url);
+        const pendingSlides = (currentScript.slides || []).filter((s: Slide) => !s.image_url);
         
         if (pendingSlides.length === 0) {
             setIsStreaming(false);
             return;
         }
 
-        const BATCH_SIZE = 3;
-        
         try {
-            for (let i = 0; i < pendingSlides.length; i += BATCH_SIZE) {
+            for (let i = 0; i < pendingSlides.length; i += 3) {
                 if (abortController.signal.aborted) break;
 
-                const batchSlides = pendingSlides.slice(i, i + BATCH_SIZE);
+                const batchSlides = pendingSlides.slice(i, i + 3);
                 const isFirstBatch = i === 0;
                 
                 // Create a partial script for this batch
@@ -690,9 +601,6 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                     slides: batchSlides
                 };
 
-                // Update UI to show waiting state for this batch immediately (optional, handled by backend too)
-                // But we want to ensure other slides stay visible.
-                
                 await fetch(`${BACKEND_URL}/agent/stream`, {
                     method: "POST",
                     headers: {
@@ -703,7 +611,6 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                     body: JSON.stringify({
                         phase: "graphics", 
                         script: batchScript, 
-                        session_id: "s1",
                         project_id: currentProjectId,
                         skip_grid_init: !isFirstBatch // Critical: only init grid once
                     }),
@@ -719,7 +626,7 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                                     if (currentComp?.status === "skipped") {
                                         return; // Ignore update if user skipped this slide
                                     }
-                                    // Special handling: if backend sends "waiting" status for cards,
+                                    // Special handling: if backend sends "waiting" status for cards, 
                                     // ensure we don't overwrite "success" cards from previous batches.
                                     nextComps[c.id] = c;
                                 });
@@ -730,8 +637,7 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                             // Actually, processStream updates surfaceState (visuals).
                             // We also need to update 'script' state so if user stops and resumes, we know what's done.
                             // The backend sends components with 'src'. We can extract that.
-                            const comps = msg.updateComponents.components;
-                            comps.forEach((c: any) => {
+                            msg.updateComponents.components.forEach((c: any) => {
                                 if (c.component === "Image" && c.src) {
                                     // Extract slide ID from component ID "img_{id}"
                                     const sid = c.id.replace("img_", "");
@@ -747,12 +653,9 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                     });
                 });
             }
-        } catch (e: any) {
-            if (e.name !== 'AbortError') console.error("Graphics stream error:", e);
-        } finally {
-            setIsStreaming(false);
-            abortControllerRef.current = null;
-            fetchProjects();
+        } catch (e: any) { } finally { 
+            setIsStreaming(false); 
+            fetchProjects(); 
         }
     }
   };
@@ -766,14 +669,9 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
     }
   };
 
-  const handleConfirmRegenerate = () => {
-      setShowConfirm(false);
-      handleStream("script");
-  };
-
   const handleExport = async (fmt: "zip" | "pdf" | "slides" | "pdf_handout") => {
     if (!hasApiKey) { setShowSettings(true); return; }
-    if (!surfaceState.components || !script) return;
+    if (!script) return;
     setIsExporting(true);
     const token = await getToken();
     
@@ -783,20 +681,10 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
             let googleToken = await getGoogleAccessToken();
 
             if (!hasSlidesPermissions || !googleToken) {
-                const newToken = await grantSlidesPermissions();
-                if (!newToken) {
-                    alert("Google Slides export requires Drive permissions. Please grant them to continue.");
-                    setIsExporting(false);
-                    return;
-                }
-                googleToken = newToken;
+                googleToken = await grantSlidesPermissions();
             }
 
-            if (!googleToken) {
-                alert("Failed to retrieve Google Access Token. Please sign in again.");
-                setIsExporting(false);
-                return;
-            }
+            if (!googleToken) { setIsExporting(false); return; }
 
             const slidesPayload = script.slides.map((s: Slide) => {
                 const comp = surfaceState.components[`img_${s.id}`] as A2UIComponent;
@@ -809,27 +697,14 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
 
             const res = await fetch(`${BACKEND_URL}/agent/export_slides`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json", 
-                    "Authorization": `Bearer ${token}` 
-                },
-                body: JSON.stringify({
-                    google_token: googleToken, 
-                    title: query.substring(0, 50) || "Infographic Presentation",
-                    slides: slidesPayload
-                })
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                body: JSON.stringify({ google_token: googleToken, title: query.substring(0, 50) || "Infographic", slides: slidesPayload })
             });
             
             const data = await res.json();
             if (data.url) window.open(data.url, "_blank");
-            else alert(`Export failed: ${data.error || "Unknown error"}`);
 
-        } catch (e) {
-            console.error("Slides Export Error:", e);
-            alert("Failed to export to Google Slides.");
-        } finally {
-            setIsExporting(false);
-        }
+        } catch (e) { } finally { setIsExporting(false); }
         return;
     }
 
@@ -839,58 +714,26 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
         return comp ? comp.src : (s.image_url || null);
     }).filter((url: string | null) => url !== null);
 
-    if (imgUrls.length === 0) {
-        alert("No images generated yet.");
-        setIsExporting(false);
-        return;
-    }
-
-    // Prep text data for handout
-    const slidesData = script.slides.map((s: Slide) => ({
-        title: s.title,
-        description: s.description || s.image_prompt // Fallback
-    }));
+    if (imgUrls.length === 0) { alert("No images generated yet."); setIsExporting(false); return; }
 
     try {
         const res = await fetch(`${BACKEND_URL}/agent/export`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json", 
-                "Authorization": `Bearer ${token}`
-            },
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
             body: JSON.stringify({ 
-                images: imgUrls, 
-                format: fmt, 
-                project_id: currentProjectId,
-                slides_data: slidesData 
+                images: imgUrls, format: fmt, project_id: currentProjectId,
+                slides_data: script.slides.map((s: Slide) => ({ title: s.title, description: s.description || s.image_prompt }))
             })
         });
         const data = await res.json();
         if (data.url) {
             // Use hidden anchor to bypass popup blockers and avoid permission-change reloads
             const link = document.createElement('a');
-            let downloadUrl = data.url;
-            // Fix: If URL is relative (from backend static), prepend backend host
-            if (downloadUrl.startsWith("/")) {
-                downloadUrl = `${BACKEND_URL}${downloadUrl}`;
-            }
-            link.href = downloadUrl;
+            link.href = data.url.startsWith("/") ? `${BACKEND_URL}${data.url}` : data.url;
             link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-            // Force filename if backend didn't provide Content-Disposition, helps browser treat as download
-            if (fmt.startsWith('pdf')) link.download = `presentation-${new Date().getTime()}.pdf`;
-            else if (fmt === 'zip') link.download = `presentation-${new Date().getTime()}.zip`;
-            
-            document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
         }
-        else alert("Export failed. Please check server logs.");
-    } catch(e) { 
-        console.error("Export error:", e);
-        alert("Network error during export. Try again.");
-    }
-    finally { setIsExporting(false); }
+    } catch(e) { } finally { setIsExporting(false); }
   };
 
   const handleSlideChange = (id: string, field: string, value: string) => {
@@ -904,21 +747,67 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
       setVisiblePrompts(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // --- Handlers for UX Controls ---
-  const handleLogout = async () => {
-    localStorage.removeItem("lastProjectId");
-    handleResetSession();
-    await logout();
-  };
-
   const skipSlide = (slideId: string) => {
       setSurfaceState((prev: any) => ({
           ...prev,
           components: {
               ...prev.components,
-              [`card_${slideId}`]: { ...prev.components[`card_${slideId}`], status: "skipped", text: "Skipped by user" }
+              [`card_${slideId}`]: { ...prev.components[`card_${slideId}`], status: "skipped", text: "Skipped" }
           }
       }));
+  };
+
+  // Lightbox Navigation
+  const navigateLightbox = useCallback((dir: number) => {
+      if (!script || lightboxIndex === null) return;
+      const newIndex = lightboxIndex + dir;
+      if (newIndex >= 0 && newIndex < script.slides.length) {
+          setLightboxIndex(newIndex);
+      }
+  }, [script, lightboxIndex]);
+
+  useEffect(() => { 
+      const handleKeyDown = (e: KeyboardEvent) => {
+          if (lightboxIndex === null) return;
+          if (e.key === "ArrowLeft") navigateLightbox(-1);
+          if (e.key === "ArrowRight") navigateLightbox(1);
+          if (e.key === "Escape") setLightboxIndex(null);
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown); 
+  }, [lightboxIndex, navigateLightbox]); 
+
+  const toggleFullscreen = () => {
+      if (!lightboxRef.current) return;
+      if (!document.fullscreenElement) {
+          lightboxRef.current.requestFullscreen().catch(err => console.error(err));
+      } else {
+          document.exitFullscreen();
+      }
+  };
+
+  const saveSettings = async () => {
+      if (!inputApiKey.startsWith("AIza")) {
+          alert("Invalid Gemini Key format.");
+          return;
+      }
+      setIsSavingKey(true);
+      try {
+          const token = await getToken();
+          const res = await fetch(`${BACKEND_URL}/user/settings`, {
+              method: "POST",
+              headers: {
+                  "Content-Type": "application/json", 
+                  "Authorization": `Bearer ${token}` 
+              },
+              body: JSON.stringify({ api_key: inputApiKey })
+          });
+          if (res.ok) {
+              setHasApiKey(true);
+              setShowSettings(false);
+              setInputApiKey(""); 
+          }
+      } catch (e) { console.error(e); } finally { setIsSavingKey(false); }
   };
 
   if (authLoading) return <div className="min-h-screen bg-[#030712] flex items-center justify-center text-white font-bold animate-pulse">Loading Identity...</div>;
@@ -927,120 +816,78 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
       return (
           <div className="min-h-screen bg-[#030712] flex items-center justify-center p-6 relative overflow-hidden">
               {/* Background Grid Overlay */}
-              <div className="absolute inset-0 z-0 bg-grid pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:30px_30px]"></div>
+              <div className="absolute inset-0 z-0 bg-grid pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:30px_30px]">
+              </div>
               
               <div className="max-w-md w-full bg-[#111827]/80 backdrop-blur-xl border border-slate-800 p-10 rounded-3xl shadow-2xl text-center flex flex-col gap-8 animate-fade-in relative z-10">
                   <div className="mx-auto w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/40"><MonitorIcon /></div>
                   <div>
                       <h1 className="text-6xl font-black text-white mb-2 tracking-tighter">IPSA</h1>
-                      <div className="flex flex-col gap-1 mb-6">
-                        <p className="text-blue-400 font-bold text-sm uppercase tracking-[0.3em]">Your Visual Data Architect</p>
-                        <p className="text-slate-500 font-medium text-[10px] uppercase tracking-widest">Infographic Presentation Sales Agent</p>
-                      </div>
-                      <p className="text-slate-400 text-base max-w-sm mx-auto leading-relaxed">
-                        Transform complex technical insights into stunning, high-impact visual narratives in seconds.
-                      </p>
+                      <p className="text-blue-400 font-bold text-sm uppercase tracking-[0.3em] mb-6">Your Visual Data Architect</p>
+                      <p className="text-slate-400 text-base max-w-sm mx-auto leading-relaxed">Transform complex technical insights into stunning narratives.</p>
                   </div>
                   <button onClick={login} className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-xl">
                       <GoogleIcon /> Sign in with Google
                   </button>
-                  <p className="text-[10px] text-slate-600 uppercase tracking-widest">Powered by Google ADK & Gemini</p>
               </div>
           </div>
       );
   }
 
-  const hasGeneratedImages = script?.slides.some((s: Slide) => {
-      const comp = surfaceState.components[`img_${s.id}`];
-      return comp?.src || s.image_url;
-  });
+  const hasGeneratedImages = script?.slides.some((s: Slide) => (surfaceState.components[`img_${s.id}`] as A2UIComponent)?.src || s.image_url);
 
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-500/30 pb-20 relative overflow-hidden flex flex-col">
+    <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-500/30 relative overflow-hidden flex flex-col">
       
       {/* Background Grid Overlay */}
-      <div className="absolute inset-0 z-0 bg-grid pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:30px_30px]"></div>
+      <div className="absolute inset-0 z-0 bg-grid pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:30px_30px]">
+      </div>
 
-      {/* RESET CONFIRMATION MODAL */}
+      {/* MODALS */}
       {showResetConfirm && (
           <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center backdrop-blur-sm animate-fade-in px-4">
               <div className="bg-[#1e293b] border border-red-900/30 p-8 rounded-2xl max-w-sm w-full shadow-2xl relative text-center">
-                  <div className="w-16 h-16 bg-red-900/20 rounded-full flex items-center justify-center text-red-500 mx-auto mb-4">
-                      <TrashIcon />
-                  </div>
+                  <div className="w-16 h-16 bg-red-900/20 rounded-full flex items-center justify-center text-red-500 mx-auto mb-4"><TrashIcon /></div>
                   <h3 className="text-xl font-bold text-white mb-2">New Project?</h3>
-                  <p className="text-slate-400 text-sm mb-6">
-                      This will reset the current session.<br/>
-                      <span className="text-xs text-red-400">"Confirm Reset" clears everything. "Restart Generation" keeps your files.</span>
-                  </p>
+                  <p className="text-slate-400 text-sm mb-6">This will reset the current session. &quot;Confirm Reset&quot; clears everything.</p>
                   <div className="flex flex-col gap-3">
                       <div className="flex gap-3">
                         <button onClick={() => setShowResetConfirm(false)} className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium transition-all">Cancel</button>
-                        <button onClick={resetGenerationOnly} className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition-all">Restart Generation</button>
+                        <button onClick={resetGenerationOnly} className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition-all">Restart</button>
                       </div>
-                      <button onClick={handleResetSession} className="w-full px-4 py-2 bg-red-900/30 hover:bg-red-900/50 border border-red-900 text-red-400 rounded-lg font-medium text-xs transition-all">Fully Reset Project</button>
+                      <button onClick={handleResetSession} className="w-full px-4 py-2 bg-red-900/30 hover:bg-red-900/50 border border-red-900 text-red-400 rounded-lg font-medium text-xs transition-all">Fully Reset</button>
                   </div>
               </div>
           </div>
       )}
 
-      {/* REGENERATE SCRIPT CONFIRMATION MODAL (For existing scripts) */}
       {showConfirm && (
           <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center backdrop-blur-sm animate-fade-in px-4">
               <div className="bg-[#1e293b] border border-amber-900/30 p-8 rounded-2xl max-w-sm w-full shadow-2xl relative text-center">
-                  <div className="w-16 h-16 bg-amber-900/20 rounded-full flex items-center justify-center text-amber-500 mx-auto mb-4">
-                      <RefreshIcon />
-                  </div>
+                  <div className="w-16 h-16 bg-amber-900/20 rounded-full flex items-center justify-center text-amber-500 mx-auto mb-4"><RefreshIcon /></div>
                   <h3 className="text-xl font-bold text-white mb-2">Regenerate Script?</h3>
-                  <p className="text-slate-400 text-sm mb-6">
-                      You already have a script. Generating a new one will <span className="text-amber-400 font-bold">overwrite</span> the current plan and slide text.
-                  </p>
+                  <p className="text-slate-400 text-sm mb-6">This will overwrite the current plan.</p>
                   <div className="flex gap-3">
                     <button onClick={() => setShowConfirm(false)} className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium transition-all">Cancel</button>
-                    <button 
-                        onClick={handleConfirmRegenerate} 
-                        className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition-all"
-                    >
-                        Confirm
-                    </button>
+                    <button onClick={() => { setShowConfirm(false); handleStream("script"); }} className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold transition-all">Confirm</button>
                   </div>
               </div>
           </div>
       )}
 
-      {/* SETTINGS MODAL */}
       {showSettings && (
           <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center backdrop-blur-sm animate-fade-in px-4">
               <div className="bg-[#1e293b] border border-slate-700 p-8 rounded-2xl max-w-md w-full shadow-2xl relative">
                   <button onClick={() => setShowSettings(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white"><XIcon /></button>
                   <div className="flex items-center gap-3 mb-6">
                       <div className="w-10 h-10 bg-blue-900/30 rounded-full flex items-center justify-center text-blue-400"><KeyIcon /></div>
-                      <h3 className="text-xl font-bold text-white">Configure Gemini Key</h3>
+                      <h3 className="text-xl font-bold text-white">Gemini Key</h3>
                   </div>
-                  <p className="text-slate-400 text-sm mb-6">
-                      To use this agent, you need to provide your own <strong>Gemini API Key</strong>. It will be encrypted and stored securely.
-                  </p>
                   <div className="flex flex-col gap-4">
-                      <input 
-                          type="password" 
-                          value={inputApiKey} 
-                          onChange={(e) => setInputApiKey(e.target.value)} 
-                          placeholder="AIza..." 
-                          className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-blue-500 font-mono text-sm"
-                      />
-                      <div className="flex justify-end gap-3 mt-2">
-                          {hasApiKey && <button onClick={() => setShowSettings(false)} className="px-4 py-2 text-slate-400 hover:text-white font-medium">Cancel</button>}
-                          <button 
-                              onClick={saveSettings} 
-                              disabled={!inputApiKey || isSavingKey}
-                              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-bold flex items-center gap-2"
-                          >
-                              {isSavingKey ? "Encrypting..." : "Save Securely"}
-                          </button>
-                      </div>
-                  </div>
-                  <div className="mt-6 pt-6 border-t border-slate-700/50">
-                      <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-xs text-blue-400 hover:underline flex items-center gap-1">Get a free Gemini API Key <ChevronRight /></a>
+                      <input type="password" value={inputApiKey} onChange={(e) => setInputApiKey(e.target.value)} placeholder="AIza..." className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-blue-500 font-mono text-sm" />
+                      <button onClick={saveSettings} disabled={!inputApiKey || isSavingKey} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg font-bold">
+                          {isSavingKey ? "Saving..." : "Save Securely"}
+                      </button>
                   </div>
               </div>
           </div>
@@ -1050,38 +897,24 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
       {lightboxIndex !== null && script && (
           <div ref={lightboxRef} className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center backdrop-blur-xl animate-fade-in focus:outline-none overflow-hidden">
               <div className="absolute top-6 right-6 z-20 flex gap-4">
-                  <button onClick={toggleFullscreen} className="text-white/50 hover:text-white p-2 rounded-full hover:bg-white/10 transition-all">
-                      <MaximizeIcon />
-                  </button>
-                  <button onClick={() => setLightboxIndex(null)} className="text-white/50 hover:text-white p-2 rounded-full hover:bg-white/10 transition-all">
-                      <XIcon />
-                  </button>
+                  <button onClick={toggleFullscreen} className="text-white/50 hover:text-white p-2 rounded-full hover:bg-white/10"><MaximizeIcon /></button>
+                  <button onClick={() => setLightboxIndex(null)} className="text-white/50 hover:text-white p-2 rounded-full hover:bg-white/10"><XIcon /></button>
               </div>
-              
-              <button onClick={() => navigateLightbox(-1)} className="absolute left-6 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 rounded-full hover:bg-white/10 transition-all z-20 hidden md:block">
-                  <ChevronLeft />
-              </button>
-              
-              <button onClick={() => navigateLightbox(1)} className="absolute right-6 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 rounded-full hover:bg-white/10 transition-all z-20 hidden md:block">
-                  <ChevronRight />
-              </button>
-
+              <button onClick={() => navigateLightbox(-1)} className="absolute left-6 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 rounded-full hover:bg-white/10 z-20 hidden md:block"><ChevronLeft /></button>
+              <button onClick={() => navigateLightbox(1)} className="absolute right-6 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-4 rounded-full hover:bg-white/10 z-20 hidden md:block"><ChevronRight /></button>
               <div className="w-full h-full p-4 md:p-20 flex flex-col items-center justify-center">
                   {(() => {
                       const slide = script.slides[lightboxIndex];
-                      const imgComp = surfaceState.components[`img_${slide.id}`] as A2UIComponent;
-                      const src = imgComp?.src || slide.image_url;
+                      const src = (surfaceState.components[`img_${slide.id}`] as A2UIComponent)?.src || slide.image_url;
                       return src ? (
-                          <div className="relative w-full h-full max-w-7xl flex items-center justify-center group">
-                              <img src={src} className="max-w-full max-h-full object-contain shadow-2xl rounded-lg" alt={slide.title} />
-                              <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-4 md:p-6 backdrop-blur-md translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                                  <h2 className="text-xl md:text-2xl font-bold text-white mb-2">{slide.title}</h2>
-                                  <p className="text-sm text-slate-300 max-w-4xl line-clamp-3">{slide.description || slide.image_prompt}</p>
+                          <div className="relative w-full h-full max-w-7xl flex flex-col items-center justify-center group">
+                              <img src={src} className="max-w-full max-h-[80%] object-contain shadow-2xl rounded-lg" alt={slide.title} />
+                              <div className="mt-6 text-center max-w-3xl">
+                                  <h2 className="text-2xl font-bold text-white mb-2">{slide.title}</h2>
+                                  <p className="text-slate-300 text-sm">{slide.description || slide.image_prompt}</p>
                               </div>
                           </div>
-                      ) : (
-                          <div className="text-slate-500 animate-pulse">Image not ready...</div>
-                      );
+                      ) : <div className="text-slate-500 animate-pulse">Rendering...</div>;
                   })()}
               </div>
           </div>
@@ -1090,349 +923,221 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
       {/* HEADER */}
       <header className="sticky top-0 h-16 border-b border-slate-800 bg-[#030712]/90 backdrop-blur-md z-40 flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="IPSA Logo" className="w-8 h-8 rounded-lg" />
+          <img src="/logo.png" alt="IPSA" className="w-8 h-8 rounded-lg" />
           <div className="flex flex-col">
             <span className="text-lg font-bold text-slate-50 tracking-tight leading-none">IPSA</span>
-            <span className="text-[9px] uppercase tracking-widest text-blue-400 font-bold hidden md:block mt-1">Your Visual Data Architect</span>
+            <span className="text-[9px] uppercase tracking-widest text-blue-400 font-bold hidden md:block mt-1">Data Architect</span>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={() => setShowResetConfirm(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600/10 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white transition-all text-xs font-bold" title="Start New Project">
+          <button onClick={() => setShowResetConfirm(true)} className="px-3 py-1.5 rounded-lg bg-blue-600/10 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white transition-all text-xs font-bold flex items-center gap-2">
               <PlusIcon /> <span className="hidden sm:inline">New Project</span>
           </button>
-          
-          <div className="hidden lg:flex flex-col items-end mr-4">
-              <span className="text-[10px] uppercase tracking-[0.3em] text-slate-500 font-black">Infographic Presentation Sales Agent</span>
-          </div>
-          
-          <button onClick={() => setShowRightSidebar(!showRightSidebar)} className={`p-2 rounded-full border transition-all ${showRightSidebar ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'}`} title="View History">
+          <button onClick={() => setShowRightSidebar(!showRightSidebar)} className={`p-2 rounded-full border transition-all ${showRightSidebar ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'}`} title="History">
               <HistoryIcon />
           </button>
-
-          <div className="bg-slate-900 p-1 rounded-full border border-slate-800 hidden md:flex mr-2">
-            <button onClick={() => setModelType("flash")} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${modelType === "flash" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"}`}>2.5 Flash</button>
-            <button onClick={() => setModelType("pro")} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${modelType === "pro" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:text-white"}`}>3 Pro</button>
+          <div className="bg-slate-900 p-1 rounded-full border border-slate-800 hidden md:flex">
+            <button onClick={() => setModelType("flash")} className={`px-4 py-1.5 rounded-full text-xs font-semibold ${modelType === "flash" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400"}`}>Flash</button>
+            <button onClick={() => setModelType("pro")} className={`px-4 py-1.5 rounded-full text-xs font-semibold ${modelType === "pro" ? "bg-blue-600 text-white shadow-lg" : "text-slate-400"}`}>Pro</button>
           </div>
-          
-          <button onClick={() => setShowSettings(true)} className={`p-2 rounded-full transition-all border ${hasApiKey ? "bg-slate-800 border-slate-700 text-slate-400 hover:text-white" : "bg-red-900/20 border-red-500 text-red-400 animate-pulse"}`} title="Configure API Key">
-              <SettingsIcon />
-          </button>
-
+          <button onClick={() => setShowSettings(true)} className={`p-2 rounded-full border ${hasApiKey ? "bg-slate-800 border-slate-700 text-slate-400 hover:text-white" : "bg-red-900/20 border-red-500 text-red-400 animate-pulse"}`}><SettingsIcon /></button>
           <div className="flex items-center gap-3 pl-4 border-l border-slate-800">
               <img src={user.photoURL || ""} className="w-8 h-8 rounded-full border border-slate-700" alt="Avatar" />
-              <button onClick={logout} className="text-[10px] uppercase font-bold text-slate-500 hover:text-white transition-colors">Logout</button>
+              <button onClick={handleLogout} className="text-[10px] uppercase font-bold text-slate-500 hover:text-white">Logout</button>
           </div>
         </div>
       </header>
 
-      {/* MAIN LAYOUT (3-Column Dashboard) */}
       <div className="flex-1 flex overflow-hidden relative z-10">
         
         {/* LEFT SIDEBAR (Settings) */}
-        <aside className={`w-[320px] h-full z-30 flex flex-col glass-panel border-r border-slate-800 transition-all duration-300 absolute md:relative ${showMobileSettings ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
+        <aside className={`w-[300px] h-full z-30 flex flex-col glass-panel border-r border-slate-800 transition-all absolute md:relative ${showMobileSettings ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
-                <div className="flex items-center gap-2 text-sm font-semibold tracking-wider text-gray-200 border-b border-slate-800/50 pb-4">
-                    <SettingsIcon />
-                    <span>SETTINGS</span>
-                </div>
-
-                {/* Slides Control */}
+                <div className="flex items-center gap-2 text-sm font-semibold tracking-wider text-gray-200 border-b border-slate-800/50 pb-4"><SettingsIcon /><span>SETTINGS</span></div>
+                
                 <section>
                     <div className="flex justify-between items-center mb-3">
                         <label className="text-xs text-slate-500 uppercase tracking-wide font-bold">Slides</label>
-                        <input 
-                            type="number" 
-                            min={MIN_SLIDES} 
-                            max={MAX_SLIDES} 
-                            value={numSlides} 
-                            onChange={(e) => {
-                                const val = Math.max(MIN_SLIDES, Math.min(MAX_SLIDES, Number(e.target.value)));
-                                setNumSlides(val);
-                            }}
-                            className="w-12 bg-transparent text-right font-mono text-sm font-bold text-blue-400 outline-none border-b border-transparent focus:border-blue-500 transition-colors"
-                        />
+                        <input type="number" min={MIN_SLIDES} max={MAX_SLIDES} value={numSlides} onChange={(e) => setNumSlides(Math.max(MIN_SLIDES, Math.min(MAX_SLIDES, Number(e.target.value))))} className="w-10 bg-transparent text-right font-mono text-sm font-bold text-blue-400 outline-none" />
                     </div>
-                    
                     <div className="flex items-center gap-3 glass-input p-2 rounded-lg">
-                        <button 
-                            onClick={() => setNumSlides(prev => Math.max(MIN_SLIDES, prev - 1))} 
-                            className="p-1 text-gray-400 hover:text-white transition-colors active:scale-95"
-                        >
-                            <MinusIcon width={14} height={14} />
-                        </button>
-                        
-                        <input 
-                            type="range" 
-                            min={MIN_SLIDES} 
-                            max={MAX_SLIDES} 
-                            value={numSlides} 
-                            onChange={(e) => setNumSlides(Number(e.target.value))} 
-                            className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400" 
-                        />
-                        
-                        <button 
-                            onClick={() => setNumSlides(prev => Math.min(MAX_SLIDES, prev + 1))} 
-                            className="p-1 text-gray-400 hover:text-white transition-colors active:scale-95"
-                        >
-                            <PlusIcon width={14} height={14} />
-                        </button>
+                        <button onClick={() => setNumSlides(prev => Math.max(MIN_SLIDES, prev - 1))} className="p-1 text-gray-400 hover:text-white transition-colors active:scale-95"><MinusIcon width={14} height={14} /></button>
+                        <input type="range" min={MIN_SLIDES} max={MAX_SLIDES} value={numSlides} onChange={(e) => setNumSlides(Number(e.target.value))} className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none accent-blue-500" />
+                        <button onClick={() => setNumSlides(prev => Math.min(MAX_SLIDES, prev + 1))} className="p-1 text-gray-400 hover:text-white transition-colors active:scale-95"><PlusIcon width={14} height={14} /></button>
                     </div>
                 </section>
 
                 <div className="space-y-4">
                     <div>
                         <label className="block text-xs text-slate-500 mb-1.5 uppercase font-bold tracking-wide">Detail</label>
-                        <div className="relative">
-                            <select value={detailLevel} onChange={(e) => setDetailLevel(e.target.value)} className="w-full glass-input rounded-lg py-2.5 px-3 text-sm appearance-none cursor-pointer focus:ring-0 outline-none">
-                                <option>1 - Super Simple</option>
-                                <option>2 - Basic</option>
-                                <option>3 - Average</option>
-                                <option>4 - Detailed</option>
-                                <option>5 - Super Detailed</option>
-                            </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"><ChevronDown /></div>
-                        </div>
+                        <select value={detailLevel} onChange={(e) => setDetailLevel(e.target.value)} className="w-full glass-input rounded-lg py-2 px-3 text-sm outline-none appearance-none cursor-pointer">
+                            <option>1 - Simple</option><option>2 - Basic</option><option>3 - Average</option><option>4 - Detailed</option><option>5 - Super</option>
+                        </select>
                     </div>
                     <div>
                         <label className="block text-xs text-slate-500 mb-1.5 uppercase font-bold tracking-wide">Format</label>
-                        <div className="relative">
-                            <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full glass-input rounded-lg py-2.5 px-3 text-sm appearance-none cursor-pointer focus:ring-0 outline-none">
-                                <option value="16:9">16:9 (Wide)</option>
-                                <option value="4:3">4:3 (Standard)</option>
-                            </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"><ChevronDown /></div>
-                        </div>
+                        <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className="w-full glass-input rounded-lg py-2 px-3 text-sm outline-none appearance-none cursor-pointer">
+                            <option value="16:9">16:9 Wide</option><option value="4:3">4:3 Std</option>
+                        </select>
                     </div>
                     <div>
                         <label className="block text-xs text-slate-500 mb-1.5 uppercase font-bold tracking-wide">Lang</label>
-                        <div className="relative">
-                            <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full glass-input rounded-lg py-2.5 px-3 text-sm appearance-none cursor-pointer focus:ring-0 outline-none">
-                                <option>English</option>
-                                <option>Italian</option>
-                            </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"><ChevronDown /></div>
-                        </div>
+                        <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full glass-input rounded-lg py-2 px-3 text-sm outline-none appearance-none cursor-pointer">
+                            <option>English</option><option>Italian</option>
+                        </select>
                     </div>
-                </div>
-
-                <div>
-                    <label className="block text-xs text-slate-500 mb-1.5 uppercase font-bold tracking-wide">Style</label>
-                    <input type="text" value={style} onChange={(e) => setStyle(e.target.value)} placeholder="e.g. Minimalist" className="w-full glass-input rounded-lg py-2.5 px-3 text-sm outline-none" />
                 </div>
                 
-                {/* BRAND KIT */}
                 <div className="pt-4 border-t border-slate-800/50">
-                    <div className="flex items-center gap-2 text-xs font-bold text-gray-300 mb-4 uppercase tracking-wide">
-                        <PaletteIcon />
-                        <span>Brand Kit</span>
-                    </div>
+                    <div className="flex items-center gap-2 text-xs font-bold text-gray-300 mb-4 uppercase tracking-wide"><PaletteIcon /><span>Brand Kit</span></div>
                     <div className="space-y-4">
-                        <div>
-                            <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">Primary Color</label>
-                            <div className="flex items-center gap-2">
-                                <input type="text" value={brandPrimary} onChange={(e) => setBrandPrimary(e.target.value)} placeholder="#0066FF" className="flex-1 glass-input rounded-lg py-2 px-3 text-xs outline-none font-mono" />
-                                <div className="relative w-8 h-8 rounded-lg border border-white/10 overflow-hidden">
-                                    <input type="color" value={brandPrimary || "#3b82f6"} onChange={(e) => setBrandPrimary(e.target.value)} className="absolute inset-0 scale-150 cursor-pointer" />
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-[10px] text-slate-500 mb-1 uppercase font-bold">Secondary Color</label>
-                            <div className="flex items-center gap-2">
-                                <input type="text" value={brandSecondary} onChange={(e) => setBrandSecondary(e.target.value)} placeholder="#1E293B" className="flex-1 glass-input rounded-lg py-2 px-3 text-xs outline-none font-mono" />
-                                <div className="relative w-8 h-8 rounded-lg border border-white/10 overflow-hidden">
-                                    <input type="color" value={brandSecondary || "#1e293b"} onChange={(e) => setBrandSecondary(e.target.value)} className="absolute inset-0 scale-150 cursor-pointer" />
-                                </div>
-                            </div>
+                        <div className="flex items-center gap-2">
+                            <input type="text" value={brandPrimary} onChange={(e) => setBrandPrimary(e.target.value)} placeholder="Primary" className="flex-1 glass-input rounded-lg py-2 px-3 text-xs outline-none font-mono" />
+                            <div className="w-8 h-8 rounded-lg border border-white/10 relative overflow-hidden"><input type="color" value={brandPrimary || "#3b82f6"} onChange={(e) => setBrandPrimary(e.target.value)} className="absolute inset-0 scale-150" /></div>
                         </div>
                     </div>
                 </div>
-                <div className="h-10"></div>
             </div>
         </aside>
 
-          {/* MOBILE TOGGLE BUTTON */}
-          <div className="md:hidden col-span-1">
-              <button onClick={() => setShowMobileSettings(!showMobileSettings)} className="w-full bg-[#1e293b] border border-slate-700 text-slate-300 py-3 rounded-xl flex items-center justify-center gap-2 font-medium text-sm">
-                  {showMobileSettings ? <ChevronUp /> : <ChevronDown />} {showMobileSettings ? "Hide Options" : "Show Options (Slides, Lang...)"}
-              </button>
-          </div>
-
         {/* CORE CONTENT AREA */}
-        <main className="flex-1 flex flex-col relative p-4 md:p-6 overflow-y-auto custom-scrollbar">
-            
-            {/* MISSING API KEY BANNER */}
-            {!hasApiKey && (
-                <div className="mb-6 bg-amber-900/30 border border-amber-600/50 p-4 rounded-xl flex items-center gap-3 text-amber-200 text-sm animate-pulse z-10">
-                    <KeyIcon />
-                    <span><strong>Action Required:</strong> Please configure your Gemini API Key in Settings to start.</span>
-                </div>
-            )}
-
-            {/* Central Text Area (Glassmorphism Style) */}
-            <div className={`flex-1 flex flex-col pt-4 px-2 min-h-[300px] md:min-h-[400px] transition-all duration-500 ${phase !== 'input' ? 'flex-none h-48' : ''}`}>
-                <div className="w-full h-full relative group">
-                    <div className="absolute inset-0 glass-panel rounded-2xl opacity-50 pointer-events-none group-focus-within:opacity-80 transition-opacity"></div>
-                    <textarea 
-                        value={query} 
-                        onChange={(e) => setQuery(e.target.value)} 
-                        placeholder="Describe your topic (e.g. 'History of Rome'), paste a URL, or upload files..." 
-                        className="w-full h-full bg-transparent border-0 text-slate-200 placeholder-slate-600 text-lg leading-relaxed resize-none p-6 outline-none relative z-10 focus:ring-0" 
-                    />
-                </div>
-            </div>
-
-            {/* Bottom Actions Floating Section */}
-            <div className="mt-4 flex flex-col gap-3">
-                {/* File Uploads Display */}
-                {(uploadedFiles.length > 0 || brandingFiles.length > 0) && (
-                    <div className="flex flex-wrap gap-2 p-3 glass-panel rounded-xl animate-fade-in">
-                        {uploadedFiles.map((f, i) => (
-                            <div key={`s-${i}`} className="bg-green-900/20 border border-green-500/30 px-3 py-1 rounded-full flex items-center gap-2 text-[10px] text-green-400 shadow-sm transition-all group">
-                                <FileUpIcon /> <span className="max-w-[150px] truncate">{f.name}</span>
-                                <button onClick={() => removeFile('source', i)} className="hover:text-white ml-1 font-black">×</button>
-                            </div>
-                        ))}
-                        {brandingFiles.map((f, i) => (
-                            <div key={`b-${i}`} className="bg-blue-900/20 border border-blue-500/30 px-3 py-1 rounded-full flex items-center gap-2 text-[10px] text-blue-400 shadow-sm transition-all group">
-                                <PaletteIcon /> <span className="max-w-[150px] truncate">{f.name}</span>
-                                <button onClick={() => removeFile('brand', i)} className="hover:text-white ml-1 font-black">×</button>
-                            </div>
-                        ))}
+        <main className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto custom-scrollbar">
+            <div className="max-w-5xl mx-auto w-full flex-1 flex flex-col">
+                {!hasApiKey && (
+                    <div className="mb-6 bg-amber-900/30 border border-amber-600/50 p-4 rounded-xl flex items-center gap-3 text-amber-200 text-sm animate-pulse">
+                        <KeyIcon /><span>Configure Gemini API Key in Settings to start.</span>
                     </div>
                 )}
 
-                {/* Secondary Actions Row */}
-                <div className="grid grid-cols-2 gap-3">
-                    <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".pdf,.txt,.md" multiple />
-                    <input type="file" ref={brandingInputRef} className="hidden" onChange={handleBrandingUpload} accept=".pdf,.txt,.md,.png,.jpg,.jpeg" multiple />
-                    
-                    <button 
-                        onClick={() => fileInputRef.current?.click()} 
-                        disabled={!hasApiKey} 
-                        className="flex items-center justify-center gap-2 hover:bg-white/10 py-3 rounded-xl transition-all active:scale-95 group bg-transparent border border-white/10 disabled:opacity-50"
-                    >
-                        <FileUpIcon className="w-5 h-5" />
-                        <span className="text-sm font-medium text-gray-300 group-hover:text-white">Source Docs</span>
-                    </button>
-
-                    <button 
-                        onClick={() => brandingInputRef.current?.click()} 
-                        disabled={!hasApiKey} 
-                        className="flex items-center justify-center gap-2 hover:bg-white/10 py-3 rounded-xl transition-all active:scale-95 group bg-transparent border border-white/10 disabled:opacity-50"
-                    >
-                        <PaletteIcon className="w-5 h-5" />
-                        <span className="text-sm font-medium text-gray-300 group-hover:text-white">Brand Guide</span>
-                    </button>
-                </div>
-
-                {/* Primary Generate Action */}
-                <button 
-                    onClick={startScriptGen} 
-                    disabled={isStreaming || !hasApiKey || (!query && uploadedFiles.length === 0)} 
-                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all active:scale-95 disabled:opacity-50"
-                >
-                    {isStreaming && phase === "review" ? (
-                        <>
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                            <span>Architecting...</span>
-                        </>
-                    ) : (
-                        <>
-                            <SparklesIcon className="w-5 h-5" />
-                            <span>Generate Script</span>
-                        </>
-                    )}
-                </button>
-            </div>
-
-            {/* RESULTS SECTION */}
-            {(phase !== "input" || isStreaming) && (
-            <section ref={resultsRef} className="mt-8 border-t border-slate-800/50 pt-12 animate-fade-in pb-20">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                    <h2 className="text-2xl font-bold text-white tracking-tight">Final Presentation</h2>
-                    <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2">
-                        {isStreaming && (<button onClick={handleStop} className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded-lg font-bold text-sm shadow-lg animate-pulse flex items-center gap-2 whitespace-nowrap">STOP</button>)}
-                        {!isStreaming && script && (
-                            <>
-                            <button type="button" onClick={() => handleExport("zip")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">ZIP</button>
-                            <button type="button" onClick={() => handleExport("pdf")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">PDF</button>
-                            <button type="button" onClick={() => handleExport("pdf_handout")} disabled={isExporting} className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap">Handout</button>
-                            <button type="button" onClick={() => handleExport("slides")} disabled={isExporting} className="bg-[#fbbc04]/20 hover:bg-[#fbbc04]/30 border border-[#fbbc04]/50 text-[#fbbc04] px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap flex items-center gap-2">
-                                <PresentationIcon /> Google Slides
-                            </button>
-                            </>
-                        )}
-                        {script && !isStreaming && (
-                            <button onClick={() => handleStream("graphics", script)} className="bg-green-600 hover:bg-green-500 px-8 py-3 rounded-lg font-bold shadow-lg shadow-green-900/20 text-sm whitespace-nowrap">
-                                {hasGeneratedImages ? "Generate Remaining" : "Generate Graphics"}
-                            </button>
-                        )}
+                <div className={`flex-1 flex flex-col transition-all duration-500 ${phase !== 'input' ? 'flex-none h-48' : ''}`}>
+                    <div className="w-full h-full relative group">
+                        <div className="absolute inset-0 glass-panel rounded-2xl opacity-50 group-focus-within:opacity-80 transition-opacity"></div>
+                        <textarea 
+                            value={query} onChange={(e) => setQuery(e.target.value)} 
+                            placeholder="Describe your topic, paste a URL, or upload files..." 
+                            className="w-full h-full bg-transparent border-0 text-slate-200 placeholder-slate-600 text-lg leading-relaxed resize-none p-6 outline-none relative z-10" 
+                        />
                     </div>
                 </div>
 
-                {isStreaming && phase === "review" && !script && (
-                    <div className="flex flex-col items-center justify-center py-24 glass-panel rounded-2xl">
-                        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                        <h3 className="text-xl font-bold text-white mb-2 animate-pulse">Architecting your story...</h3>
-                        <p className="text-slate-500 font-mono text-xs uppercase tracking-widest">Analyzing Data • Structuring • Planning</p>
-                    </div>
-                )}
-
-                {script && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {script.slides.map((s: Slide, idx: number) => {
-                    const cardComp = surfaceState.components[`card_${s.id}`];
-                    const imageComponent = surfaceState.components[`img_${s.id}`];
-                    const isGenerating = cardComp?.status === "generating";
-                    const isSkipped = cardComp?.status === "skipped";
-                    const src = imageComponent?.src || s.image_url;
-
-                    return (
-                    <div key={s.id} className={`glass-panel p-4 flex flex-col gap-3 rounded-2xl shadow-xl transition-all relative overflow-hidden group ${isGenerating ? "ring-2 ring-blue-500" : ""} ${isSkipped ? "opacity-50 grayscale" : ""}`}>
-                        <div className="flex justify-between items-center border-b border-slate-800/50 pb-2 z-10 relative">
-                            <span className="text-xs font-bold text-blue-500 uppercase">{s.id}</span>
-                            <div className="flex gap-2">
-                                {src ? (
-                                    <button onClick={() => togglePrompt(s.id)} className="text-slate-500 hover:text-white text-[10px] uppercase font-bold">Prompt</button>
-                                ) : (
-                                    <button onClick={() => retrySlide(s.id)} className="text-green-500 hover:text-green-400 text-[10px] uppercase font-bold flex items-center gap-1 bg-green-900/10 px-2 py-1 rounded">Generate</button>
-                                )}
-                            </div>
-                        </div>
-                        
-                        <div className="flex-1 flex flex-col gap-3 min-h-[200px] justify-center items-center">
-                            {src && !visiblePrompts[s.id] ? (
-                                <img src={src} className="w-full h-full object-cover rounded-lg cursor-pointer" onClick={() => setLightboxIndex(idx)} alt={s.title} />
-                            ) : (
-                                <div className="flex flex-col gap-2 w-full h-full">
-                                    <span className="font-bold text-white text-sm">{s.title}</span>
-                                    <p className="text-[10px] text-slate-400 leading-relaxed overflow-hidden line-clamp-6">{s.description || s.image_prompt}</p>
+                <div className="mt-4 flex flex-col gap-3">
+                    {uploadedFiles.length > 0 && (
+                        <div className="flex flex-wrap gap-2 p-3 glass-panel rounded-xl animate-fade-in">
+                            {uploadedFiles.map((f, i) => (
+                                <div key={`s-${i}`} className="bg-green-900/20 border border-green-500/30 px-3 py-1 rounded-full flex items-center gap-2 text-[10px] text-green-400">
+                                    <FileUpIcon /> <span className="max-w-[150px] truncate">{f.name}</span>
+                                    <button onClick={() => removeFile('source', i)} className="hover:text-white font-black">×</button>
                                 </div>
+                            ))}
+                        </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                        <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} multiple />
+                        <input type="file" ref={brandingInputRef} className="hidden" onChange={handleBrandingUpload} multiple />
+                        <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 hover:bg-white/10 py-3 rounded-xl border border-white/10 text-sm text-gray-300 transition-all"><FileUpIcon className="w-5 h-5" />Source Docs</button>
+                        <button onClick={() => brandingInputRef.current?.click()} className="flex items-center justify-center gap-2 hover:bg-white/10 py-3 rounded-xl border border-white/10 text-sm text-gray-300 transition-all"><PaletteIcon className="w-5 h-5" />Brand Kit</button>
+                    </div>
+                    <button onClick={startScriptGen} disabled={isStreaming || !hasApiKey || (!query && uploadedFiles.length === 0)} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all">
+                        {isStreaming && phase === "review" ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <SparklesIcon className="w-5 h-5" />}
+                        <span>{isStreaming && phase === "review" ? "Architecting..." : "Generate Script"}</span>
+                    </button>
+                </div>
+
+                {(phase !== "input" || isStreaming) && (
+                <section ref={resultsRef} className="mt-8 border-t border-slate-800/50 pt-8 pb-20">
+                    <div className="flex justify-between items-center mb-8">
+                        <h2 className="text-2xl font-bold text-white">Final Presentation</h2>
+                        <div className="flex gap-2">
+                            {isStreaming && <button onClick={handleStop} className="bg-red-600 px-6 py-2 rounded-lg font-bold text-sm">STOP</button>}
+                            {!isStreaming && script && (
+                                <>
+                                <button onClick={() => handleExport("zip")} disabled={isExporting} className="bg-slate-800 px-4 py-2 rounded-lg text-sm font-bold">ZIP</button>
+                                <button onClick={() => handleExport("pdf")} disabled={isExporting} className="bg-slate-800 px-4 py-2 rounded-lg text-sm font-bold">PDF</button>
+                                <button onClick={() => handleExport("slides")} disabled={isExporting} className="bg-[#fbbc04]/20 border border-[#fbbc04]/50 text-[#fbbc04] px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"><PresentationIcon /> Slides</button>
+                                <button onClick={() => handleStream("graphics", script)} className="bg-green-600 px-6 py-2 rounded-lg font-bold text-sm shadow-lg">{hasGeneratedImages ? "Regenerate Remaining" : "Generate Graphics"}</button>
+                                </>
                             )}
                         </div>
-                        {isGenerating && (
-                            <div className="absolute inset-0 bg-[#030712]/80 flex flex-col items-center justify-center z-20 backdrop-blur-sm">
-                                <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-                                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Drawing...</span>
-                            </div>
-                        )}
                     </div>
-                    )})}
-                </div>
+                    {script && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {script.slides.map((s: Slide, idx: number) => {
+                            const cardComp = surfaceState.components[`card_${s.id}`];
+                            const src = (surfaceState.components[`img_${s.id}`] as A2UIComponent)?.src || s.image_url;
+                            const isGenerating = cardComp?.status === "generating";
+                            return (
+                                <div key={s.id} className={`glass-panel p-4 flex flex-col gap-3 rounded-2xl relative overflow-hidden group ${isGenerating ? "ring-2 ring-blue-500" : ""}`}>
+                                    <div className="flex justify-between items-center border-b border-slate-800/50 pb-2 relative z-10">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-bold text-blue-500 uppercase">{s.id}</span>
+                                            <button onClick={() => { setRefiningSlideId(s.id); setRefineInstruction(""); }} className="text-slate-500 hover:text-blue-400 transition-colors" title="Magic Refine"><MagicWandIcon width={12} /></button>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => togglePrompt(s.id)} className="text-[9px] uppercase font-bold text-slate-500 hover:text-white">Prompt</button>
+                                            <button onClick={() => skipSlide(s.id)} className="text-[9px] uppercase font-bold text-slate-500 hover:text-red-400">Skip</button>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 flex flex-col gap-3 min-h-[200px] justify-center items-center">
+                                        {src && !visiblePrompts[s.id] ? <img src={src} className="w-full h-full object-cover rounded-lg cursor-pointer" onClick={() => setLightboxIndex(idx)} alt={s.title} /> : 
+                                        <div className="flex flex-col gap-2 w-full h-full p-2">
+                                            {refiningSlideId === s.id ? (
+                                                <div className="flex flex-col gap-2 animate-fade-in">
+                                                    <input value={s.title} onChange={(e) => handleSlideChange(s.id, "title", e.target.value)} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white" />
+                                                    <textarea value={refineInstruction} onChange={(e) => setRefineInstruction(e.target.value)} placeholder="E.g. Make it more professional" className="bg-white/5 border border-white/10 rounded px-2 py-1 text-[10px] text-slate-400 h-16" />
+                                                    <div className="flex justify-end gap-2">
+                                                        <button onClick={() => setRefiningSlideId(null)} className="text-[9px] text-slate-500">Cancel</button>
+                                                        <button onClick={() => handleRefine(s)} disabled={isRefining} className="px-3 py-1 bg-blue-600 rounded text-[9px] font-bold text-white">Refine</button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <span className="font-bold text-white text-sm">{s.title}</span>
+                                                    <p className="text-[10px] text-slate-400 line-clamp-6">{s.description || s.image_prompt}</p>
+                                                </>
+                                            )}
+                                        </div>}
+                                    </div>
+                                    {isGenerating && (
+                                        <div className="absolute inset-0 bg-[#030712]/80 flex flex-col items-center justify-center z-20 backdrop-blur-sm">
+                                            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2" />
+                                            <span className="text-[10px] font-bold text-blue-400 uppercase">Drawing...</span>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    )}
+                </section>
                 )}
-            </section>
-            )}
+            </div>
         </main>
+
+        {/* RIGHT SIDEBAR (History) */}
+        <aside className={`w-[280px] h-full z-30 flex flex-col glass-panel border-l border-slate-800 transition-all duration-300 ${showRightSidebar ? "translate-x-0" : "translate-x-full hidden lg:flex w-0 border-none"}`}>
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800/50 pb-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold tracking-wider text-gray-200"><HistoryIcon /><span>HISTORY</span></div>
+                    <button onClick={() => fetchProjects()} disabled={isLoadingHistory} className={`text-slate-500 hover:text-white transition-colors ${isLoadingHistory ? 'animate-spin' : ''}`}><RefreshIcon width={14} /></button>
+                </div>
+                <div className="flex flex-col gap-3">
+                    {projects.length === 0 ? <p className="text-center text-[10px] text-slate-600 py-10 uppercase tracking-widest">No history</p> : 
+                    projects.map(p => (
+                        <div key={p.id} onClick={() => loadProject(p)} className={`p-3 rounded-xl border transition-all cursor-pointer group ${currentProjectId === p.id ? 'bg-blue-600/10 border-blue-500/50' : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'}`}>
+                            <h4 className={`text-xs font-bold mb-2 line-clamp-2 leading-tight ${currentProjectId === p.id ? 'text-blue-400' : 'text-slate-300 group-hover:text-white'}`}>{getCleanTitle(p)}</h4>
+                            <div className="flex justify-between items-center">
+                                <span className="text-[9px] text-slate-500 font-bold uppercase">{formatDate(p.created_at)}</span>
+                                <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${p.status === 'completed' ? 'bg-green-500/10 text-green-500' : 'bg-amber-500/10 text-amber-500'}`}>{p.status}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </aside>
       </div>
 
-      <footer className="w-full bg-[#030712]/95 backdrop-blur-md border-t border-slate-800/50 py-4 px-6 text-center z-30 mt-auto md:fixed md:bottom-0">
-          <p className="text-[10px] text-slate-500 mb-1 tracking-tight">
-              Created by <a href="https://www.linkedin.com/in/maurizioipsale/" target="_blank" className="text-blue-400 hover:text-blue-300 font-bold hover:underline">Maurizio Ipsale</a> • Google Developer Expert (GDE) Cloud/AI
-          </p>
-          <p className="text-[9px] text-slate-600 uppercase tracking-widest opacity-80">
-              Disclaimer: AI-generated content may be inaccurate. IPSA is not an official Google product.
-          </p>
+      <footer className="w-full bg-[#030712]/95 backdrop-blur-md border-t border-slate-800/50 py-3 px-6 text-center z-30">
+          <p className="text-[10px] text-slate-500 tracking-tight">Created by <a href="https://www.linkedin.com/in/maurizioipsale/" className="text-blue-400 font-bold">Maurizio Ipsale</a> • GDE Cloud/AI</p>
       </footer>
     </div>
   );
