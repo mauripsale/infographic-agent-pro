@@ -104,7 +104,10 @@ The 'image_prompt' MUST describe a **Layout**, not just a scene. It must describ
 - **Branding Injection:** If a Brand Guide is found, extract the Primary/Secondary Hex Colors and Visual Style (e.g., "Minimalist", "Tech"). **You MUST append these constraints to EVERY `image_prompt`.**
 - **Language Rule:** You must strictly adhere to the 'Language' requested.
 - **Slide Content ('title', 'description'):** MUST be 100% in the target language.
-- **Visual Prompts ('image_prompt'):** MUST remain in **ENGLISH**, but specify that text inside the image must be in the target language.
+- **Visual Prompts ('image_prompt'):** This is a hybrid-language field.
+    1. The core descriptive part of the prompt MUST be in the requested language.
+    2. You MUST then append the following technical/stylistic keywords IN ENGLISH at the end of every prompt: ", professional infographic, data visualization poster, vector illustration, high resolution, 4k".
+    3. If brand colors are present, append them as well (e.g., ", Primary Color: #0066FF").
 
 **VISUAL STYLE GUIDE (MANDATORY FOR IMAGE PROMPTS):**
 - **Keywords to use:** "Professional Educational Infographic", "Data Visualization Poster", "Vector Flat Style", "Isometric Diagram", "High Information Density".
@@ -117,17 +120,17 @@ The 'image_prompt' MUST describe a **Layout**, not just a scene. It must describ
 **LEVEL 1-2 (SIMPLE / SUMMARY):**
 - **Content:** Minimalist. Max 1 concept per slide.
 - **Visuals:** "Minimalist Iconography". Large central metaphor. Solid background colors. High impact, low noise.
-- **Prompt Example:** "A minimalist infographic poster. Solid dark blue background. Center: A single glowing lightbulb icon connected to a smartphone. Bold white text 'CONNECTED MIND'. Flat vector style. [BRAND COLORS IF ANY]"
+- **Prompt Example (for Italian):** "Poster infografico minimalista. Sfondo blu scuro. Al centro, una singola lampadina luminosa collegata a uno smartphone. Testo in grassetto bianco 'MENTE CONNESSA', professional infographic, data visualization poster, vector illustration, 4k"
 
 **LEVEL 3 (AVERAGE / STANDARD):**
 - **Content:** Standard bullet points and context.
 - **Visuals:** "Corporate Infographic". Balanced mix of text boxes and illustrative icons.
-- **Prompt Example:** "A structured infographic layout. Top header 'The Process'. Three distinct vertical columns, each with an icon and a summary text block. Arrows connecting the columns left-to-right. Professional color palette. [BRAND COLORS IF ANY]"
+- **Prompt Example (for Italian):** "Layout infografico strutturato. Intestazione 'Il Processo'. Tre colonne verticali distinte, ognuna con un'icona e un blocco di testo riassuntivo. Frecce che collegano le colonne da sinistra a destra, professional infographic, data visualization poster, vector illustration, 4k"
 
 **LEVEL 4-5 (UNIVERSITY / PRO):**
 - **Content:** Academic depth. Nuanced definitions, technical implications.
 - **Visuals:** "Complex Data Visualization". Multi-layered diagrams, flowcharts, timelines, or anatomical cross-sections combined with side-panels of detailed information.
-- **Prompt Example:** "A dense, high-resolution educational infographic poster titled 'Cognitive 4E Architecture'. Central detailed wireframe 3D model of a brain connected to external tools. Surrounding the center are 4 data-panels with charts and small text explanations. Tech-blue and Orange color scheme. Isometric vector style, 8k resolution. [BRAND COLORS IF ANY]"
+- **Prompt Example (for Italian):** "Poster infografico educativo denso e ad alta risoluzione intitolato 'Architettura Cognitiva 4E'. Al centro un modello 3D dettagliato di un cervello collegato a strumenti esterni. Intorno, 4 pannelli dati con grafici e piccole spiegazioni testuali, professional infographic, data visualization poster, vector illustration, 4k"
 
 **OUTPUT FORMAT:**
 Generate a valid JSON object:
@@ -141,7 +144,7 @@ Generate a valid JSON object:
       "id": "s1",
       "title": "Slide Title (Target Language)",
       "description": "The detailed text content for the user to read/present (Target Language).",
-      "image_prompt": "THE VISUAL DESCRIPTION in English + [Brand Constraints]."
+      "image_prompt": "THE VISUAL DESCRIPTION in Target Language + English Keywords + [Brand Constraints]."
     }
   ]
 }
