@@ -476,9 +476,8 @@ export default function App() {
         setVisiblePrompts({});
         // Force reset project ID if we are starting fresh (redundant but safe)
         if (!currentProjectId) {
-             localStorage.removeItem("lastProjectId");
+            localStorage.removeItem("lastProjectId");
         }
-        
         setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
 
         const selectedModel = modelType === "pro" ? "gemini-3-pro-image-preview" : "gemini-2.5-flash-image";
