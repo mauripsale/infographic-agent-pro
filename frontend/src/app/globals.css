@@ -26,40 +26,55 @@
 /* Custom Utilities */
 @utility custom-scrollbar {
   &::-webkit-scrollbar {
-    width: 6px;
+    width: 4px; /* Thinner scrollbar */
   }
   &::-webkit-scrollbar-track {
-    background: rgba(30, 41, 59, 0.5);
+    background: transparent;
   }
   &::-webkit-scrollbar-thumb {
-    background-color: rgba(59, 130, 246, 0.5);
+    background-color: rgba(255, 255, 255, 0.1);
     border-radius: 20px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.2);
   }
 }
 
 @utility bg-grid {
-  background-size: 30px 30px;
+  background-size: 40px 40px;
   mask-image: linear-gradient(to bottom, transparent, 5%, black, 95%, transparent);
   -webkit-mask-image: linear-gradient(to bottom, transparent, 5%, black, 95%, transparent);
+  opacity: 0.4; /* More subtle */
 }
 
+/* Floating Glass Aesthetic */
 @utility glass-panel {
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(3, 7, 18, 0.6); /* Deep dark blue/black alpha */
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.05); /* Super subtle border */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); /* Deep shadow for float effect */
 }
 
 @utility glass-input {
-  background: #1E293B;
-  border: 1px solid #334155;
-  color: white;
-  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent; /* No visible border initially */
+  color: #e2e8f0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
 
   &:focus {
-    border-color: #0066FF;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5); /* Subtle blue ring */
     outline: none;
   }
+}
+
+@utility glow-blue {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
 }
 
 :root {
@@ -69,7 +84,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
+    --background: #020617; /* Deepest blue/black */
     --foreground: #ededed;
   }
 }
