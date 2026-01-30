@@ -102,10 +102,10 @@ export default function App() {
   
   // Mobile UX
   const [showMobileSettings, setShowMobileSettings] = useState(false);
+  const [showRightSidebar, setShowRightSidebar] = useState(false);
 
   // Projects State
   const [projects, setProjects] = useState<Project[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
 
@@ -1008,42 +1008,6 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
           </div>
       )}
 
-      {/* HISTORY MODAL */}
-      {showHistory && (
-          <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center backdrop-blur-sm animate-fade-in px-4">
-              <div className="bg-[#1e293b] border border-slate-700 p-8 rounded-2xl max-w-2xl w-full shadow-2xl relative max-h-[80vh] flex flex-col">
-                  <button onClick={() => setShowHistory(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white"><XIcon /></button>
-                  <div className="flex items-center gap-3 mb-6">
-                      <div className="w-10 h-10 bg-blue-900/30 rounded-full flex items-center justify-center text-blue-400"><HistoryIcon /></div>
-                      <h3 className="text-xl font-bold text-white">Project History</h3>
-                  </div>
-                  
-                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
-                      {isLoadingHistory ? (
-                          <div className="flex items-center justify-center py-20 text-slate-500 animate-pulse">Loading past works...</div>
-                      ) : projects.length === 0 ? (
-                          <div className="text-center py-20 text-slate-500">No projects found. Start creating!</div>
-                      ) : (
-                          <div className="flex flex-col gap-3">
-                              {projects.map(p => (
-                                  <div key={p.id} onClick={() => loadProject(p)} className="bg-slate-900 hover:bg-slate-800 border border-slate-700 p-4 rounded-xl cursor-pointer transition-all group">
-                                      <div className="flex justify-between items-start mb-2">
-                                          <h4 className="font-bold text-white line-clamp-1 group-hover:text-blue-400 transition-colors">{getCleanTitle(p)}</h4>
-                                          <span className="text-[10px] text-slate-500 uppercase">{formatDate(p.created_at)}</span>
-                                      </div>
-                                      <div className="flex gap-4 text-[10px] text-slate-500 uppercase font-bold tracking-widest">
-                                          <span>{p.slide_count || 0} Slides</span>
-                                          <span className={p.status === 'completed' ? 'text-green-500' : 'text-amber-500'}>{p.status}</span>
-                                      </div>
-                                  </div>
-                              ))}
-                          </div>
-                      )}
-                  </div>
-              </div>
-          </div>
-      )}
-
       {/* SETTINGS MODAL */}
       {showSettings && (
           <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center backdrop-blur-sm animate-fade-in px-4">
@@ -1141,7 +1105,7 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
               <span className="text-[10px] uppercase tracking-[0.3em] text-slate-500 font-black">Infographic Presentation Sales Agent</span>
           </div>
           
-          <button onClick={() => setShowHistory(true)} className="p-2 rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:text-white transition-all" title="View History">
+          <button onClick={() => setShowRightSidebar(!showRightSidebar)} className={`p-2 rounded-full border transition-all ${showRightSidebar ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'}`} title="View History">
               <HistoryIcon />
           </button>
 
@@ -1161,10 +1125,10 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
         </div>
       </header>
 
-      {/* MAIN LAYOUT */}
+      {/* MAIN LAYOUT (3-Column Dashboard) */}
       <div className="flex-1 flex overflow-hidden relative z-10">
         
-        {/* SIDEBAR (Settings) */}
+        {/* LEFT SIDEBAR (Settings) */}
         <aside className={`w-[320px] h-full z-30 flex flex-col glass-panel border-r border-slate-800 transition-all duration-300 absolute md:relative ${showMobileSettings ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
                 <div className="flex items-center gap-2 text-sm font-semibold tracking-wider text-gray-200 border-b border-slate-800/50 pb-4">
@@ -1174,18 +1138,44 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
 
                 {/* Slides Control */}
                 <section>
-                    <label className="block text-xs text-slate-500 mb-2 uppercase tracking-wide font-bold">Slides</label>
-                    <div className="flex items-center justify-between glass-input rounded-lg mb-3">
-                        <button onClick={() => setNumSlides(prev => Math.max(1, prev - 1))} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 rounded-l-lg transition-colors">
-                            <PlusIcon className="rotate-45" />
-                        </button>
-                        <span className="text-sm font-medium text-blue-400">{numSlides}</span>
-                        <button onClick={() => setNumSlides(prev => Math.min(30, prev + 1))} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 rounded-r-lg transition-colors">
-                            <PlusIcon />
-                        </button>
+                    <div className="flex justify-between items-center mb-3">
+                        <label className="text-xs text-slate-500 uppercase tracking-wide font-bold">Slides</label>
+                        <input 
+                            type="number" 
+                            min={MIN_SLIDES} 
+                            max={MAX_SLIDES} 
+                            value={numSlides} 
+                            onChange={(e) => {
+                                const val = Math.max(MIN_SLIDES, Math.min(MAX_SLIDES, Number(e.target.value)));
+                                setNumSlides(val);
+                            }}
+                            className="w-12 bg-transparent text-right font-mono text-sm font-bold text-blue-400 outline-none border-b border-transparent focus:border-blue-500 transition-colors"
+                        />
                     </div>
-                    <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${(numSlides / 30) * 100}%` }}></div>
+                    
+                    <div className="flex items-center gap-3 glass-input p-2 rounded-lg">
+                        <button 
+                            onClick={() => setNumSlides(prev => Math.max(MIN_SLIDES, prev - 1))} 
+                            className="p-1 text-gray-400 hover:text-white transition-colors active:scale-95"
+                        >
+                            <MinusIcon width={14} height={14} />
+                        </button>
+                        
+                        <input 
+                            type="range" 
+                            min={MIN_SLIDES} 
+                            max={MAX_SLIDES} 
+                            value={numSlides} 
+                            onChange={(e) => setNumSlides(Number(e.target.value))} 
+                            className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400" 
+                        />
+                        
+                        <button 
+                            onClick={() => setNumSlides(prev => Math.min(MAX_SLIDES, prev + 1))} 
+                            className="p-1 text-gray-400 hover:text-white transition-colors active:scale-95"
+                        >
+                            <PlusIcon width={14} height={14} />
+                        </button>
                     </div>
                 </section>
 
