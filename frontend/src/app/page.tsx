@@ -6,6 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 
 // Constants
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://infographic-agent-backend-218788847170.us-central1.run.app";
+const MIN_SLIDES = 1;
+const MAX_SLIDES = 30;
 
 // Interfaces
 interface Slide {
@@ -69,6 +71,7 @@ const PresentationIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16
 const PaletteIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.928 0 1.72-.615 1.947-1.513l.053-.213a1 1 0 0 1 1.94-.038l.053.213A2.001 2.001 0 0 0 19.89 22c.11 0 .11-10-7.89-20z"/></svg>;
 const HistoryIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="m12 7 0 5 3 3"/></svg>;
 const PlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
+const MinusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/></svg>;
 const TrashIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
 const MagicWandIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 2 2 2-2 2-2-2 2-2Z"/><path d="m5 7 2 2-2 2-2-2 2-2Z"/><path d="m15 4-5.38 10.75a1.86 1.86 0 0 0 0 1.63l2.25 4.5c.32.65 1.18.65 1.5 0l2.25-4.5c.32-.65 1.18-.65 1.5 0l4.5-2.25c.65-.32.65-1.18 0-1.5l-4.5-2.25a1.86 1.86 0 0 0-1.63 0z"/><path d="M11 2 9 7"/></svg>;
 
