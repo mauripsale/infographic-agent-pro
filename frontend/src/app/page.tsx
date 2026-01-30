@@ -728,15 +728,20 @@ Brand Colors: Primary=${brandPrimary || "N/A"}, Secondary=${brandSecondary || "N
                 <div className={`transition-all duration-700 ease-out max-w-4xl mx-auto ${phase === 'input' ? 'mt-[10vh]' : 'mt-0'}`}>
                     <div className="relative group">
                         <div className={`absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000 ${phase !== 'input' ? 'hidden' : ''}`}></div>
-                        <div className={`glass-panel rounded-3xl p-1 transition-all duration-500 ${phase !== 'input' ? 'h-32 flex items-center' : 'h-64'}`}>
+                        <div 
+                            className={`glass-panel rounded-3xl p-1 transition-all duration-500 ${phase !== 'input' ? 'h-32 flex items-center cursor-pointer hover:bg-white/5' : 'h-64'}`}
+                            onClick={() => phase !== 'input' && setPhase('input')}
+                        >
                             <textarea 
-                                value={query} onChange={(e) => setQuery(e.target.value)} 
+                                value={query} 
+                                onChange={(e) => setQuery(e.target.value)}
+                                onFocus={() => setPhase('input')}
                                 placeholder="What are we building today?"
-                                className="w-full h-full bg-transparent border-0 text-slate-100 placeholder-slate-500 text-lg md:text-xl p-6 outline-none resize-none"
+                                className={`w-full h-full bg-transparent border-0 text-slate-100 placeholder-slate-500 text-lg md:text-xl p-6 outline-none resize-none ${phase !== 'input' ? 'cursor-pointer' : ''}`}
                             />
                             {phase !== 'input' && (
                                 <div className="pr-6 flex flex-col gap-2">
-                                     <button onClick={() => setPhase('input')} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 transition-colors"><EditIcon/></button>
+                                     <button className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400"><EditIcon/></button>
                                 </div>
                             )}
                         </div>
