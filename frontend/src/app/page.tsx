@@ -263,6 +263,7 @@ export default function App() {
           }
       } catch (e) {
           console.error("Auto-resume failed", e);
+          localStorage.removeItem("lastProjectId");
       } finally {
           setIsLoadingHistory(false);
       }
@@ -300,6 +301,7 @@ export default function App() {
   };
 
   const handleResetSession = () => {
+      localStorage.removeItem("lastProjectId");
       setQuery("");
       setPhase("input");
       setScript(null);
