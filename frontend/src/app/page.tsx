@@ -176,7 +176,10 @@ export default function App() {
             signal: abortController.signal
         });
         await processStream(res.body!.getReader(), (msg) => {
-            if (msg.log) setAgentLog(prev => [...prev, msg.log]);
+            if (msg.log) {
+                const logMsg = msg.log;
+                setAgentLog(prev => [...prev, logMsg]);
+            }
             if (msg.updateComponents) {
                 setSurfaceState(prev => {
                     const nextComps = { ...prev.components };
