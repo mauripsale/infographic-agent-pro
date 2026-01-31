@@ -12,14 +12,14 @@ import {
 } from "@/components/Icons";
 
 // --- Constants & Interfaces (omitted for brevity) ---
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://infographic-agent-backend-218788847170.us-central1.run.app";
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!; // CRITICAL: Ensure NEXT_PUBLIC_BACKEND_URL is defined in your environment
 const MIN_SLIDES = 1;
 const MAX_SLIDES = 30;
 interface Slide { id: string; title: string; image_prompt: string; description?: string; image_url?: string; }
-interface ProjectSummary { id: string; title?: string; query: string; status: string; slide_count?: number; created_at: any; }
-interface ProjectDetails extends ProjectSummary { script: { slides: Slide[]; global_settings?: any; }; export_pdf_url?: string; export_zip_url?: string; }
+interface ProjectSummary { id: string; title?: string; query: string; status: string; slide_count?: number; created_at: string; }
+interface ProjectDetails extends ProjectSummary { script: { slides: Slide[]; global_settings?: Record<string, unknown>; }; export_pdf_url?: string; export_zip_url?: string; }
 type Project = ProjectSummary;
-interface A2UIComponent { id: string; component: string; src?: string; text?: string; status?: "waiting" | "generating" | "success" | "error" | "skipped"; children?: string[]; [key: string]: any; }
+interface A2UIComponent { id: string; component: string; src?: string; text?: string; status?: "waiting" | "generating" | "success" | "error" | "skipped"; children?: string[]; [key: string]: unknown; }
 
 export default function App() {
   const { user, loading: authLoading, login, logout, getToken } = useAuth();
@@ -28,9 +28,9 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
-  const [script, setScript] = useState<any>(null);
+  const [script, setScript] = useState<ProjectDetails['script'] | null>(null);
   const [phase, setPhase] = useState<"input" | "review" | "graphics">("input");
-  const [surfaceState, setSurfaceState] = useState<any>({ components: {}, dataModel: {} });
+  const [surfaceState, setSurfaceState] = useState<{ components: Record<string, A2UIComponent>; dataModel: Record<string, unknown> }>({ components: {}, dataModel: {} });
   const [agentLog, setAgentLog] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -47,7 +47,7 @@ export default function App() {
 
   // --- Placeholder Functions ---
   const handleResetSession = () => {};
-  const handleStream = async (targetPhase: "script" | "graphics", currentScript?: any) => {};
+  const handleStream = async (targetPhase: "script" | "graphics", currentScript?: ProjectDetails['script']) => {};
   const handleExport = async (format: "pdf" | "zip" | "slides") => {};
   const removeFile = (index: number) => {};
 
