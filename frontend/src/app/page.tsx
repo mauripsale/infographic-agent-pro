@@ -22,7 +22,13 @@ type Project = ProjectSummary;
 interface A2UIComponent { id: string; component: string; src?: string; text?: string; status?: "waiting" | "generating" | "success" | "error" | "skipped"; children?: string[]; [key: string]: unknown; }
 
 // --- Stream Helper ---
-const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>, onMessage: (msg: any) => void) => {
+interface StreamMessage {
+  log?: string;
+  updateComponents?: { components: A2UIComponent[] };
+  updateDataModel?: { value?: { script?: ProjectDetails['script'], project_id?: string } };
+}
+
+const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>, onMessage: (msg: StreamMessage) => void) => {
     const decoder = new TextDecoder();
     let buffer = "";
     while (true) {
@@ -95,10 +101,12 @@ export default function App() {
     setCurrentProjectId(project.id);
     setScript(project.script);
     setPhase("graphics");
-    const comps: any = {};
-    project.script?.slides.forEach((s: any) => {
-        comps[`card_${s.id}`] = { id: `card_${s.id}`, status: s.image_url ? "success" : "waiting" };
-        if (s.image_url) comps[`img_${s.id}`] = { id: `img_${s.id}`, src: s.image_url };
+    const comps: Record<string, A2UIComponent> = {};
+    project.script?.slides.forEach((s: Slide) => {
+        comps[`card_${s.id}`] = { id: `card_${s.id}`, component: 'Column', status: s.image_url ? "success" : "waiting" };
+        if (s.image_url) {
+            comps[`img_${s.id}`] = { id: `img_${s.id}`, component: 'Image', src: s.image_url };
+        }
     });
     setSurfaceState({ components: comps, dataModel: { script: project.script } });
   }, []);
@@ -126,7 +134,7 @@ export default function App() {
     if (user) {
       fetchProjects();
       const lastPid = localStorage.getItem("lastProjectId");
-      if (lastPid && lastPid !== "undefined") {
+      if (lastPid) {
         fetchProjectDetails(lastPid);
       }
     }
@@ -170,9 +178,9 @@ export default function App() {
         await processStream(res.body!.getReader(), (msg) => {
             if (msg.log) setAgentLog(prev => [...prev, msg.log]);
             if (msg.updateComponents) {
-                setSurfaceState((prev: any) => {
+                setSurfaceState(prev => {
                     const nextComps = { ...prev.components };
-                    msg.updateComponents.components.forEach((c: any) => nextComps[c.id] = c);
+                    msg.updateComponents!.components.forEach(c => nextComps[c.id] = c);
                     return { ...prev, components: nextComps };
                 });
             }
