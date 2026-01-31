@@ -8,7 +8,8 @@ import {
   ChevronLeft, ChevronRight, XIcon, MaximizeIcon,
   EditIcon, KeyIcon, HistoryIcon, PlusIcon, MinusIcon,
   TrashIcon, MagicWandIcon, DownloadIcon, GoogleIcon,
-  PresentationIcon, PaletteIcon, CheckIcon, LayoutIcon
+  PresentationIcon, PaletteIcon, CheckIcon, LayoutIcon,
+  ChevronDown // Ensure this is imported
 } from "@/components/Icons";
 
 // --- Constants & Interfaces ---
@@ -59,12 +60,14 @@ export default function App() {
   const [agentLog, setAgentLog] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(true);
   
   // Settings
   const [numSlides, setNumSlides] = useState(5);
   const [style, setStyle] = useState("Modern Minimalist");
   const [detailLevel, setDetailLevel] = useState("Balanced");
   const [language, setLanguage] = useState("English");
+  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash"); // Default
   
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -171,7 +174,11 @@ export default function App() {
     try {
         const res = await fetch(endpoint, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+            headers: { 
+                "Content-Type": "application/json", 
+                "Authorization": `Bearer ${token}`,
+                "X-GenAI-Model": selectedModel // Send selected model
+            },
             body: JSON.stringify(body),
             signal: abortController.signal
         });
@@ -203,7 +210,7 @@ export default function App() {
     } finally {
         setIsStreaming(false);
     }
-  }, [query, numSlides, style, detailLevel, language, currentProjectId, getToken]);
+  }, [query, numSlides, style, detailLevel, language, currentProjectId, getToken, selectedModel]);
   
   const handleExport = useCallback(async (format: "pdf" | "zip" | "slides") => {
     if (!script) return;
@@ -279,11 +286,13 @@ export default function App() {
       <div className="absolute inset-0 bg-grid opacity-20 pointer-events-none"></div>
 
       {/* --- COLUMN 1: LEFT SIDEBAR (History & Sources) --- */}
-      <aside className="w-[20%] min-w-64 max-w-xs h-full bg-[#0F172A]/40 backdrop-blur-xl border-r border-white/10 flex flex-col z-20">
+      <aside 
+        className={`${isHistoryOpen ? 'w-[20%] min-w-64 max-w-xs' : 'w-0 opacity-0 pointer-events-none'} transition-all duration-300 h-full bg-[#0F172A]/40 backdrop-blur-xl border-r border-white/10 flex flex-col z-20 overflow-hidden`}
+      >
         <div className="p-4 border-b border-white/5 flex items-center justify-between shrink-0 h-16">
-            <div className="flex items-center gap-2 font-bold text-white tracking-wider">
-                <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center text-xs">IP</div>
-                SA STUDIO
+            <div className="flex items-center gap-2 select-none">
+                <span className="font-bold text-lg text-white tracking-wide">IPSA</span>
+                <span className="text-[10px] font-light text-slate-400 leading-tight border-l border-white/10 pl-2">Infographic<br/>Professional<br/>System Agent</span>
             </div>
             <button onClick={handleResetSession} className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition" title="New Project">
                 <PlusIcon className="w-5 h-5" />
@@ -350,11 +359,21 @@ export default function App() {
       </aside>
 
       {/* --- COLUMN 2: CENTER WORKSPACE (Focus) --- */}
-      <main className="flex-1 h-full flex flex-col relative min-w-[400px] z-10">
+      <main className="flex-1 h-full flex flex-col relative min-w-[400px] z-10 transition-all">
         
+        {/* Workspace Header w/ Toggle */}
+        <div className="absolute top-4 left-4 z-40">
+             <button 
+                onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                className="p-2 bg-[#0F172A]/80 backdrop-blur rounded-lg border border-white/10 text-slate-400 hover:text-white transition"
+             >
+                 {isHistoryOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+             </button>
+        </div>
+
         {/* Top Agent Bar (Logs) */}
         {agentLog.length > 0 && (
-            <div className="absolute top-4 left-4 right-4 z-30 pointer-events-none">
+            <div className="absolute top-4 left-16 right-4 z-30 pointer-events-none">
                 <div className="bg-black/80 backdrop-blur border border-white/10 rounded-lg p-3 text-xs font-mono text-green-400 max-h-32 overflow-hidden shadow-xl animate-fade-in-up">
                     <div className="flex items-center gap-2 mb-1 border-b border-white/10 pb-1">
                         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
@@ -369,7 +388,7 @@ export default function App() {
 
         {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-8 pb-48">
-             <div className="max-w-3xl mx-auto space-y-8">
+             <div className="max-w-3xl mx-auto space-y-8 mt-8">
                 
                 {/* Greeting / Empty State */}
                 {phase === 'input' && (
@@ -546,6 +565,35 @@ export default function App() {
         </div>
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
             
+            {/* Model Selector */}
+            <div className="space-y-3">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">AI Model</label>
+                <div className="space-y-2">
+                    <button 
+                        onClick={() => setSelectedModel('gemini-2.5-flash')}
+                        className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition ${selectedModel === 'gemini-2.5-flash' ? 'bg-blue-600/20 border-blue-500 text-white' : 'bg-black/20 border-white/5 text-slate-400 hover:border-white/10'}`}
+                    >
+                        <div>
+                            <div className="text-sm font-medium">Gemini 2.5 Flash</div>
+                            <div className="text-[10px] opacity-60">Fast & Efficient</div>
+                        </div>
+                        {selectedModel === 'gemini-2.5-flash' && <CheckIcon className="w-4 h-4 text-blue-400"/>}
+                    </button>
+                    <button 
+                        onClick={() => setSelectedModel('gemini-3.0-flash')}
+                        className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition ${selectedModel === 'gemini-3.0-flash' ? 'bg-purple-600/20 border-purple-500 text-white' : 'bg-black/20 border-white/5 text-slate-400 hover:border-white/10'}`}
+                    >
+                        <div>
+                            <div className="text-sm font-medium">Gemini 3.0</div>
+                            <div className="text-[10px] opacity-60">Advanced Reasoning</div>
+                        </div>
+                        {selectedModel === 'gemini-3.0-flash' && <CheckIcon className="w-4 h-4 text-purple-400"/>}
+                    </button>
+                </div>
+            </div>
+
+            <hr className="border-white/5" />
+
             {/* Slide Count Control */}
             <div className="space-y-3">
                 <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Slide Count</label>

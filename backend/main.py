@@ -16,6 +16,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 import firebase_admin
 from firebase_admin import auth as firebase_auth, firestore
+from google.cloud import storage
 
 # ADK Core
 from google.adk.runners import Runner
@@ -45,22 +46,62 @@ logger = logging.getLogger(__name__)
 
 # --- INITIALIZATION ---
 
-# 1. Artifact Service (Robust GCS Bucket Detection)
-gcs_bucket = os.environ.get("GCS_BUCKET_NAME")
-if not gcs_bucket:
+def get_or_create_bucket():
+    """Robustly determines the GCS bucket to use."""
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    env_bucket = os.environ.get("GCS_BUCKET_NAME")
+    
+    storage_client = storage.Client(project=project_id)
+    
+    # 1. Try Configured Bucket
+    if env_bucket:
+        try:
+            bucket = storage_client.bucket(env_bucket)
+            if bucket.exists():
+                logger.info(f"Using configured bucket: {env_bucket}")
+                return env_bucket
+            else:
+                logger.warning(f"Configured bucket {env_bucket} does not exist.")
+        except Exception as e:
+            logger.warning(f"Error checking configured bucket {env_bucket}: {e}")
+
+    # 2. Try Discovery (Project Convention)
     if project_id:
-        gcs_bucket = f"{project_id}-infographic-assets"
-        logger.info(f"GCS_BUCKET_NAME not set. Falling back to default project bucket: {gcs_bucket}")
-        # Inject back into env for tools to pick up
-        os.environ["GCS_BUCKET_NAME"] = gcs_bucket
+        try:
+            buckets = list(storage_client.list_buckets())
+            # Prefer 'ipsa-assets' or 'infographic-assets'
+            for b in buckets:
+                if "ipsa-assets" in b.name or "infographic-assets" in b.name:
+                    logger.info(f"Discovered asset bucket: {b.name}")
+                    return b.name
+        except Exception as e:
+            logger.warning(f"Bucket discovery failed: {e}")
+
+    # 3. Try Creation (Fallback)
+    if project_id:
+        fallback_bucket = f"{project_id}-infographic-assets"
+        try:
+            bucket = storage_client.bucket(fallback_bucket)
+            if not bucket.exists():
+                bucket.create(location="US") # or user's region
+                logger.info(f"Created fallback bucket: {fallback_bucket}")
+            return fallback_bucket
+        except Exception as e:
+            logger.error(f"Failed to create fallback bucket {fallback_bucket}: {e}")
+
+    return None
+
+# Initialize Artifact Service
+gcs_bucket = get_or_create_bucket()
 
 if gcs_bucket:
+    # Update env var for tools that might rely on it
+    os.environ["GCS_BUCKET_NAME"] = gcs_bucket 
     artifact_service = GcsArtifactService(bucket_name=gcs_bucket)
     logger.info(f"Initialized GcsArtifactService with bucket: {gcs_bucket}")
 else:
     artifact_service = InMemoryArtifactService()
-    logger.warning("CRITICAL: GCS_BUCKET_NAME not found and GOOGLE_CLOUD_PROJECT unknown. Using InMemoryArtifactService (Data LOSS imminent on restart).")
+    logger.warning("CRITICAL: No usable GCS Bucket found. Using InMemoryArtifactService (Data LOSS imminent on restart).")
 
 # 2. Storage Tool
 storage_tool = StorageTool(artifact_service)
