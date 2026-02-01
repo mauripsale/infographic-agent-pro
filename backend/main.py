@@ -184,13 +184,15 @@ class ModelSelectionMiddleware(BaseHTTPMiddleware):
         finally: model_context.reset(token)
 
 app.add_middleware(ModelSelectionMiddleware)
+
+# CORS Configuration
+# Defaults to allowing all origins for ease of migration/demo.
+# In production, set ALLOWED_CORS_ORIGINS to a comma-separated list of domains.
+allowed_origins = os.environ.get("ALLOWED_CORS_ORIGINS", "*").split(",")
+
 app.add_middleware(
     CORSMiddleware, 
-    allow_origins=[
-        "https://qwiklabs-asl-04-f9d4ba2925b9.web.app", 
-        "https://qwiklabs-asl-04-f9d4ba2925b9.firebaseapp.com",
-        "http://localhost:3000"
-    ], 
+    allow_origins=allowed_origins, 
     allow_credentials=True, 
     allow_methods=["*"], 
     allow_headers=["*"]
