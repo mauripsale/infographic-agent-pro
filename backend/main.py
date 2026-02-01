@@ -77,17 +77,22 @@ def get_or_create_bucket():
         except Exception as e:
             logger.warning(f"Bucket discovery failed: {e}")
 
-    # 3. Try Creation (Fallback)
+    # 3. Try Creation (Fallback) with explicit safeguards
     if project_id:
-        fallback_bucket = f"{project_id}-infographic-assets"
-        try:
-            bucket = storage_client.bucket(fallback_bucket)
-            if not bucket.exists():
-                bucket.create(location="US") # or user's region
-                logger.info(f"Created fallback bucket: {fallback_bucket}")
-            return fallback_bucket
-        except Exception as e:
-            logger.error(f"Failed to create fallback bucket {fallback_bucket}: {e}")
+        fallback_buckets = [
+            f"{project_id}-infographic-assets",
+            "qwiklabs-asl-04-f9d4ba2925b9-infographic-assets" # Hardcoded safeguard for this environment
+        ]
+        
+        for fallback_bucket in fallback_buckets:
+            try:
+                bucket = storage_client.bucket(fallback_bucket)
+                if not bucket.exists():
+                    bucket.create(location="US")
+                    logger.info(f"Created fallback bucket: {fallback_bucket}")
+                return fallback_bucket
+            except Exception as e:
+                logger.warning(f"Failed to create/use fallback bucket {fallback_bucket}: {e}")
 
     return None
 
@@ -95,7 +100,7 @@ def get_or_create_bucket():
 gcs_bucket = get_or_create_bucket()
 
 if gcs_bucket:
-    # Update env var for tools that might rely on it
+    # Update env var for tools that might rely on it implicitly
     os.environ["GCS_BUCKET_NAME"] = gcs_bucket 
     artifact_service = GcsArtifactService(bucket_name=gcs_bucket)
     logger.info(f"Initialized GcsArtifactService with bucket: {gcs_bucket}")
@@ -451,7 +456,8 @@ async def regenerate_slide(request: Request, user_id: str = Depends(get_user_id)
             
             logo_url = await get_project_logo(user_id, project_id) if project_id else None
             
-            img_tool = ImageGenerationTool(api_key=api_key)
+            # Pass gcs_bucket explicitly to ensure we use the validated bucket
+            img_tool = ImageGenerationTool(api_key=api_key, bucket_name=gcs_bucket)
             img_url = await asyncio.to_thread(img_tool.generate_and_save, prompt, aspect_ratio=aspect_ratio, user_id=user_id, project_id=project_id, logo_url=logo_url)
 
             if "Error" not in img_url:
@@ -699,7 +705,8 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 # Get logo for the batch
                 logo_url = await get_project_logo(user_id, project_id) if project_id else None
                 
-                img_tool = ImageGenerationTool(api_key=api_key)
+                # Pass gcs_bucket explicitly to ensure we use the validated bucket
+                img_tool = ImageGenerationTool(api_key=api_key, bucket_name=gcs_bucket)
                 
                 # Fetch FULL project to perform smart updates
                 current_full_script = None
