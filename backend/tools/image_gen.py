@@ -37,10 +37,8 @@ class ImageGenerationTool:
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         self.bucket_name = bucket_name or os.environ.get("GCS_BUCKET_NAME")
         
-        # EMERGENCY OVERRIDE: Prevent usage of known bad bucket from Secrets
-        if self.bucket_name == "infographic-agent-pro-assets":
-            logger.warning(f"Detected invalid bucket '{self.bucket_name}'. Swapping for 'qwiklabs-asl-04-f9d4ba2925b9-infographic-assets'.")
-            self.bucket_name = "qwiklabs-asl-04-f9d4ba2925b9-infographic-assets"
+        # NOTE: Bucket name is now robustly detected in main.py and passed here.
+        # Hardcoding has been removed to facilitate project migration.
 
         if GCS_AVAILABLE and self.bucket_name:
             try:

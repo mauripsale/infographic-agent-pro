@@ -61,7 +61,7 @@ def get_or_create_bucket():
                 logger.info(f"Using configured bucket: {env_bucket}")
                 return env_bucket
             else:
-                logger.warning(f"Configured bucket {env_bucket} does not exist.")
+                logger.warning(f"Configured bucket {env_bucket} does not exist. Proceeding to discovery.")
         except Exception as e:
             logger.warning(f"Error checking configured bucket {env_bucket}: {e}")
 
@@ -77,22 +77,17 @@ def get_or_create_bucket():
         except Exception as e:
             logger.warning(f"Bucket discovery failed: {e}")
 
-    # 3. Try Creation (Fallback) with explicit safeguards
+    # 3. Try Creation (Fallback)
     if project_id:
-        fallback_buckets = [
-            f"{project_id}-infographic-assets",
-            "qwiklabs-asl-04-f9d4ba2925b9-infographic-assets" # Hardcoded safeguard for this environment
-        ]
-        
-        for fallback_bucket in fallback_buckets:
-            try:
-                bucket = storage_client.bucket(fallback_bucket)
-                if not bucket.exists():
-                    bucket.create(location="US")
-                    logger.info(f"Created fallback bucket: {fallback_bucket}")
-                return fallback_bucket
-            except Exception as e:
-                logger.warning(f"Failed to create/use fallback bucket {fallback_bucket}: {e}")
+        fallback_bucket = f"{project_id}-infographic-assets"
+        try:
+            bucket = storage_client.bucket(fallback_bucket)
+            if not bucket.exists():
+                bucket.create(location="US")
+                logger.info(f"Created fallback bucket: {fallback_bucket}")
+            return fallback_bucket
+        except Exception as e:
+            logger.warning(f"Failed to create/use fallback bucket {fallback_bucket}: {e}")
 
     return None
 
@@ -755,9 +750,10 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                         batch_updates[sid] = img_url
                         
                         display_title = slide.get('title', 'Slide')
-                        msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"}, {"id": f"title_{sid}", "component": "Text", "text": display_title}, {"id": f"img_{sid}", "component": "Image", "src": img_url}]}})
+                        msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"}, {"id": f"title_{sid}", "component": "Text", "text": display_title}, {"id": f"img_{sid}", "component": "Image", "src": img_url}]}}) # Removed extra 
+
                     else:
-                        msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}})
+                        msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}}) # Removed extra 
                     yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
 
