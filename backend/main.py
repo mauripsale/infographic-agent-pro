@@ -51,6 +51,12 @@ def get_or_create_bucket():
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
     env_bucket = os.environ.get("GCS_BUCKET_NAME")
     
+    # ANTI-POISON: Remove known bad bucket from environment to prevent tools falling back to it
+    if env_bucket == "infographic-agent-pro-assets":
+        logger.warning(f"Detected bad GCS_BUCKET_NAME env var ('{env_bucket}'). Removing from environment.")
+        del os.environ["GCS_BUCKET_NAME"]
+        env_bucket = None
+
     storage_client = storage.Client(project=project_id)
     
     # 1. Try Configured Bucket
@@ -87,7 +93,10 @@ def get_or_create_bucket():
                 logger.info(f"Created fallback bucket: {fallback_bucket}")
             return fallback_bucket
         except Exception as e:
-            logger.warning(f"Failed to create/use fallback bucket {fallback_bucket}: {e}")
+            logger.warning(f"Failed to create/check fallback bucket {fallback_bucket}: {e}. Trying to use it blindly.")
+            # 4. BLIND FALLBACK: Return the bucket name anyway. 
+            # If we lack 'storage.buckets.get' but have 'storage.objects.create', this works.
+            return fallback_bucket
 
     return None
 
@@ -750,10 +759,9 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                         batch_updates[sid] = img_url
                         
                         display_title = slide.get('title', 'Slide')
-                        msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"}, {"id": f"title_{sid}", "component": "Text", "text": display_title}, {"id": f"img_{sid}", "component": "Image", "src": img_url}]}}) # Removed extra 
-
+                        msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"title_{sid}", f"img_{sid}"], "status": "success"}, {"id": f"title_{sid}", "component": "Text", "text": display_title}, {"id": f"img_{sid}", "component": "Image", "src": img_url}]}})
                     else:
-                        msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}}) # Removed extra 
+                        msg = json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}})
                     yield msg + "\n" + " " * 2048 + "\n"
                     await asyncio.sleep(0.05)
 
