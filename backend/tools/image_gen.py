@@ -37,8 +37,10 @@ class ImageGenerationTool:
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         self.bucket_name = bucket_name or os.environ.get("GCS_BUCKET_NAME")
         
-        # NOTE: Bucket name is now robustly detected in main.py and passed here.
-        # Hardcoding has been removed to facilitate project migration.
+        # EMERGENCY OVERRIDE: Prevent usage of known bad bucket from Secrets
+        if self.bucket_name == "infographic-agent-pro-assets":
+            logger.warning(f"Detected invalid bucket '{self.bucket_name}'. Swapping for 'qwiklabs-asl-04-f9d4ba2925b9-infographic-assets'.")
+            self.bucket_name = "qwiklabs-asl-04-f9d4ba2925b9-infographic-assets"
 
         if GCS_AVAILABLE and self.bucket_name:
             try:
@@ -174,6 +176,7 @@ class ImageGenerationTool:
                         expiration=_SIGNED_URL_EXPIRATION,
                         method="GET"
                     )
+                    logger.info(f"✅ GCS Upload Success: {url[:50]}...")
                     return url
                 except Exception as gcs_err:
                     logger.error(f"GCS Upload failed: {gcs_err}. Falling back to local.")
@@ -184,7 +187,9 @@ class ImageGenerationTool:
                 f.write(image_bytes)
             
             backend_url = os.environ.get("BACKEND_URL", "http://localhost:8080")
-            return f"{backend_url}/static/{filename}"
+            local_url = f"{backend_url}/static/{filename}"
+            logger.info(f"⚠️ Local Upload Fallback: {local_url}")
+            return local_url
 
         except Exception as e:
             logger.error(f"Generation Fatal Error: {e}")
