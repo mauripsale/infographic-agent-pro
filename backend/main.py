@@ -259,11 +259,17 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     sid = slide['id']
                     yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": "🎨 Generating image...", "status": "generating"}]}}) + "\n"
                     
-                    img_url = await asyncio.to_thread(img_tool.generate_and_save, slide['image_prompt'], aspect_ratio=ar, user_id=user_id, project_id=project_id, logo_url=logo_url)
+                    # Fix KeyError: 'image_prompt'
+                    prompt_text = slide.get('image_prompt')
+                    if not prompt_text:
+                        logger.warning(f"Slide {sid} missing image_prompt. Using fallback.")
+                        prompt_text = f"Infographic about {slide.get('title', 'Data')}, professional style, vector illustration, high resolution"
+
+                    img_url = await asyncio.to_thread(img_tool.generate_and_save, prompt_text, aspect_ratio=ar, user_id=user_id, project_id=project_id, logo_url=logo_url)
                     
                     if "http" in img_url:
                         batch_updates[sid] = img_url
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"}, {"id": f"t_{sid}", "component": "Text", "text": slide['title']}, {"id": f"i_{sid}", "component": "Image", "src": img_url}]}}) + "\n"
+                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"}, {"id": f"t_{sid}", "component": "Text", "text": slide.get('title', 'Slide')}, {"id": f"i_{sid}", "component": "Image", "src": img_url}]}}) + "\n"
                     else:
                         yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}}) + "\n"
 
