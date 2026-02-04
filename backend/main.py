@@ -191,6 +191,9 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
         phase = data.get("phase", "script")
         project_id = data.get("project_id") or uuid.uuid4().hex
         surface_id = "infographic_workspace"
+        
+        # Consistent Session ID (Stateful Agent)
+        session_id = f"{user_id}_{project_id}"
 
         async def event_generator():
             yield json.dumps({"createSurface": {"surfaceId": surface_id, "catalogId": "https://a2ui.dev/specification/0.9/standard_catalog_definition.json"}}) + "\n"
@@ -199,10 +202,30 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "🧠 Planning content..."}]}}) + "\n"
                 agent = create_infographic_team(api_key=api_key)
                 runner = Runner(agent=agent, app_name="infographic-pro", session_service=session_service)
-                session = await runner.session_service.create_session(app_name="infographic-pro", user_id=user_id, session_id=f"{user_id}_{project_id}")
                 
+                # Session Management: Reuse if exists, create if not
+                session = None
+                try:
+                    session = await session_service.get_session(app_name="infographic-pro", user_id=user_id, session_id=session_id)
+                except Exception:
+                    # Ignore error (likely session not found)
+                    pass
+                
+                if not session:
+                    logger.info(f"Creating new session: {session_id}")
+                    session = await session_service.create_session(app_name="infographic-pro", user_id=user_id, session_id=session_id)
+                else:
+                    logger.info(f"Resumed existing session: {session_id}")
+                
+                # Context Injection for Follow-ups
+                user_query = data.get("query", "")
+                current_script = data.get("script")
+                
+                if current_script:
+                     user_query += f"\n\n[SYSTEM: CONTEXT INJECTION]\nTHE USER IS EDITING AN EXISTING SCRIPT. HERE IS THE CURRENT JSON STATE:\n{json.dumps(current_script)}"
+
                 agent_output = ""
-                async for event in runner.run_async(session_id=session.id, user_id=user_id, new_message=types.Content(role="user", parts=[types.Part(text=data.get("query", ""))])):
+                async for event in runner.run_async(session_id=session.id, user_id=user_id, new_message=types.Content(role="user", parts=[types.Part(text=user_query)])):
                     if await request.is_disconnected(): break
                     if event.content and event.content.parts:
                         for part in event.content.parts:
