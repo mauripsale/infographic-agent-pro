@@ -123,12 +123,23 @@ You must output a valid JSON object. No markdown, no conversation.
     - IT MUST be in the requested language + English Keywords.
     - Append: ", professional infographic, data visualization poster, vector illustration, high resolution, 4k"
 
+**EXAMPLE OUTPUT (ONE-SHOT):**
+```json
+{
+  "global_settings": {"aspect_ratio": "16:9"},
+  "slides": [
+    {
+      "id": "s1",
+      "title": "Vertical Farming Benefits",
+      "description": "Vertical farming reduces water usage by 95% compared to traditional methods using hydroponics.",
+      "image_prompt": "Split layout infographic. Left side: traditional field with wasted water. Right side: stacked vertical hydroponic shelves with blue water droplets, clean white background, professional infographic, vector illustration, 4k"
+    }
+  ]
+}
+```
+
 **VISUAL PROMPT CONSTRUCTION (Crucial):**
 For every slide, you MUST write a distinct `image_prompt`.
-Example for Italian:
-`"Layout a tre colonne. Colonna sinistra: icona lampadina. Colonna destra: grafico a barre blu. Sfondo bianco pulito, professional infographic, data visualization poster, vector illustration, 4k"`
-
-**Failure to provide `image_prompt` will cause the system to crash.**
-Generate the full JSON now.
+If you fail to provide `image_prompt`, the system will crash.
 """
     )
