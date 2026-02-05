@@ -287,12 +287,16 @@ export default function App() {
 
       {/* --- COLUMN 1: LEFT SIDEBAR (History & Sources) --- */}
       <aside 
-        className={`${isHistoryOpen ? 'w-[20%] min-w-64 max-w-xs' : 'w-16'} transition-all duration-300 h-full bg-[#0F172A]/40 backdrop-blur-xl border-r border-white/10 flex flex-col z-20 overflow-hidden relative group`}
+        className={`${isHistoryOpen ? 'w-[20%] min-w-64 max-w-xs' : 'w-20'} transition-all duration-300 h-full bg-[#0F172A]/40 backdrop-blur-xl border-r border-white/10 flex flex-col z-20 overflow-hidden relative group`}
       >
         <div className="p-4 border-b border-white/5 flex items-center justify-between shrink-0 h-16">
-            <div className="flex items-center gap-2 select-none overflow-hidden">
+            <div className={`flex items-center gap-2 select-none overflow-hidden ${!isHistoryOpen && 'justify-center w-full'}`}>
                 <span className="font-bold text-lg text-white tracking-wide shrink-0">IPSA</span>
-                <span className={`text-[10px] font-light text-slate-400 leading-tight border-l border-white/10 pl-2 transition-opacity duration-300 ${isHistoryOpen ? 'opacity-100' : 'opacity-0'}`}>Infographic<br/>Professional<br/>System Agent</span>
+                {isHistoryOpen && (
+                    <span className="text-[10px] font-light text-slate-400 leading-tight border-l border-white/10 pl-2 animate-fade-in">
+                        Infographic<br/>Professional<br/>System Agent
+                    </span>
+                )}
             </div>
             {isHistoryOpen && (
                 <button onClick={handleResetSession} className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition shrink-0" title="New Project">
@@ -302,7 +306,7 @@ export default function App() {
         </div>
 
         {/* Source Docs Section */}
-        <div className={`p-4 border-b border-white/5 shrink-0 transition-opacity duration-300 ${isHistoryOpen ? 'opacity-100' : 'opacity-0 pointer-events-none hidden'}`}>
+        <div className={`p-4 border-b border-white/5 shrink-0 transition-all duration-300 ${isHistoryOpen ? 'opacity-100' : 'opacity-0 h-0 p-0 pointer-events-none'}`}>
              <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
                  <FileUpIcon className="w-3 h-3" /> Source Docs
              </h3>
@@ -326,9 +330,9 @@ export default function App() {
         </div>
 
         {/* History List */}
-        <div className={`flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1 transition-opacity duration-300 ${isHistoryOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-             <h3 className="px-2 py-2 text-xs font-bold uppercase tracking-widest text-slate-500 sticky top-0 bg-[#0F172A]/95 backdrop-blur z-10">History</h3>
-             {projects.map(p => (
+        <div className={`flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1 transition-all duration-300 ${isHistoryOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+             {isHistoryOpen && <h3 className="px-2 py-2 text-xs font-bold uppercase tracking-widest text-slate-500 sticky top-0 bg-[#0F172A]/95 backdrop-blur z-10">History</h3>}
+             {isHistoryOpen && projects.map(p => (
                 <button 
                     key={p.id} 
                     onClick={() => loadProject(p.id)}
@@ -341,6 +345,16 @@ export default function App() {
                     </div>
                 </button>
             ))}
+            {!isHistoryOpen && (
+                <div className="flex flex-col items-center gap-4 py-4">
+                    <button onClick={handleResetSession} className="p-3 bg-blue-600/20 text-blue-400 rounded-xl hover:bg-blue-600/30 transition" title="New Project">
+                        <PlusIcon className="w-6 h-6" />
+                    </button>
+                    <button className="p-3 hover:bg-white/5 text-slate-500 rounded-xl transition" title="View History" onClick={() => setIsHistoryOpen(true)}>
+                        <HistoryIcon className="w-6 h-6" />
+                    </button>
+                </div>
+            )}
         </div>
 
         {/* User Footer */}
