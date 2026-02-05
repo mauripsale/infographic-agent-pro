@@ -186,19 +186,19 @@ async def get_project(project_id: str, user_id: str = Depends(get_user_id)):
 
 @app.post("/agent/stream")
 async def agent_stream(request: Request, user_id: str = Depends(get_user_id), api_key: str = Depends(get_api_key)):
-    try:
-        data = await request.json()
-        phase = data.get("phase", "script")
-        project_id = data.get("project_id") or uuid.uuid4().hex
-        surface_id = "infographic_workspace"
-        
-        # Consistent Session ID (Stateful Agent)
-        session_id = f"{user_id}_{project_id}"
+    data = await request.json()
+    phase = data.get("phase", "script")
+    project_id = data.get("project_id") or uuid.uuid4().hex
+    surface_id = "infographic_workspace"
+    
+    # Consistent Session ID (Stateful Agent)
+    session_id = f"{user_id}_{project_id}"
 
-        async def event_generator():
-            yield json.dumps({"createSurface": {"surfaceId": surface_id, "catalogId": "https://a2ui.dev/specification/0.9/standard_catalog_definition.json"}}) + "\n"
+    async def event_generator():
+        yield json.dumps({"createSurface": {"surfaceId": surface_id, "catalogId": "https://a2ui.dev/specification/0.9/standard_catalog_definition.json"}}) + "\n"
 
-            if phase == "script":
+        if phase == "script":
+            try:
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "🧠 Planning content..."}]}}) + "\n"
                 agent = create_infographic_team(api_key=api_key)
                 runner = Runner(agent=agent, app_name="infographic-pro", session_service=session_service)
@@ -222,31 +222,49 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 current_script = data.get("script")
                 
                 if current_script:
-                     user_query += f"\n\n[SYSTEM: CONTEXT INJECTION]\nTHE USER IS EDITING AN EXISTING SCRIPT. HERE IS THE CURRENT JSON STATE:\n{json.dumps(current_script)}"
+                        user_query += f"\n\n[SYSTEM: CONTEXT INJECTION]\nTHE USER IS EDITING AN EXISTING SCRIPT. HERE IS THE CURRENT JSON STATE:\n{json.dumps(current_script)}"
 
                 agent_output = ""
-                async for event in runner.run_async(session_id=session.id, user_id=user_id, new_message=types.Content(role="user", parts=[types.Part(text=user_query)])):
-                    if await request.is_disconnected(): break
-                    if event.content and event.content.parts:
-                        for part in event.content.parts:
-                            if part.text:
-                                agent_output += part.text
-                                yield json.dumps({"log": part.text[:100] + "..."}) + "\n"
+                try:
+                    async for event in runner.run_async(session_id=session.id, user_id=user_id, new_message=types.Content(role="user", parts=[types.Part(text=user_query)])):
+                        if await request.is_disconnected(): break
+                        if event.content and event.content.parts:
+                            for part in event.content.parts:
+                                if part.text:
+                                    agent_output += part.text
+                                    yield json.dumps({"log": part.text[:100] + "..."}) + "\n"
+                except Exception as agent_err:
+                    logger.error(f"Agent Execution Error: {agent_err}")
+                    yield json.dumps({"log": f"Error during agent execution: {str(agent_err)}"}) + "\n"
+                    # We might want to stop here or continue depending on if we got partial output.
+                    # For now, let's proceed to try parsing what we have, or fail gracefully.
 
                 # Use Robust JSON Extraction
-                script_data = extract_first_json_block(agent_output)
-                
-                if script_data:
-                    if db:
-                        db.collection("users").document(user_id).collection("projects").document(project_id).set({
-                            "query": data.get("query"), "script": script_data, "status": "script_ready", "created_at": firestore.SERVER_TIMESTAMP
-                        }, merge=True)
-                    yield json.dumps({"updateDataModel": {"surfaceId": surface_id, "path": "/", "op": "replace", "value": {"script": script_data, "project_id": project_id}}}) + "\n"
-                else:
-                    logger.error(f"Failed to parse JSON. Output was: {agent_output[:500]}...")
-                    yield json.dumps({"log": "Error: Agent failed to produce valid plan."}) + "\n"
+                try:
+                    script_data = extract_first_json_block(agent_output)
+                    
+                    if script_data:
+                        if db:
+                            db.collection("users").document(user_id).collection("projects").document(project_id).set({
+                                "query": data.get("query"), "script": script_data, "status": "script_ready", "created_at": firestore.SERVER_TIMESTAMP
+                            }, merge=True)
+                        yield json.dumps({"updateDataModel": {"surfaceId": surface_id, "path": "/", "op": "replace", "value": {"script": script_data, "project_id": project_id}}}) + "\n"
+                    else:
+                        logger.error(f"Failed to parse JSON. Output was: {agent_output[:500]}...")
+                        yield json.dumps({"log": "Error: Agent failed to produce valid plan. Please try again."}) + "\n"
+                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "❌ Failed to generate plan."}]}}) + "\n"
 
-            elif phase == "graphics":
+                except Exception as parse_err:
+                    logger.error(f"JSON Parsing Error: {parse_err}")
+                    yield json.dumps({"log": f"Error parsing agent output: {str(parse_err)}"}) + "\n"
+
+            except Exception as e:
+                logger.error(f"Script Phase Error: {e}")
+                yield json.dumps({"log": f"Critical error in planning phase: {str(e)}"}) + "\n"
+
+
+        elif phase == "graphics":
+            try:
                 script = data.get("script", {})
                 slides = script.get("slides", [])
                 ar = script.get("global_settings", {}).get("aspect_ratio", "16:9")
@@ -255,38 +273,50 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 
                 batch_updates = {}
                 for slide in slides:
-                    if await request.is_disconnected(): break
-                    sid = slide['id']
-                    yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": "🎨 Generating image...", "status": "generating"}]}}) + "\n"
-                    
-                    # Fix KeyError: 'image_prompt'
-                    prompt_text = slide.get('image_prompt')
-                    if not prompt_text:
-                        logger.warning(f"Slide {sid} missing image_prompt. Using fallback.")
-                        prompt_text = f"Infographic about {slide.get('title', 'Data')}, professional style, vector illustration, high resolution"
+                    try:
+                        if await request.is_disconnected(): break
+                        sid = slide['id']
+                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": "🎨 Generating image...", "status": "generating"}]}}) + "\n"
+                        
+                        # Fix KeyError: 'image_prompt'
+                        prompt_text = slide.get('image_prompt')
+                        if not prompt_text:
+                            logger.warning(f"Slide {sid} missing image_prompt. Using fallback.")
+                            prompt_text = f"Infographic about {slide.get('title', 'Data')}, professional style, vector illustration, high resolution"
 
-                    img_url = await asyncio.to_thread(img_tool.generate_and_save, prompt_text, aspect_ratio=ar, user_id=user_id, project_id=project_id, logo_url=logo_url)
-                    
-                    if "http" in img_url:
-                        batch_updates[sid] = img_url
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"}, {"id": f"t_{sid}", "component": "Text", "text": slide.get('title', 'Slide')}, {"id": f"i_{sid}", "component": "Image", "src": img_url}]}}) + "\n"
-                    else:
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}}) + "\n"
+                        img_url = await asyncio.to_thread(img_tool.generate_and_save, prompt_text, aspect_ratio=ar, user_id=user_id, project_id=project_id, logo_url=logo_url)
+                        
+                        if "http" in img_url:
+                            batch_updates[sid] = img_url
+                            yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"}, {"id": f"t_{sid}", "component": "Text", "text": slide.get('title', 'Slide')}, {"id": f"i_{sid}", "component": "Image", "src": img_url}]}}) + "\n"
+                        else:
+                            yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}}) + "\n"
+                            yield json.dumps({"log": f"Image gen failed for slide {sid}: {img_url}"}) + "\n"
+                            
+                    except Exception as slide_err:
+                        logger.error(f"Error generating slide {slide.get('id')}: {slide_err}")
+                        yield json.dumps({"log": f"Error generating slide {slide.get('id')}: {str(slide_err)}"}) + "\n"
+                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{slide.get('id')}", "component": "Text", "text": "⚠️ System Error", "status": "error"}]}}) + "\n"
 
                 if db and project_id and batch_updates:
-                    doc = db.collection("users").document(user_id).collection("projects").document(project_id).get()
-                    if doc.exists:
-                        full_script = doc.to_dict().get("script", {})
-                        for s in full_script.get("slides", []):
-                            if s['id'] in batch_updates: s['image_url'] = batch_updates[s['id']]
-                        db.collection("users").document(user_id).collection("projects").document(project_id).update({"script": full_script, "status": "completed"})
+                    try:
+                        doc = db.collection("users").document(user_id).collection("projects").document(project_id).get()
+                        if doc.exists:
+                            full_script = doc.to_dict().get("script", {})
+                            for s in full_script.get("slides", []):
+                                if s['id'] in batch_updates: s['image_url'] = batch_updates[s['id']]
+                            db.collection("users").document(user_id).collection("projects").document(project_id).update({"script": full_script, "status": "completed"})
+                    except Exception as db_err:
+                         logger.error(f"DB Update Error: {db_err}")
+                         yield json.dumps({"log": f"Warning: Failed to save progress to database."}) + "\n"
                 
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✨ All images ready!"}]}}) + "\n"
+            
+            except Exception as graphics_err:
+                 logger.error(f"Graphics Phase Critical Error: {graphics_err}")
+                 yield json.dumps({"log": f"Critical error in graphics phase: {str(graphics_err)}"}) + "\n"
 
-        return StreamingResponse(event_generator(), media_type="application/x-ndjson")
-    except Exception as e:
-        logger.error(f"Stream Error: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
+    return StreamingResponse(event_generator(), media_type="application/x-ndjson")
 
 @app.post("/agent/export_slides")
 async def export_slides_endpoint(request: Request, user_id: str = Depends(get_user_id)):
