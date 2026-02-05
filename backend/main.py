@@ -222,7 +222,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 current_script = data.get("script")
                 
                 if current_script:
-                        user_query += f"\n\n[SYSTEM: CONTEXT INJECTION]\nTHE USER IS EDITING AN EXISTING SCRIPT. HERE IS THE CURRENT JSON STATE:\n{json.dumps(current_script)}"
+                    user_query += f"\n\n[SYSTEM: CONTEXT INJECTION]\nTHE USER IS EDITING AN EXISTING SCRIPT. HERE IS THE CURRENT JSON STATE:\n{json.dumps(current_script)}"
 
                 agent_output = ""
                 try:
@@ -275,7 +275,11 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 for slide in slides:
                     try:
                         if await request.is_disconnected(): break
-                        sid = slide['id']
+                        sid = slide.get('id')
+                        if sid is None:
+                            logger.warning("Found slide without ID, skipping.")
+                            continue
+
                         yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": "🎨 Generating image...", "status": "generating"}]}}) + "\n"
                         
                         # Fix KeyError: 'image_prompt'
@@ -294,9 +298,11 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                             yield json.dumps({"log": f"Image gen failed for slide {sid}: {img_url}"}) + "\n"
                             
                     except Exception as slide_err:
-                        logger.error(f"Error generating slide {slide.get('id')}: {slide_err}")
-                        yield json.dumps({"log": f"Error generating slide {slide.get('id')}: {str(slide_err)}"}) + "\n"
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{slide.get('id')}", "component": "Text", "text": "⚠️ System Error", "status": "error"}]}}) + "\n"
+                        slide_id_display = sid or slide.get('id', 'unknown')
+                        logger.error(f"Error generating slide {slide_id_display}: {slide_err}")
+                        yield json.dumps({"log": f"Error generating slide {slide_id_display}: {str(slide_err)}"}) + "\n"
+                        if sid:
+                            yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": "⚠️ System Error", "status": "error"}]}}) + "\n"
 
                 if db and project_id and batch_updates:
                     try:
