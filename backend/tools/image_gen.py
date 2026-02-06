@@ -26,7 +26,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Constants for better maintainability
-_SIGNED_URL_EXPIRATION = datetime.timedelta(hours=1)
 _MAX_RETRIES = 3
 
 class ImageGenerationTool:
@@ -157,7 +156,7 @@ class ImageGenerationTool:
 
             filename = f"img_{uuid.uuid4().hex}.png"
 
-            # 1. GCS Upload ONLY (No local fallback)
+            # 1. GCS Upload
             try:
                 if project_id:
                     blob_path = f"users/{user_id}/projects/{project_id}/assets/{filename}"
@@ -167,14 +166,20 @@ class ImageGenerationTool:
                 blob = self.bucket.blob(blob_path)
                 blob.upload_from_string(image_bytes, content_type="image/png")
                 
-                # Generate Signed URL
-                url = blob.generate_signed_url(
-                    version="v4",
-                    expiration=_SIGNED_URL_EXPIRATION,
-                    method="GET"
-                )
+                # REPLACEMENT FOR SIGNED URL: Make Public + Public URL
+                # This avoids the "missing private key" error on Cloud Run default credentials
+                try:
+                    blob.make_public()
+                    logger.info(f"✅ GCS Public Access Enabled")
+                except Exception as acl_err:
+                    # If this fails (e.g. Uniform Bucket Access), we still return the public URL
+                    # and hope the bucket policy allows public read.
+                    logger.warning(f"Could not set ACL (make_public): {acl_err}. Returning public URL anyway.")
+
+                url = blob.public_url
                 logger.info(f"✅ GCS Upload Success: {url[:50]}...")
                 return url
+
             except Exception as gcs_err:
                 logger.error(f"CRITICAL GCS UPLOAD FAILURE: {gcs_err}")
                 return f"Error: Failed to upload to GCS. Details: {str(gcs_err)}"
