@@ -51,6 +51,47 @@ from services.firestore_session import FirestoreSessionService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# --- UTILS ---
+def extract_first_json_block(text: str) -> Optional[dict]:
+    """
+    Robustly extracts the first valid JSON object from a string by matching balanced braces.
+    This handles LLM output that includes markdown, chatter, or multiple blocks better than regex.
+    """
+    text = text.strip()
+    start_index = text.find('{')
+    if start_index == -1:
+        return None
+    
+    brace_count = 0
+    in_string = False
+    escape = False
+    
+    for i in range(start_index, len(text)):
+        char = text[i]
+        
+        if char == '"' and not escape:
+            in_string = not in_string
+        
+        if not in_string:
+            if char == '{':
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+                
+            if brace_count == 0:
+                json_str = text[start_index:i+1]
+                try:
+                    return json.loads(json_str)
+                except json.JSONDecodeError:
+                    return None # Found a block but it wasn't valid JSON
+        
+        if char == '\\' and not escape:
+            escape = True
+        else:
+            escape = False
+            
+    return None
+
 # --- INITIALIZATION ---
 def get_or_create_bucket():
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
@@ -103,15 +144,13 @@ if gcs_bucket:
         logger.info(f"✅ STARTUP PROBE: Successfully wrote to {gcs_bucket}")
     except Exception as probe_err:
         logger.error(f"❌ STARTUP PROBE FAILED: Could not write to {gcs_bucket}. Error: {probe_err}")
-        # We don't exit(1) because we want the app to stay up for debugging logs, 
-        # but we know image gen will fail.
 
 if gcs_bucket:
     os.environ["GCS_BUCKET_NAME"] = gcs_bucket 
     artifact_service = GcsArtifactService(bucket_name=gcs_bucket)
     logger.info(f"Using GCS bucket: {gcs_bucket}")
 else:
-    # EMERGENCY GCS FORCE - Avoid InMemory at all costs in Prod
+    # EMERGENCY GCS FORCE
     fallback_hard = "qwiklabs-asl-04-f9d4ba2925b9-infographic-assets"
     logger.warning(f"Bucket detection failed completely. FORCING GCS: {fallback_hard}")
     os.environ["GCS_BUCKET_NAME"] = fallback_hard
@@ -183,7 +222,6 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
         project_id = data.get("project_id") or uuid.uuid4().hex
         surface_id = "infographic_workspace"
         
-        # Consistent Session ID (Stateful Agent)
         session_id = f"{user_id}_{project_id}"
 
         async def event_generator():
@@ -194,21 +232,15 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 agent = create_infographic_team(api_key=api_key)
                 runner = Runner(agent=agent, app_name="infographic-pro", session_service=session_service)
                 
-                # Session Management: Reuse if exists, create if not
                 session = None
                 try:
                     session = await session_service.get_session(app_name="infographic-pro", user_id=user_id, session_id=session_id)
                 except Exception:
-                    # Ignore error (likely session not found)
                     pass
                 
                 if not session:
-                    logger.info(f"Creating new session: {session_id}")
                     session = await session_service.create_session(app_name="infographic-pro", user_id=user_id, session_id=session_id)
-                else:
-                    logger.info(f"Resumed existing session: {session_id}")
                 
-                # Context Injection for Follow-ups
                 user_query = data.get("query", "")
                 current_script = data.get("script")
                 
@@ -224,7 +256,6 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                                 agent_output += part.text
                                 yield json.dumps({"log": part.text[:100] + "..."}) + "\n"
 
-                # Use Robust JSON Extraction
                 script_data = extract_first_json_block(agent_output)
                 
                 if script_data:
@@ -250,10 +281,8 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     sid = slide['id']
                     yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": "🎨 Generating image...", "status": "generating"}]}}) + "\n"
                     
-                    # Fix KeyError: 'image_prompt'
                     prompt_text = slide.get('image_prompt')
                     if not prompt_text:
-                        logger.warning(f"Slide {sid} missing image_prompt. Using fallback.")
                         prompt_text = f"Infographic about {slide.get('title', 'Data')}, professional style, vector illustration, high resolution"
 
                     img_url = await asyncio.to_thread(img_tool.generate_and_save, prompt_text, aspect_ratio=ar, user_id=user_id, project_id=project_id, logo_url=logo_url)
@@ -281,20 +310,20 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
 
 @app.post("/agent/export_slides")
 async def export_slides_endpoint(request: Request, user_id: str = Depends(get_user_id)):
-    return JSONResponse(status_code=501, content={"error": "Not implemented"}) # Placeholder
+    return JSONResponse(status_code=501, content={"error": "Not implemented"})
 
 @app.post("/agent/export")
 async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
-    return JSONResponse(status_code=501, content={"error": "Not implemented"}) # Placeholder
+    return JSONResponse(status_code=501, content={"error": "Not implemented"})
 
 @app.post("/agent/refine_text")
-async def refine_text(request: Request): return {} # Placeholder
+async def refine_text(request: Request): return {}
 
 @app.post("/agent/regenerate_slide")
-async def regenerate_slide(request: Request): return {} # Placeholder
+async def regenerate_slide(request: Request): return {}
 
 @app.post("/agent/upload")
-async def upload_document(request: Request): return {} # Placeholder
+async def upload_document(request: Request): return {}
 
 async def get_project_logo(user_id, project_id): return None
 
