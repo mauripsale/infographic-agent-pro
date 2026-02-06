@@ -51,6 +51,8 @@ from services.firestore_session import FirestoreSessionService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+logger.info("🚀 BACKEND STARTING - VERSION: FORCE_UPDATE_PUBLIC_URL_FIX_V1")
+
 # --- UTILS ---
 def extract_first_json_block(text: str) -> Optional[dict]:
     """
