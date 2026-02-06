@@ -25,9 +25,6 @@ except ImportError:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-STATIC_DIR = Path("static")
-STATIC_DIR.mkdir(exist_ok=True)
-
 # Constants for better maintainability
 _SIGNED_URL_EXPIRATION = datetime.timedelta(hours=1)
 _MAX_RETRIES = 3
@@ -37,6 +34,10 @@ class ImageGenerationTool:
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         self.bucket_name = bucket_name or os.environ.get("GCS_BUCKET_NAME")
         
+        # Hard override for safety
+        if self.bucket_name == "infographic-agent-pro-assets":
+             self.bucket_name = "qwiklabs-asl-04-f9d4ba2925b9-infographic-assets"
+
         if GCS_AVAILABLE and self.bucket_name:
             try:
                 self.storage_client = storage.Client()
@@ -46,6 +47,7 @@ class ImageGenerationTool:
                 logger.error(f"GCS Init Failed: {e}")
                 self.bucket = None
         else:
+            logger.warning("GCS Not Available or Bucket not provided. Image generation will fail.")
             self.bucket = None
 
     def _apply_watermark(self, base_img: Image.Image, logo_url: str) -> Image.Image:
@@ -89,16 +91,17 @@ class ImageGenerationTool:
 
     def generate_and_save(self, prompt: str, aspect_ratio: str = "16:9", user_id: str = "anonymous", project_id: str = None, logo_url: str = None) -> str:
         """
-        Generates an image and saves it to GCS (preferred) or local static dir.
-        Returns a Signed URL (GCS) or absolute URL (Local).
+        Generates an image and saves it to GCS.
         """
         try:
             if not self.api_key:
                 return "Error: Missing Google API Key."
+            
+            if not self.bucket:
+                 return "Error: GCS Bucket not configured. Cannot save image."
 
             client = genai.Client(api_key=self.api_key)
             
-            # Safeguard: ensure an image-capable model is used
             model_id = model_context.get()
             if "image" not in model_id:
                 model_id = "gemini-2.5-flash-image"
@@ -154,37 +157,27 @@ class ImageGenerationTool:
 
             filename = f"img_{uuid.uuid4().hex}.png"
 
-            # 1. GCS Upload (Primary)
-            if self.bucket:
-                try:
-                    if project_id:
-                        blob_path = f"users/{user_id}/projects/{project_id}/assets/{filename}"
-                    else:
-                        blob_path = f"users/{user_id}/generated/{filename}"
-                        
-                    blob = self.bucket.blob(blob_path)
-                    blob.upload_from_string(image_bytes, content_type="image/png")
+            # 1. GCS Upload ONLY (No local fallback)
+            try:
+                if project_id:
+                    blob_path = f"users/{user_id}/projects/{project_id}/assets/{filename}"
+                else:
+                    blob_path = f"users/{user_id}/generated/{filename}"
                     
-                    # Generate Signed URL
-                    url = blob.generate_signed_url(
-                        version="v4",
-                        expiration=_SIGNED_URL_EXPIRATION,
-                        method="GET"
-                    )
-                    logger.info(f"✅ GCS Upload Success: {url[:50]}...")
-                    return url
-                except Exception as gcs_err:
-                    logger.error(f"GCS Upload failed: {gcs_err}. Falling back to local.")
-
-            # 2. Local Fallback
-            filepath = STATIC_DIR / filename
-            with open(filepath, "wb") as f:
-                f.write(image_bytes)
-            
-            backend_url = os.environ.get("BACKEND_URL", "http://localhost:8080")
-            local_url = f"{backend_url}/static/{filename}"
-            logger.info(f"⚠️ Local Upload Fallback: {local_url}")
-            return local_url
+                blob = self.bucket.blob(blob_path)
+                blob.upload_from_string(image_bytes, content_type="image/png")
+                
+                # Generate Signed URL
+                url = blob.generate_signed_url(
+                    version="v4",
+                    expiration=_SIGNED_URL_EXPIRATION,
+                    method="GET"
+                )
+                logger.info(f"✅ GCS Upload Success: {url[:50]}...")
+                return url
+            except Exception as gcs_err:
+                logger.error(f"CRITICAL GCS UPLOAD FAILURE: {gcs_err}")
+                return f"Error: Failed to upload to GCS. Details: {str(gcs_err)}"
 
         except Exception as e:
             logger.error(f"Generation Fatal Error: {e}")

@@ -51,47 +51,6 @@ from services.firestore_session import FirestoreSessionService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- UTILS ---
-def extract_first_json_block(text: str) -> Optional[dict]:
-    """
-    Robustly extracts the first valid JSON object from a string by matching balanced braces.
-    This handles LLM output that includes markdown, chatter, or multiple blocks better than regex.
-    """
-    text = text.strip()
-    start_index = text.find('{')
-    if start_index == -1:
-        return None
-    
-    brace_count = 0
-    in_string = False
-    escape = False
-    
-    for i in range(start_index, len(text)):
-        char = text[i]
-        
-        if char == '"' and not escape:
-            in_string = not in_string
-        
-        if not in_string:
-            if char == '{':
-                brace_count += 1
-            elif char == '}':
-                brace_count -= 1
-                
-            if brace_count == 0:
-                json_str = text[start_index:i+1]
-                try:
-                    return json.loads(json_str)
-                except json.JSONDecodeError:
-                    return None # Found a block but it wasn't valid JSON
-        
-        if char == '\\' and not escape:
-            escape = True
-        else:
-            escape = False
-            
-    return None
-
 # --- INITIALIZATION ---
 def get_or_create_bucket():
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
@@ -133,6 +92,19 @@ def get_or_create_bucket():
         return fallback
 
 gcs_bucket = get_or_create_bucket()
+
+# --- STARTUP WRITE PROBE ---
+if gcs_bucket:
+    try:
+        probe_client = storage.Client()
+        probe_bucket = probe_client.bucket(gcs_bucket)
+        blob = probe_bucket.blob("startup_probe.txt")
+        blob.upload_from_string("GCS Write Check OK")
+        logger.info(f"✅ STARTUP PROBE: Successfully wrote to {gcs_bucket}")
+    except Exception as probe_err:
+        logger.error(f"❌ STARTUP PROBE FAILED: Could not write to {gcs_bucket}. Error: {probe_err}")
+        # We don't exit(1) because we want the app to stay up for debugging logs, 
+        # but we know image gen will fail.
 
 if gcs_bucket:
     os.environ["GCS_BUCKET_NAME"] = gcs_bucket 
