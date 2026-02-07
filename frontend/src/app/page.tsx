@@ -154,7 +154,8 @@ export default function App() {
     if (targetPhase === "script") {
         setPhase("review");
         setScript(null);
-        const effectiveQuery = `[SETTINGS] Slides: ${numSlides}, Style: ${style}\n\n${query}`;
+        // Improved Query Format
+        const effectiveQuery = `TOPIC: ${query}\n\nCONSTRAINTS:\n- Language: ${language}\n- Slides: ${numSlides}\n- Style: ${style || "Professional"}\n- Detail Level: ${detailLevel}`;
         body.query = effectiveQuery;
         body.phase = "script";
     } else if (targetPhase === "graphics") {
@@ -176,7 +177,7 @@ export default function App() {
             signal: abortController.signal
         });
         await processStream(res.body!.getReader(), (msg) => {
-            if (msg.log) setAgentLog(prev => [...prev, msg.log!]); // TS Fix: non-null assertion
+            if (msg.log) setAgentLog(prev => [...prev, msg.log!]);
             if (msg.updateComponents) {
                 setSurfaceState(prev => {
                     const nextComps = { ...prev.components };
@@ -199,7 +200,7 @@ export default function App() {
     } finally {
         setIsStreaming(false);
     }
-  }, [query, numSlides, style, currentProjectId, getToken, selectedModel]);
+  }, [query, numSlides, style, detailLevel, language, currentProjectId, getToken, selectedModel]);
   
   const removeFile = (index: number) => setUploadedFiles(prev => prev.filter((_, i) => i !== index));
 
@@ -225,6 +226,34 @@ export default function App() {
                     {p.title || p.query}
                 </button>
             ))}
+        </div>
+        
+        {/* RESTORED USER FOOTER UI */}
+        <div className="p-4 border-t border-white/5 shrink-0 bg-[#0F172A]/60 flex items-center justify-center overflow-hidden">
+             {isHistoryOpen ? (
+                 <div className="w-full">
+                     <div className="flex items-center gap-3 mb-3">
+                         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                             {user.email?.[0].toUpperCase()}
+                         </div>
+                         <div className="flex-1 min-w-0">
+                             <div className="text-xs font-medium text-white truncate">{user.email}</div>
+                         </div>
+                     </div>
+                     <button onClick={logout} className="w-full py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded transition flex items-center justify-center gap-2">
+                         <MonitorIcon className="w-3 h-3" /> Sign Out
+                     </button>
+                 </div>
+             ) : (
+                 <div className="flex flex-col gap-4 items-center">
+                     <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500 flex items-center justify-center text-xs font-bold text-white shrink-0" title={user.email || ""}>
+                         {user.email?.[0].toUpperCase()}
+                     </div>
+                     <button onClick={logout} className="p-2 hover:bg-white/5 rounded text-slate-400 hover:text-white" title="Sign Out">
+                         <MonitorIcon className="w-4 h-4" />
+                     </button>
+                 </div>
+             )}
         </div>
       </aside>
 
