@@ -1,9 +1,11 @@
 from typing import Optional, Dict, Any, List
-from google.adk.sessions import Session, SessionService
+from google.adk.sessions import Session
 from google.cloud import firestore
 import datetime
 
-class FirestoreSessionService(SessionService):
+# Removed inheritance from SessionService to avoid ImportError.
+# Implements the implicit interface required by ADK Runner.
+class FirestoreSessionService:
     def __init__(self, db: firestore.Client):
         self.db = db
 
@@ -50,6 +52,8 @@ class FirestoreSessionService(SessionService):
         doc = doc_ref.get()
         
         if not doc.exists:
+            # Fallback: if not found, we might want to return None or raise. 
+            # ADK Runner usually handles exceptions or expects a session.
             raise ValueError(f"Session {session_id} not found")
             
         data = doc.to_dict()
@@ -102,11 +106,6 @@ class FirestoreSessionService(SessionService):
         """Updates the state of an existing session."""
         doc_ref = self.db.collection("users").document(user_id).collection("sessions").document(session_id)
         
-        # Verify existence (optional but good practice)
-        # doc = doc_ref.get()
-        # if not doc.exists:
-        #    raise ValueError(f"Session {session_id} not found")
-
         update_data = {
             "state": state,
             "updated_at": firestore.SERVER_TIMESTAMP
@@ -114,12 +113,11 @@ class FirestoreSessionService(SessionService):
         
         doc_ref.set(update_data, merge=True)
         
-        # Return updated session object (fetching fresh or constructing)
         return Session(
             id=session_id,
             user_id=user_id,
             app_name=app_name,
             state=state,
-            created_at=datetime.datetime.now(), # Placeholder
+            created_at=datetime.datetime.now(), 
             updated_at=datetime.datetime.now()
         )
