@@ -51,7 +51,7 @@ from services.firestore_session import FirestoreSessionService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-logger.info("🚀 BACKEND STARTING - VERSION: SESSION_STATE_ENFORCEMENT_V1")
+logger.info("🚀 BACKEND STARTING - VERSION: DEEP_TRACE_LOGS_V4")
 
 # --- UTILS ---
 def extract_first_json_block(text: str) -> Optional[dict]:
@@ -243,7 +243,8 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
         phase = data.get("phase", "script")
         project_id = data.get("project_id") or uuid.uuid4().hex
         
-        logger.info(f"📥 AGENT STREAM REQUEST | Phase: {phase} | Project: {project_id}")
+        # --- DEBUG LOG 1: PAYLOAD ---
+        logger.info(f"🔍 REQUEST PAYLOAD: {json.dumps(data)}")
         
         surface_id = "infographic_workspace"
         session_id = f"{user_id}_{project_id}"
@@ -267,8 +268,11 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     state={"current_phase": "init", "script": None} # Initialize state
                 )
             else:
-                logger.info(f"Loaded EXISTING session {session_id} | State Phase: {session.state.get('current_phase')}")
+                logger.info(f"Loaded EXISTING session {session_id}")
 
+            # --- DEBUG LOG 2: SESSION STATE ---
+            logger.info(f"🔍 SESSION STATE KEYS: {list(session.state.keys())}")
+            
             if phase == "script":
                 logger.info("🎬 Starting SCRIPT phase")
                 
@@ -322,12 +326,15 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     yield json.dumps({"log": "Error: Agent failed to produce valid plan."}) + "\n"
 
             elif phase == "graphics":
-                logger.info("🎨 Starting GRAPHICS phase")
+                # --- DEBUG LOG 3: GRAPHICS ENTRY ---
+                logger.info("🎨 ENTERING GRAPHICS PHASE BLOCK")
                 
                 # LOAD SCRIPT FROM SESSION STATE (Fallback to request body only if necessary)
                 script = session.state.get("script")
+                
+                # --- DEBUG LOG 4: SCRIPT STATUS ---
                 if not script:
-                    logger.warning("Script not found in Session State! Falling back to request body.")
+                    logger.warning("⚠️ SCRIPT MISSING IN SESSION STATE! Checking request body...")
                     script = data.get("script", {})
                 else:
                     logger.info("✅ Loaded Script from Session State")
@@ -335,7 +342,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 slides = script.get("slides", [])
                 
                 if not slides:
-                    logger.error("GRAPHICS phase: No slides available (checked Session & Request).")
+                    logger.error("❌ GRAPHICS phase: No slides available (checked Session & Request).")
                     yield json.dumps({"log": "Error: No script found. Please run the planning phase first."}) + "\n"
                     return
 
