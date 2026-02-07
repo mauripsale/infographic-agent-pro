@@ -51,7 +51,7 @@ from services.firestore_session import FirestoreSessionService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-logger.info("🚀 BACKEND STARTING - VERSION: SELF_HEALING_PROMPTS_V1")
+logger.info("🚀 BACKEND STARTING - VERSION: SESSION_STATE_ENFORCEMENT_V1")
 
 # --- UTILS ---
 def extract_first_json_block(text: str) -> Optional[dict]:
@@ -242,32 +242,51 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
         data = await request.json()
         phase = data.get("phase", "script")
         project_id = data.get("project_id") or uuid.uuid4().hex
-        surface_id = "infographic_workspace"
         
+        logger.info(f"📥 AGENT STREAM REQUEST | Phase: {phase} | Project: {project_id}")
+        
+        surface_id = "infographic_workspace"
         session_id = f"{user_id}_{project_id}"
 
         async def event_generator():
             yield json.dumps({"createSurface": {"surfaceId": surface_id, "catalogId": "https://a2ui.dev/specification/0.9/standard_catalog_definition.json"}}) + "\n"
 
+            # 1. Initialize Session using ADK
+            session = None
+            try:
+                session = await session_service.get_session(app_name="infographic-pro", user_id=user_id, session_id=session_id)
+            except Exception:
+                pass
+            
+            if not session:
+                logger.info(f"Creating NEW session for {session_id}")
+                session = await session_service.create_session(
+                    app_name="infographic-pro", 
+                    user_id=user_id, 
+                    session_id=session_id,
+                    state={"current_phase": "init", "script": None} # Initialize state
+                )
+            else:
+                logger.info(f"Loaded EXISTING session {session_id} | State Phase: {session.state.get('current_phase')}")
+
             if phase == "script":
+                logger.info("🎬 Starting SCRIPT phase")
+                
+                # Update Session State
+                session.state["current_phase"] = "planning"
+                await session_service.update_session_state(app_name="infographic-pro", user_id=user_id, session_id=session_id, state=session.state)
+
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "🧠 Planning content..."}]}}) + "\n"
+                
                 agent = create_infographic_team(api_key=api_key)
                 runner = Runner(agent=agent, app_name="infographic-pro", session_service=session_service)
                 
-                session = None
-                try:
-                    session = await session_service.get_session(app_name="infographic-pro", user_id=user_id, session_id=session_id)
-                except Exception:
-                    pass
-                
-                if not session:
-                    session = await session_service.create_session(app_name="infographic-pro", user_id=user_id, session_id=session_id)
-                
                 user_query = data.get("query", "")
-                current_script = data.get("script")
                 
+                # Context Injection from Session State if refining
+                current_script = session.state.get("script")
                 if current_script:
-                     user_query += f"\n\n[SYSTEM: CONTEXT INJECTION]\nTHE USER IS EDITING AN EXISTING SCRIPT. HERE IS THE CURRENT JSON STATE:\n{json.dumps(current_script)}"
+                     user_query += f"\n\n[SYSTEM: CONTEXT INJECTION]\nTHE USER IS REFINING AN EXISTING SCRIPT. CURRENT JSON:\n{json.dumps(current_script)}"
 
                 agent_output = ""
                 async for event in runner.run_async(session_id=session.id, user_id=user_id, new_message=types.Content(role="user", parts=[types.Part(text=user_query)])):
@@ -286,51 +305,109 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 # -------------------------
                 
                 if script_data:
+                    # Save to DB
                     if db:
                         db.collection("users").document(user_id).collection("projects").document(project_id).set({
                             "query": data.get("query"), "script": script_data, "status": "script_ready", "created_at": firestore.SERVER_TIMESTAMP
                         }, merge=True)
+                    
+                    # Save to Session State (CRITICAL for next phase)
+                    session.state["script"] = script_data
+                    session.state["current_phase"] = "script_ready"
+                    await session_service.update_session_state(app_name="infographic-pro", user_id=user_id, session_id=session_id, state=session.state)
+
                     yield json.dumps({"updateDataModel": {"surfaceId": surface_id, "path": "/", "op": "replace", "value": {"script": script_data, "project_id": project_id}}}) + "\n"
                 else:
                     logger.error(f"Failed to parse JSON. Output was: {agent_output[:500]}...")
                     yield json.dumps({"log": "Error: Agent failed to produce valid plan."}) + "\n"
 
             elif phase == "graphics":
-                script = data.get("script", {})
+                logger.info("🎨 Starting GRAPHICS phase")
+                
+                # LOAD SCRIPT FROM SESSION STATE (Fallback to request body only if necessary)
+                script = session.state.get("script")
+                if not script:
+                    logger.warning("Script not found in Session State! Falling back to request body.")
+                    script = data.get("script", {})
+                else:
+                    logger.info("✅ Loaded Script from Session State")
+
                 slides = script.get("slides", [])
+                
+                if not slides:
+                    logger.error("GRAPHICS phase: No slides available (checked Session & Request).")
+                    yield json.dumps({"log": "Error: No script found. Please run the planning phase first."}) + "\n"
+                    return
+
                 ar = script.get("global_settings", {}).get("aspect_ratio", "16:9")
                 logo_url = await get_project_logo(user_id, project_id) if db else None
                 img_tool = ImageGenerationTool(api_key=api_key, bucket_name=gcs_bucket)
                 
                 batch_updates = {}
-                for slide in slides:
-                    if await request.is_disconnected(): break
-                    sid = slide['id']
-                    yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": "🎨 Generating image...", "status": "generating"}]}}) + "\n"
+                
+                # --- PARALLEL GENERATION ---
+                async def process_single_slide(slide):
+                    sid = slide.get('id')
+                    if not sid: return None
                     
-                    # PROMPTS SHOULD NOW BE PRESENT THANKS TO SELF-HEALING
-                    prompt_text = slide.get('image_prompt')
-                    
-                    # Double-check fallback just in case
-                    if not prompt_text:
-                         logger.warning(f"Slide {sid} STILL missing prompt after healing. Using runtime fallback.")
-                         prompt_text = f"Infographic about {slide.get('title', 'Data')}, professional style, vector illustration, high resolution"
+                    try:
+                        prompt_text = slide.get('image_prompt')
+                        # Self-healing should have run in script phase, but check again
+                        if not prompt_text:
+                            prompt_text = f"Infographic about {slide.get('title', 'Data')}, professional style, vector illustration, high resolution"
 
-                    img_url = await asyncio.to_thread(img_tool.generate_and_save, prompt_text, aspect_ratio=ar, user_id=user_id, project_id=project_id, logo_url=logo_url)
+                        # This call is thread-blocking, so we offload it
+                        img_url = await asyncio.to_thread(
+                            img_tool.generate_and_save, 
+                            prompt_text, 
+                            aspect_ratio=ar, 
+                            user_id=user_id, 
+                            project_id=project_id, 
+                            logo_url=logo_url
+                        )
+                        return {"sid": sid, "url": img_url, "title": slide.get('title', 'Slide')}
+                    except Exception as e:
+                        logger.error(f"Failed processing slide {sid}: {e}")
+                        return {"sid": sid, "url": f"Error: {str(e)}", "title": slide.get('title', 'Slide')}
+
+                # Create tasks
+                tasks = [process_single_slide(slide) for slide in slides]
+                logger.info(f"Queued {len(tasks)} image generation tasks...")
+                
+                # Stream results as they complete
+                for future in asyncio.as_completed(tasks):
+                    if await request.is_disconnected(): 
+                        logger.warning("Client disconnected during image generation")
+                        break
+                    
+                    result = await future
+                    if not result: continue
+                    
+                    sid = result["sid"]
+                    img_url = result["url"]
+                    title = result["title"]
                     
                     if "http" in img_url:
                         batch_updates[sid] = img_url
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"}, {"id": f"t_{sid}", "component": "Text", "text": slide.get('title', 'Slide')}, {"id": f"i_{sid}", "component": "Image", "src": img_url}]}}) + "\n"
+                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"}, {"id": f"t_{sid}", "component": "Text", "text": title}, {"id": f"i_{sid}", "component": "Image", "src": img_url}]}}) + "\n"
                     else:
                         yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}}) + "\n"
+                        yield json.dumps({"log": f"Gen Failed: {img_url}"}) + "\n"
 
+                # Update DB and Session with results
                 if db and project_id and batch_updates:
-                    doc = db.collection("users").document(user_id).collection("projects").document(project_id).get()
-                    if doc.exists:
-                        full_script = doc.to_dict().get("script", {})
-                        for s in full_script.get("slides", []):
-                            if s['id'] in batch_updates: s['image_url'] = batch_updates[s['id']]
-                        db.collection("users").document(user_id).collection("projects").document(project_id).update({"script": full_script, "status": "completed"})
+                    # Update local script object first
+                    for s in script.get("slides", []):
+                        if s['id'] in batch_updates: 
+                            s['image_url'] = batch_updates[s['id']]
+                    
+                    # Persist to DB
+                    db.collection("users").document(user_id).collection("projects").document(project_id).update({"script": script, "status": "completed"})
+                    
+                    # Update Session State
+                    session.state["script"] = script
+                    session.state["current_phase"] = "completed"
+                    await session_service.update_session_state(app_name="infographic-pro", user_id=user_id, session_id=session_id, state=session.state)
                 
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✨ All images ready!"}]}}) + "\n"
 
