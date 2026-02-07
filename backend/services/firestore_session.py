@@ -1,12 +1,11 @@
 from typing import Optional, Dict, Any, List
 from google.adk.sessions import Session
+from google.adk.sessions.base_session_service import BaseSessionService
 from google.cloud import firestore
 import time
 import uuid
 
-# Removed inheritance from SessionService to avoid ImportError.
-# Implements the implicit interface required by ADK Runner.
-class FirestoreSessionService:
+class FirestoreSessionService(BaseSessionService):
     def __init__(self, db: firestore.Client):
         self.db = db
 
@@ -34,14 +33,13 @@ class FirestoreSessionService:
         
         doc_ref.set(session_data, merge=True)
         
-        # FIX: Align with actual ADK Session model fields
         # fields: ['id', 'app_name', 'user_id', 'state', 'events', 'last_update_time']
         return Session(
             id=sid,
             user_id=user_id,
             app_name=app_name,
             state=state or {},
-            events=[], # Initialize with empty events
+            events=[], 
             last_update_time=current_time
         )
 
@@ -59,7 +57,6 @@ class FirestoreSessionService:
             
         data = doc.to_dict()
         
-        # Handle legacy data or missing fields
         last_update = data.get("updated_at")
         if hasattr(last_update, 'timestamp'):
             last_update_ts = last_update.timestamp()
@@ -130,8 +127,6 @@ class FirestoreSessionService:
             user_id=user_id,
             app_name=app_name,
             state=state,
-            events=[], # Note: This might clear events if we don't fetch them. Ideally we should merge.
-                       # But for now, returning a valid Session object is the priority for the Runner.
-                       # The Runner likely re-fetches or uses this state.
+            events=[], 
             last_update_time=current_time
         )
