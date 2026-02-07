@@ -51,7 +51,7 @@ from services.firestore_session import FirestoreSessionService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-logger.info("🚀 BACKEND STARTING - VERSION: FORCE_UPDATE_PUBLIC_URL_FIX_V1")
+logger.info("🚀 BACKEND STARTING - VERSION: SELF_HEALING_PROMPTS_V1")
 
 # --- UTILS ---
 def extract_first_json_block(text: str) -> Optional[dict]:
@@ -93,6 +93,26 @@ def extract_first_json_block(text: str) -> Optional[dict]:
             escape = False
             
     return None
+
+def enrich_script_with_prompts(script_data: dict) -> dict:
+    """
+    Self-Healing Mechanism:
+    Iterates through the script slides. If 'image_prompt' is missing,
+    it synthesizes one using the title and description.
+    This guarantees that the DB always has complete data.
+    """
+    if not script_data or "slides" not in script_data:
+        return script_data
+    
+    for slide in script_data["slides"]:
+        if "image_prompt" not in slide or not slide["image_prompt"]:
+            title = slide.get("title", "Infographic")
+            desc = slide.get("description", "")
+            # Synthesize a prompt
+            slide["image_prompt"] = f"A professional infographic illustration about '{title}'. Context: {desc}. Style: clean vector, data visualization, minimalist, high resolution."
+            logger.warning(f"🩹 SELF-HEALED: Injected missing image_prompt for slide '{title}'")
+            
+    return script_data
 
 # --- INITIALIZATION ---
 def get_or_create_bucket():
@@ -260,6 +280,11 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
 
                 script_data = extract_first_json_block(agent_output)
                 
+                # --- SELF-HEALING STEP ---
+                if script_data:
+                    script_data = enrich_script_with_prompts(script_data)
+                # -------------------------
+                
                 if script_data:
                     if db:
                         db.collection("users").document(user_id).collection("projects").document(project_id).set({
@@ -283,9 +308,13 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     sid = slide['id']
                     yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": "🎨 Generating image...", "status": "generating"}]}}) + "\n"
                     
+                    # PROMPTS SHOULD NOW BE PRESENT THANKS TO SELF-HEALING
                     prompt_text = slide.get('image_prompt')
+                    
+                    # Double-check fallback just in case
                     if not prompt_text:
-                        prompt_text = f"Infographic about {slide.get('title', 'Data')}, professional style, vector illustration, high resolution"
+                         logger.warning(f"Slide {sid} STILL missing prompt after healing. Using runtime fallback.")
+                         prompt_text = f"Infographic about {slide.get('title', 'Data')}, professional style, vector illustration, high resolution"
 
                     img_url = await asyncio.to_thread(img_tool.generate_and_save, prompt_text, aspect_ratio=ar, user_id=user_id, project_id=project_id, logo_url=logo_url)
                     
