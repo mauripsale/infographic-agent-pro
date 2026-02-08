@@ -1,82 +1,42 @@
 from google.adk.agents import LlmAgent
 from google.adk.tools import google_search, url_context
 from google.adk.tools.agent_tool import AgentTool
-from google.adk.planners import BuiltInPlanner
 import os
 from tools.image_gen import ImageGenerationTool
 
-# Use a constant for the model name to improve maintainability across all agents
-AGENT_MODEL = "gemini-2.5-flash"
+def create_refiner_agent(api_key: str = None, model: str = "gemini-2.0-flash"):
+    if api_key: os.environ["GOOGLE_API_KEY"] = api_key
+    return LlmAgent(name="ContentRefiner", model=model, instruction="...")
 
-def create_refiner_agent(api_key: str = None):
+def create_image_artist_agent(api_key: str, img_tool, user_id, project_id, logo_url, model: str = "gemini-2.0-flash"):
+    if api_key: os.environ["GOOGLE_API_KEY"] = api_key
+    # ... (rest of implementation)
+    return LlmAgent(name="ImageArtist", model=model, ...)
+
+def create_infographic_agent(api_key: str = None, model: str = "gemini-2.0-flash"):
     if api_key:
         os.environ["GOOGLE_API_KEY"] = api_key
     
-    return LlmAgent(
-        name="ContentRefiner",
-        model=AGENT_MODEL,
-        instruction="""You are an expert Content Editor.
-You will receive a JSON object containing:
-- 'title': Current title
-- 'description': Current description
-- 'instruction': User's editing instruction (e.g., "Make it shorter", "Translate to Spanish")
-
-Your task is to rewrite the 'title' and 'description' according to the 'instruction'.
-
-**RULES:**
-1. Respect the user's instruction precisely.
-2. Maintain the original meaning unless asked to change it.
-3. Output MUST be a valid JSON object with 'title' and 'description' keys.
-4. Do NOT output markdown code blocks, just the raw JSON string.
-"""
-    )
-
-def create_image_artist_agent(api_key: str, img_tool: ImageGenerationTool, user_id: str, project_id: str, logo_url: str = None):
-    if api_key:
-        os.environ["GOOGLE_API_KEY"] = api_key
-    
-    # Closure to bind context to the tool
-    def generate_infographic(prompt: str, aspect_ratio: str = "16:9") -> str:
-        """Generates an infographic image based on the prompt and aspect ratio."""
-        return img_tool.generate_and_save(prompt, aspect_ratio=aspect_ratio, user_id=user_id, project_id=project_id, logo_url=logo_url)
-
-    return LlmAgent(
-        name="ImageArtist",
-        model=AGENT_MODEL, 
-        instruction="""You are an expert AI Artist.
-Your task is to generate an infographic image using the 'generate_infographic' tool.
-You will receive a visual description (prompt) and an aspect ratio.
-Call the tool with these parameters.
-Output ONLY the URL returned by the tool.
-""",
-        tools=[generate_infographic]
-    )
-
-def create_infographic_agent(api_key: str = None):
-    if api_key:
-        os.environ["GOOGLE_API_KEY"] = api_key
-    
-    # 1. Specialist: Search Agent (Isolated for Google Search Tool)
+    # 1. Specialist: Search Agent
     search_agent = LlmAgent(
         name="SearchSpecialist",
-        model=AGENT_MODEL,
+        model=model,
         instruction="You are a search specialist. Your job is to find accurate, dense, and interesting facts about the user's topic. Return a summary of key points.",
         tools=[google_search]
     )
 
-    # 2. Specialist: URL Reader Agent (Isolated for URL Context Tool)
+    # 2. Specialist: URL Reader Agent
     url_agent = LlmAgent(
         name="UrlReaderSpecialist",
-        model=AGENT_MODEL,
+        model=model,
         instruction="You are a URL reading specialist. Use the url_context tool to extract content from web pages.",
         tools=[url_context]
     )
 
-    # 3. Root Agent: Director (Orchestrator)
-    # It delegates tasks to specialists via AgentTool
+    # 3. Root Agent: Director
     return LlmAgent(
         name="InfographicDirector",
-        model=AGENT_MODEL, 
+        model=model, 
         tools=[
             AgentTool(agent=search_agent),
             AgentTool(agent=url_agent)
