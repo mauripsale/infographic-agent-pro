@@ -51,7 +51,7 @@ from services.firestore_session import FirestoreSessionService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-logger.info("🚀 BACKEND STARTING - VERSION: NATIVE_ADK_MEMORY_V5")
+logger.info("🚀 BACKEND STARTING - VERSION: NATIVE_ADK_MEMORY_V6_STABLE")
 
 # --- UTILS ---
 def extract_first_json_block(text: str) -> Optional[dict]:

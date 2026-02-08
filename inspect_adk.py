@@ -1,12 +1,12 @@
-
-import inspect
 import json
 try:
-    import google_adk
-    import google_adk.runners
-    import google_adk.agents
-    print("ROOT: google_adk found")
-    print("RUNNERS:", dir(google_adk.runners))
-    print("AGENTS:", dir(google_adk.agents))
+    import google.adk.events as events
+    print("Events module found")
+    print(dir(events))
+    from google.adk.events import Event
+    print("Event class found:", Event)
+    print("Event fields:", Event.model_fields.keys())
 except ImportError as e:
     print(f"ImportError: {e}")
+except Exception as e:
+    print(f"Error: {e}")

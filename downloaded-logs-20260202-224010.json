@@ -1,0 +1,2119 @@
+[
+  {
+    "insertId": "6981195c00069a8ff5c37f33",
+    "httpRequest": {
+      "requestMethod": "OPTIONS",
+      "requestUrl": "https://infographic-agent-backend-218788847170.us-central1.run.app/user/projects",
+      "requestSize": "769",
+      "status": 200,
+      "responseSize": "365",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+      "remoteIp": "2a09:bac0:1001:30c::20d:ad",
+      "referer": "https://qwiklabs-asl-04-f9d4ba2925b9.web.app/",
+      "serverIp": "2600:1900:4242:200::",
+      "latency": "12.580636253s",
+      "protocol": "HTTP/1.1"
+    },
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:23.527379Z",
+    "severity": "INFO",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Frequests",
+    "trace": "projects/qwiklabs-asl-04-f9d4ba2925b9/traces/7e888c9156f628b7d698ad510c3a55a5",
+    "receiveTimestamp": "2026-02-02T21:38:36.767137217Z",
+    "spanId": "f56944c57a2b1115",
+    "traceSampled": true
+  },
+  {
+    "textPayload": "Starting new instance. Reason: AUTOSCALING - Instance started due to configured scaling factors (e.g. CPU utilization, request throughput, etc.) or no existing capacity for current traffic.",
+    "insertId": "6981194f00086de384231d16",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:23.552419Z",
+    "severity": "INFO",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "scaling_reason": "AUTOSCALING"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fvarlog%2Fsystem",
+    "receiveTimestamp": "2026-02-02T21:38:23.559557226Z"
+  },
+  {
+    "textPayload": "[2026-02-02 21:38:24 +0000] [1] [INFO] Starting gunicorn 24.0.0",
+    "insertId": "69811950000d2556bcdc532d",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:24.861526Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:38:24.869039038Z"
+  },
+  {
+    "textPayload": "[2026-02-02 21:38:24 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)",
+    "insertId": "69811950000d2b53256b73d7",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:24.863059Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:38:25.200956134Z"
+  },
+  {
+    "textPayload": "[2026-02-02 21:38:24 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker",
+    "insertId": "69811950000d2b963d9625fb",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:24.863126Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:38:25.200956134Z"
+  },
+  {
+    "textPayload": "Default STARTUP TCP probe succeeded after 1 attempt for container \"infographic-agent-backend-1\" on port 8080.",
+    "insertId": "69811950000d39858115cec9",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:24.866693Z",
+    "severity": "INFO",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fvarlog%2Fsystem",
+    "receiveTimestamp": "2026-02-02T21:38:24.890427974Z"
+  },
+  {
+    "textPayload": "[2026-02-02 21:38:24 +0000] [2] [INFO] Booting worker with pid: 2",
+    "insertId": "69811950000d5f793b47c665",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:24.876409Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:38:25.200956134Z"
+  },
+  {
+    "insertId": "6981195c000682f265a17587",
+    "httpRequest": {
+      "requestMethod": "OPTIONS",
+      "requestUrl": "https://infographic-agent-backend-218788847170.us-central1.run.app/agent/stream",
+      "requestSize": "796",
+      "status": 200,
+      "responseSize": "392",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+      "remoteIp": "2a09:bac0:1001:30c::20d:ad",
+      "referer": "https://qwiklabs-asl-04-f9d4ba2925b9.web.app/",
+      "serverIp": "2600:1900:4242:200::",
+      "latency": "7.962298489s",
+      "protocol": "HTTP/1.1"
+    },
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:28.463139Z",
+    "severity": "INFO",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Frequests",
+    "trace": "projects/qwiklabs-asl-04-f9d4ba2925b9/traces/026b07c34781951cea54f06b32f15792",
+    "receiveTimestamp": "2026-02-02T21:38:36.433415349Z",
+    "spanId": "273f3c5f99e2e562"
+  },
+  {
+    "textPayload": "WARNING:root:Removing toxic env var GCS_BUCKET_NAME=infographic-agent-pro-assets",
+    "insertId": "6981195600014b4b28cff3e3",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:30.084811Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:38:30.195416357Z"
+  },
+  {
+    "textPayload": "WARNING:main:Using InMemory storage (stateless).",
+    "insertId": "6981195c0003806e99d69913",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:36.229486Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:38:36.522415777Z"
+  },
+  {
+    "textPayload": "WARNING:tools.storage_tool:StorageTool initialized with InMemoryArtifactService. Cloud features disabled.",
+    "insertId": "6981195c000380994a77ebc9",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:36.229529Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:38:36.522415777Z"
+  },
+  {
+    "textPayload": "[2026-02-02 21:38:36 +0000] [2] [INFO] Started server process [2]",
+    "insertId": "6981195c00066eec0e278fe0",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:36.421612Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:38:36.522415777Z"
+  },
+  {
+    "textPayload": "[2026-02-02 21:38:36 +0000] [2] [INFO] Waiting for application startup.",
+    "insertId": "6981195c00066f21878238ed",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:36.421665Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:38:36.522415777Z"
+  },
+  {
+    "textPayload": "[2026-02-02 21:38:36 +0000] [2] [INFO] Application startup complete.",
+    "insertId": "6981195c000670bc6ce621aa",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:36.422076Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:38:36.522415777Z"
+  },
+  {
+    "insertId": "69811974000ac5e5361c5bc3",
+    "httpRequest": {
+      "requestMethod": "POST",
+      "requestUrl": "https://infographic-agent-backend-218788847170.us-central1.run.app/agent/stream",
+      "requestSize": "2299",
+      "status": 200,
+      "responseSize": "854",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+      "remoteIp": "2a09:bac0:1001:30c::20d:ad",
+      "referer": "https://qwiklabs-asl-04-f9d4ba2925b9.web.app/",
+      "serverIp": "2600:1900:4242:200::",
+      "latency": "24.138185820s",
+      "protocol": "HTTP/1.1"
+    },
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:36.566654Z",
+    "severity": "INFO",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Frequests",
+    "trace": "projects/qwiklabs-asl-04-f9d4ba2925b9/traces/322454ad6cc76cd37a1cf7cf359d4584",
+    "receiveTimestamp": "2026-02-02T21:39:00.722389105Z",
+    "spanId": "d86562431fdeb24f",
+    "traceSampled": true
+  },
+  {
+    "insertId": "6981195d0000d27a29085e85",
+    "httpRequest": {
+      "requestMethod": "GET",
+      "requestUrl": "https://infographic-agent-backend-218788847170.us-central1.run.app/user/projects",
+      "requestSize": "2049",
+      "status": 200,
+      "responseSize": "312085",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+      "remoteIp": "2a09:bac0:1001:30c::20d:ad",
+      "referer": "https://qwiklabs-asl-04-f9d4ba2925b9.web.app/",
+      "serverIp": "2600:1900:4242:200::",
+      "latency": "0.479748251s",
+      "protocol": "HTTP/1.1"
+    },
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:38:36.572561Z",
+    "severity": "INFO",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Frequests",
+    "trace": "projects/qwiklabs-asl-04-f9d4ba2925b9/traces/657689621ab67c8a7a1cf7cf359d4d31",
+    "receiveTimestamp": "2026-02-02T21:38:37.100349561Z",
+    "spanId": "0557edf3d2294a86"
+  },
+  {
+    "textPayload": "[2026-02-02 21:39:00 +0000] [2] [ERROR] Exception in ASGI application",
+    "insertId": "69811974000b43bea696fb5d",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738238Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:00.743696Z"
+  },
+  {
+    "textPayload": "  + Exception Group Traceback (most recent call last):",
+    "insertId": "69811974000b43d02d3c059d",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738256Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:00.743696Z"
+  },
+  {
+    "textPayload": "  |   File \"/usr/local/lib/python3.11/site-packages/starlette/_utils.py\", line 79, in collapse_excgroups",
+    "insertId": "69811974000b43d45db4dc48",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738260Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:00.743696Z"
+  },
+  {
+    "textPayload": "  |     yield",
+    "insertId": "69811974000b43d7e06defaa",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738263Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:00.743696Z"
+  },
+  {
+    "textPayload": "  |   File \"/usr/local/lib/python3.11/site-packages/starlette/responses.py\", line 270, in __call__",
+    "insertId": "69811974000b43dad459f8ff",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738266Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:00.743696Z"
+  },
+  {
+    "textPayload": "  |     async with anyio.create_task_group() as task_group:",
+    "insertId": "69811974000b43dc0733d133",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738268Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:00.743696Z"
+  },
+  {
+    "textPayload": "  |   File \"/usr/local/lib/python3.11/site-packages/anyio/_backends/_asyncio.py\", line 783, in __aexit__",
+    "insertId": "69811974000b43df88f101fc",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738271Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:00.743696Z"
+  },
+  {
+    "textPayload": "  |     raise BaseExceptionGroup(",
+    "insertId": "69811974000b43e362cac1b3",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738275Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:00.743696Z"
+  },
+  {
+    "textPayload": "  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)",
+    "insertId": "69811974000b43e8df481c7a",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738280Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:00.743696Z"
+  },
+  {
+    "textPayload": "  +-+---------------- 1 ----------------",
+    "insertId": "69811974000b43eb7e0006f9",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738283Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    | Traceback (most recent call last):",
+    "insertId": "69811974000b43f058e5308f",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738288Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/uvicorn/protocols/http/h11_impl.py\", line 410, in run_asgi",
+    "insertId": "69811974000b43f2ee9f9813",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738290Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     result = await app(  # type: ignore[func-returns-value]",
+    "insertId": "69811974000b43f592fb299c",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738293Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "insertId": "69811974000b43f8b5981771",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738296Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py\", line 60, in __call__",
+    "insertId": "69811974000b43fa2217230b",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738298Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     return await self.app(scope, receive, send)",
+    "insertId": "69811974000b43fd14104cc1",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738301Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "insertId": "69811974000b44006e66361d",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738304Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/fastapi/applications.py\", line 1139, in __call__",
+    "insertId": "69811974000b4402ed153e7e",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738306Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await super().__call__(scope, receive, send)",
+    "insertId": "69811974000b4404b0a385d4",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738308Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/applications.py\", line 107, in __call__",
+    "insertId": "69811974000b44077386c8c3",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738311Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await self.middleware_stack(scope, receive, send)",
+    "insertId": "69811974000b440a56104b8e",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738314Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py\", line 186, in __call__",
+    "insertId": "69811974000b440c48f2dfe2",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738316Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     raise exc",
+    "insertId": "69811974000b440ff80f8cf1",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738319Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py\", line 164, in __call__",
+    "insertId": "69811974000b4412bae5e880",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738322Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await self.app(scope, receive, _send)",
+    "insertId": "69811974000b441518296174",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738325Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py\", line 93, in __call__",
+    "insertId": "69811974000b44188efa71c6",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738328Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await self.simple_response(scope, receive, send, request_headers=headers)",
+    "insertId": "69811974000b441acc557b4d",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738330Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py\", line 144, in simple_response",
+    "insertId": "69811974000b441ebb9583bd",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738334Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await self.app(scope, receive, send)",
+    "insertId": "69811974000b442359d83439",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738339Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/base.py\", line 198, in __call__",
+    "insertId": "69811974000b442654c4660f",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738342Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     raise app_exc",
+    "insertId": "69811974000b4428a1e777f4",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738344Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/base.py\", line 144, in coro",
+    "insertId": "69811974000b442cb1cd98f5",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738348Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await self.app(scope, receive_or_disconnect, send_no_error)",
+    "insertId": "69811974000b442f0389936f",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738351Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py\", line 63, in __call__",
+    "insertId": "69811974000b4431813adbb3",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738353Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)",
+    "insertId": "69811974000b44343db05130",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738356Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app",
+    "insertId": "69811974000b4436501d72f9",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738358Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     raise exc",
+    "insertId": "69811974000b4438b0d999df",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738360Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app",
+    "insertId": "69811974000b443b5e58d612",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738363Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await app(scope, receive, sender)",
+    "insertId": "69811974000b443e31f7fb2b",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738366Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/fastapi/middleware/asyncexitstack.py\", line 18, in __call__",
+    "insertId": "69811974000b44415f048a75",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738369Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await self.app(scope, receive, send)",
+    "insertId": "69811974000b444334bb9d19",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738371Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/routing.py\", line 716, in __call__",
+    "insertId": "69811974000b4446c66a2651",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738374Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await self.middleware_stack(scope, receive, send)",
+    "insertId": "69811974000b4449a9dfab2d",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738377Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/routing.py\", line 736, in app",
+    "insertId": "69811974000b444c3ad21957",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738380Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await route.handle(scope, receive, send)",
+    "insertId": "69811974000b444eb4b657f8",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738382Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/routing.py\", line 290, in handle",
+    "insertId": "69811974000b4451e5011c1c",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738385Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await self.app(scope, receive, send)",
+    "insertId": "69811974000b4453225e4086",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738387Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/fastapi/routing.py\", line 119, in app",
+    "insertId": "69811974000b445597b69aea",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738389Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)",
+    "insertId": "69811974000b44588a25d940",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738392Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app",
+    "insertId": "69811974000b445bfb27b4c2",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738395Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     raise exc",
+    "insertId": "69811974000b445eda885e90",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738398Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app",
+    "insertId": "69811974000b4465f70b0091",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738405Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await app(scope, receive, sender)",
+    "insertId": "69811974000b446727cdb34b",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738407Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/fastapi/routing.py\", line 106, in app",
+    "insertId": "69811974000b446a174524df",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738410Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await response(scope, receive, send)",
+    "insertId": "69811974000b446d75ab2c71",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738413Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/responses.py\", line 269, in __call__",
+    "insertId": "69811974000b4471e20c9e29",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738417Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     with collapse_excgroups():",
+    "insertId": "69811974000b4473db902ec0",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738419Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/contextlib.py\", line 158, in __exit__",
+    "insertId": "69811974000b4476a62a3280",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738422Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     self.gen.throw(typ, value, traceback)",
+    "insertId": "69811974000b44790a204704",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738425Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/_utils.py\", line 85, in collapse_excgroups",
+    "insertId": "69811974000b447b135a01af",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738427Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     raise exc",
+    "insertId": "69811974000b447e3d2b84ff",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738430Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/responses.py\", line 273, in wrap",
+    "insertId": "69811974000b448037943dae",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738432Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     await func()",
+    "insertId": "69811974000b44833ee90524",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738435Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/site-packages/starlette/responses.py\", line 253, in stream_response",
+    "insertId": "69811974000b448542aa7f99",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738437Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     async for chunk in self.body_iterator:",
+    "insertId": "69811974000b4489726cf340",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738441Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/app/main.py\", line 201, in event_generator",
+    "insertId": "69811974000b448ceb9a0b15",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738444Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     script_data = json.loads(match.group(1))",
+    "insertId": "69811974000b448e2e85f238",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738446Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "insertId": "69811974000b4490f05bf861",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "configuration_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738448Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/json/__init__.py\", line 346, in loads",
+    "insertId": "69811974000b4494790d9e69",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738452Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     return _default_decoder.decode(s)",
+    "insertId": "69811974000b44962a6d71c5",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend",
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738454Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "insertId": "69811974000b44991a94469d",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "configuration_name": "infographic-agent-backend",
+        "location": "us-central1"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738457Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |   File \"/usr/local/lib/python3.11/json/decoder.py\", line 340, in decode",
+    "insertId": "69811974000b449bac3e9860",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738459Z",
+    "labels": {
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    |     raise JSONDecodeError(\"Extra data\", s, end)",
+    "insertId": "69811974000b44a06c93212a",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "service_name": "infographic-agent-backend"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738464Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    | json.decoder.JSONDecodeError: Extra data: line 1 column 1541 (char 1540)",
+    "insertId": "69811974000b44a44a41cc35",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738468Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "    +------------------------------------",
+    "insertId": "69811974000b44a7c8adb3f4",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738471Z",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "During handling of the above exception, another exception occurred:",
+    "insertId": "69811974000b44ab68e06675",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9",
+        "configuration_name": "infographic-agent-backend",
+        "service_name": "infographic-agent-backend",
+        "location": "us-central1",
+        "revision_name": "infographic-agent-backend-00274-cf2"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738475Z",
+    "labels": {
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z"
+  },
+  {
+    "textPayload": "Traceback (most recent call last):\n  File \"/usr/local/lib/python3.11/site-packages/uvicorn/protocols/http/h11_impl.py\", line 410, in run_asgi\n    result = await app(  # type: ignore[func-returns-value]\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py\", line 60, in __call__\n    return await self.app(scope, receive, send)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/fastapi/applications.py\", line 1139, in __call__\n    await super().__call__(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/applications.py\", line 107, in __call__\n    await self.middleware_stack(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py\", line 186, in __call__\n    raise exc\n  File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py\", line 164, in __call__\n    await self.app(scope, receive, _send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py\", line 93, in __call__\n    await self.simple_response(scope, receive, send, request_headers=headers)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py\", line 144, in simple_response\n    await self.app(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/base.py\", line 198, in __call__\n    raise app_exc\n  File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/base.py\", line 144, in coro\n    await self.app(scope, receive_or_disconnect, send_no_error)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py\", line 63, in __call__\n    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/usr/local/lib/python3.11/site-packages/fastapi/middleware/asyncexitstack.py\", line 18, in __call__\n    await self.app(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/routing.py\", line 716, in __call__\n    await self.middleware_stack(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/routing.py\", line 736, in app\n    await route.handle(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/routing.py\", line 290, in handle\n    await self.app(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/fastapi/routing.py\", line 119, in app\n    await wrap_app_handling_exceptions(app, request)(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 53, in wrapped_app\n    raise exc\n  File \"/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py\", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File \"/usr/local/lib/python3.11/site-packages/fastapi/routing.py\", line 106, in app\n    await response(scope, receive, send)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/responses.py\", line 269, in __call__\n    with collapse_excgroups():\n  File \"/usr/local/lib/python3.11/contextlib.py\", line 158, in __exit__\n    self.gen.throw(typ, value, traceback)\n  File \"/usr/local/lib/python3.11/site-packages/starlette/_utils.py\", line 85, in collapse_excgroups\n    raise exc\n  File \"/usr/local/lib/python3.11/site-packages/starlette/responses.py\", line 273, in wrap\n    await func()\n  File \"/usr/local/lib/python3.11/site-packages/starlette/responses.py\", line 253, in stream_response\n    async for chunk in self.body_iterator:\n  File \"/app/main.py\", line 201, in event_generator\n    script_data = json.loads(match.group(1))\n                  ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/json/__init__.py\", line 346, in loads\n    return _default_decoder.decode(s)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/json/decoder.py\", line 340, in decode\n    raise JSONDecodeError(\"Extra data\", s, end)\njson.decoder.JSONDecodeError: Extra data: line 1 column 1541 (char 1540)",
+    "insertId": "69811974000b44d392ef04e8",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "infographic-agent-backend",
+        "revision_name": "infographic-agent-backend-00274-cf2",
+        "location": "us-central1",
+        "configuration_name": "infographic-agent-backend",
+        "project_id": "qwiklabs-asl-04-f9d4ba2925b9"
+      }
+    },
+    "timestamp": "2026-02-02T21:39:00.738515Z",
+    "severity": "ERROR",
+    "labels": {
+      "instanceId": "005eb6974ccaf74886e7ad2142fab8382123d2992e07be3ba5a2414d931e96c3d8cc8d27c26aa09795d71d9b25a2982afce4ea7e8b7e9c0c58e0915378029b8430b5cd811fbfd14bc8e6ffe4af49a2",
+      "commit-sha": "600e38bbed9eab9af898ad02e50355ef8740aed6",
+      "managed-by": "github-actions"
+    },
+    "logName": "projects/qwiklabs-asl-04-f9d4ba2925b9/logs/run.googleapis.com%2Fstderr",
+    "receiveTimestamp": "2026-02-02T21:39:01.077384651Z",
+    "errorGroups": [
+      {
+        "id": "CI26opvyuc6NYg"
+      }
+    ]
+  }
+]
