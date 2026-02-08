@@ -398,10 +398,7 @@ CONSTRAINTS:
 
       {/* RIGHT SIDEBAR: SETTINGS */}
       <aside className={`${isRightSidebarOpen ? 'w-80' : 'w-0'} transition-all bg-[#0F172A] border-l border-white/10 flex flex-col shrink-0 relative overflow-hidden`}>
-          <button onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)} className="absolute left-2 top-6 bg-[#0F172A] border border-white/10 rounded-full p-1 text-slate-400 hover:text-white z-10">
-            {isRightSidebarOpen ? <ChevronRight className="w-3 h-3"/> : <ChevronLeft className="w-3 h-3"/>}
-          </button>
-
+          
           <div className="p-6 flex flex-col gap-8 h-full overflow-y-auto custom-scrollbar">
               <div className="space-y-4 pt-8">
                   <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
