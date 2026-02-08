@@ -51,7 +51,7 @@ from services.firestore_session import FirestoreSessionService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-logger.info("🚀 BACKEND STARTING - VERSION: NATIVE_ADK_MEMORY_V6_STABLE")
+logger.info("🚀 BACKEND STARTING - VERSION: STABLE_GRAPHICS_LIMIT_V7")
 
 # --- UTILS ---
 def extract_first_json_block(text: str) -> Optional[dict]:
@@ -343,32 +343,36 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 img_tool = ImageGenerationTool(api_key=api_key, bucket_name=gcs_bucket)
                 
                 batch_updates = {}
-                
-                # --- PARALLEL GENERATION ---
+                sem = asyncio.Semaphore(2) # Limit concurrency to avoid OOM/Crash on small instances
+
+                # --- PARALLEL GENERATION WITH LIMITS ---
                 async def process_single_slide(slide):
                     sid = slide.get('id')
                     if not sid: return None
                     
-                    try:
-                        prompt_text = slide.get('image_prompt')
-                        if not prompt_text:
-                            prompt_text = f"Infographic about {slide.get('title', 'Data')}, professional style, vector illustration, high resolution"
+                    async with sem: # Acquire semaphore
+                        try:
+                            logger.info(f"🎨 Generating image for slide {sid}...")
+                            prompt_text = slide.get('image_prompt')
+                            if not prompt_text:
+                                prompt_text = f"Infographic about {slide.get('title', 'Data')}, professional style, vector illustration, high resolution"
 
-                        img_url = await asyncio.to_thread(
-                            img_tool.generate_and_save, 
-                            prompt_text, 
-                            aspect_ratio=ar, 
-                            user_id=user_id, 
-                            project_id=project_id, 
-                            logo_url=logo_url
-                        )
-                        return {"sid": sid, "url": img_url, "title": slide.get('title', 'Slide')}
-                    except Exception as e:
-                        logger.error(f"Failed processing slide {sid}: {e}")
-                        return {"sid": sid, "url": f"Error: {str(e)}", "title": slide.get('title', 'Slide')}
+                            img_url = await asyncio.to_thread(
+                                img_tool.generate_and_save, 
+                                prompt_text, 
+                                aspect_ratio=ar, 
+                                user_id=user_id, 
+                                project_id=project_id, 
+                                logo_url=logo_url
+                            )
+                            logger.info(f"✅ Slide {sid} done: {img_url}")
+                            return {"sid": sid, "url": img_url, "title": slide.get('title', 'Slide')}
+                        except Exception as e:
+                            logger.error(f"❌ Failed processing slide {sid}: {e}")
+                            return {"sid": sid, "url": f"Error: {str(e)}", "title": slide.get('title', 'Slide')}
 
                 tasks = [process_single_slide(slide) for slide in slides]
-                logger.info(f"Queued {len(tasks)} image generation tasks...")
+                logger.info(f"Queued {len(tasks)} image generation tasks (max 2 concurrent)...")
                 
                 for future in asyncio.as_completed(tasks):
                     if await request.is_disconnected(): break
