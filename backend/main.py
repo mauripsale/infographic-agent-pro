@@ -51,7 +51,7 @@ from services.firestore_session import FirestoreSessionService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-logger.info("🚀 BACKEND STARTING - VERSION: DEEP_TRACE_LOGS_V4")
+logger.info("🚀 BACKEND STARTING - VERSION: NATIVE_ADK_MEMORY_V5")
 
 # --- UTILS ---
 def extract_first_json_block(text: str) -> Optional[dict]:
@@ -243,8 +243,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
         phase = data.get("phase", "script")
         project_id = data.get("project_id") or uuid.uuid4().hex
         
-        # --- DEBUG LOG 1: PAYLOAD ---
-        logger.info(f"🔍 REQUEST PAYLOAD: {json.dumps(data)}")
+        logger.info(f"📥 AGENT STREAM REQUEST | Phase: {phase} | Project: {project_id}")
         
         surface_id = "infographic_workspace"
         session_id = f"{user_id}_{project_id}"
@@ -270,7 +269,6 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
             else:
                 logger.info(f"Loaded EXISTING session {session_id}")
 
-            # --- DEBUG LOG 2: SESSION STATE ---
             logger.info(f"🔍 SESSION STATE KEYS: {list(session.state.keys())}")
             
             if phase == "script":
@@ -285,12 +283,8 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 agent = create_infographic_team(api_key=api_key)
                 runner = Runner(agent=agent, app_name="infographic-pro", session_service=session_service)
                 
+                # CLEANER INPUT: We rely on ADK's native history instead of manual injection
                 user_query = data.get("query", "")
-                
-                # Context Injection from Session State if refining
-                current_script = session.state.get("script")
-                if current_script:
-                     user_query += f"\n\n[SYSTEM: CONTEXT INJECTION]\nTHE USER IS REFINING AN EXISTING SCRIPT. CURRENT JSON:\n{json.dumps(current_script)}"
 
                 agent_output = ""
                 async for event in runner.run_async(session_id=session.id, user_id=user_id, new_message=types.Content(role="user", parts=[types.Part(text=user_query)])):
@@ -326,13 +320,11 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     yield json.dumps({"log": "Error: Agent failed to produce valid plan."}) + "\n"
 
             elif phase == "graphics":
-                # --- DEBUG LOG 3: GRAPHICS ENTRY ---
                 logger.info("🎨 ENTERING GRAPHICS PHASE BLOCK")
                 
-                # LOAD SCRIPT FROM SESSION STATE (Fallback to request body only if necessary)
+                # LOAD SCRIPT FROM SESSION STATE
                 script = session.state.get("script")
                 
-                # --- DEBUG LOG 4: SCRIPT STATUS ---
                 if not script:
                     logger.warning("⚠️ SCRIPT MISSING IN SESSION STATE! Checking request body...")
                     script = data.get("script", {})
@@ -342,7 +334,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 slides = script.get("slides", [])
                 
                 if not slides:
-                    logger.error("❌ GRAPHICS phase: No slides available (checked Session & Request).")
+                    logger.error("❌ GRAPHICS phase: No slides available.")
                     yield json.dumps({"log": "Error: No script found. Please run the planning phase first."}) + "\n"
                     return
 
@@ -359,11 +351,9 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     
                     try:
                         prompt_text = slide.get('image_prompt')
-                        # Self-healing should have run in script phase, but check again
                         if not prompt_text:
                             prompt_text = f"Infographic about {slide.get('title', 'Data')}, professional style, vector illustration, high resolution"
 
-                        # This call is thread-blocking, so we offload it
                         img_url = await asyncio.to_thread(
                             img_tool.generate_and_save, 
                             prompt_text, 
@@ -377,15 +367,11 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                         logger.error(f"Failed processing slide {sid}: {e}")
                         return {"sid": sid, "url": f"Error: {str(e)}", "title": slide.get('title', 'Slide')}
 
-                # Create tasks
                 tasks = [process_single_slide(slide) for slide in slides]
                 logger.info(f"Queued {len(tasks)} image generation tasks...")
                 
-                # Stream results as they complete
                 for future in asyncio.as_completed(tasks):
-                    if await request.is_disconnected(): 
-                        logger.warning("Client disconnected during image generation")
-                        break
+                    if await request.is_disconnected(): break
                     
                     result = await future
                     if not result: continue
@@ -401,17 +387,13 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                         yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}}) + "\n"
                         yield json.dumps({"log": f"Gen Failed: {img_url}"}) + "\n"
 
-                # Update DB and Session with results
                 if db and project_id and batch_updates:
-                    # Update local script object first
                     for s in script.get("slides", []):
                         if s['id'] in batch_updates: 
                             s['image_url'] = batch_updates[s['id']]
                     
-                    # Persist to DB
                     db.collection("users").document(user_id).collection("projects").document(project_id).update({"script": script, "status": "completed"})
                     
-                    # Update Session State
                     session.state["script"] = script
                     session.state["current_phase"] = "completed"
                     await session_service.update_session_state(app_name="infographic-pro", user_id=user_id, session_id=session_id, state=session.state)
