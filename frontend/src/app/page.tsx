@@ -54,7 +54,8 @@ export default function App() {
   const [surfaceState, setSurfaceState] = useState<{ components: Record<string, A2UIComponent>; dataModel: Record<string, unknown> }>({ components: {}, dataModel: {} });
   const [agentLog, setAgentLog] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
-  
+  const [isExporting, setIsExporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   // UI Toggles
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
@@ -141,6 +142,33 @@ export default function App() {
       }
     }
   }, [user, fetchProjects, loadProject]);
+
+  const handleExport = async (type: 'slides' | 'assets') => {
+      const token = await getToken();
+      if (!token || !script || !currentProjectId) return;
+      setIsExporting(true);
+      
+      const endpoint = type === 'slides' ? '/agent/export_slides' : '/agent/export';
+      
+      try {
+          const res = await fetch(`${BACKEND_URL}${endpoint}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+              body: JSON.stringify({ script, project_id: currentProjectId })
+          });
+          const data = await res.json();
+          
+          if (data.url) window.open(data.url, '_blank');
+          if (data.pdf) window.open(data.pdf, '_blank');
+          if (data.zip) window.open(data.zip, '_blank');
+          
+      } catch (e) {
+          console.error("Export failed:", e);
+          alert("Export failed. Please try again.");
+      } finally {
+          setIsExporting(false);
+      }
+  };
 
   const handleStream = useCallback(async (targetPhase: "script" | "graphics", currentScript?: ProjectDetails['script']) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
