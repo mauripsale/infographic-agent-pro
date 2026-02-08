@@ -9,7 +9,7 @@ import {
   EditIcon, KeyIcon, HistoryIcon, PlusIcon, MinusIcon,
   TrashIcon, MagicWandIcon, DownloadIcon, GoogleIcon,
   PresentationIcon, PaletteIcon, CheckIcon, LayoutIcon,
-  ChevronDown
+  ChevronDown, GlobeIcon
 } from "@/components/Icons";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
