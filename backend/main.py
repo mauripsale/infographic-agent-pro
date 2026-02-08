@@ -51,7 +51,7 @@ from services.firestore_session import FirestoreSessionService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-logger.info("🚀 BACKEND STARTING - VERSION: STABLE_GRAPHICS_LIMIT_V7")
+logger.info("🚀 BACKEND STARTING - VERSION: STABLE_EXPORTS_V8")
 
 # --- UTILS ---
 def extract_first_json_block(text: str) -> Optional[dict]:
@@ -386,6 +386,15 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     
                     if "http" in img_url:
                         batch_updates[sid] = img_url
+                        
+                        # CRITICAL FIX: Realtime Update of Data Model for Frontend
+                        # Update the local script object
+                        for s in script["slides"]:
+                            if s["id"] == sid: s["image_url"] = img_url
+                        
+                        # Send UPDATE to Frontend immediately
+                        yield json.dumps({"updateDataModel": {"value": {"script": script}}}) + "\n"
+                        
                         yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"}, {"id": f"t_{sid}", "component": "Text", "text": title}, {"id": f"i_{sid}", "component": "Image", "src": img_url}]}}) + "\n"
                     else:
                         yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}}) + "\n"
@@ -411,11 +420,43 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
 
 @app.post("/agent/export_slides")
 async def export_slides_endpoint(request: Request, user_id: str = Depends(get_user_id)):
-    return JSONResponse(status_code=501, content={"error": "Not implemented"})
+    try:
+        data = await request.json()
+        script = data.get("script")
+        project_id = data.get("project_id")
+        
+        if not script: raise HTTPException(400, "Missing script")
+        
+        slides_tool = GoogleSlidesTool()
+        # TODO: Handle Auth properly in future. Assuming Server-to-Server or existing creds for MVP
+        presentation_id = slides_tool.create_presentation(script.get("slides", []), f"Project {project_id}")
+        
+        return {"url": f"https://docs.google.com/presentation/d/{presentation_id}"}
+    except Exception as e:
+        logger.error(f"Slides Export Error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/export")
 async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
-    return JSONResponse(status_code=501, content={"error": "Not implemented"})
+    try:
+        data = await request.json()
+        script = data.get("script")
+        project_id = data.get("project_id")
+        
+        if not script: raise HTTPException(400, "Missing script")
+        
+        export_tool = ExportTool(bucket_name=gcs_bucket)
+        
+        # Parallel export generation
+        pdf_url, zip_url = await asyncio.gather(
+            asyncio.to_thread(export_tool.generate_pdf, script, project_id),
+            asyncio.to_thread(export_tool.create_zip, script, project_id)
+        )
+        
+        return {"pdf": pdf_url, "zip": zip_url}
+    except Exception as e:
+        logger.error(f"Export Error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/agent/refine_text")
 async def refine_text(request: Request): return {}
