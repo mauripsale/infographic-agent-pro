@@ -55,7 +55,6 @@ export default function App() {
   const [agentLog, setAgentLog] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
   
