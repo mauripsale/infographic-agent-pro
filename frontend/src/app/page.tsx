@@ -462,9 +462,10 @@ CONSTRAINTS:
               </div>
 
               <div className="mt-auto bg-gradient-to-br from-blue-600/10 to-purple-600/10 p-4 rounded-2xl border border-blue-500/20 space-y-2">
-                  <div className="text-[10px] font-bold text-blue-400 uppercase">Native ADK System</div>
+                  <div className="text-[10px] font-bold text-blue-400 uppercase">Credits</div>
                   <p className="text-[10px] text-slate-500 leading-relaxed">
-                      Session managed via Firestore with native event persistence for infinite contextual memory.
+                      Created by <span className="text-slate-300 font-medium">Maurizio Ipsale</span><br/>
+                      GDE AI/Cloud
                   </p>
               </div>
           </div>
