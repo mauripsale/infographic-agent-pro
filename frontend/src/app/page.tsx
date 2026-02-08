@@ -227,6 +227,14 @@ CONSTRAINTS:
   return (
     <div className="h-screen w-screen bg-[#030712] text-slate-200 flex overflow-hidden font-sans">
       
+      {/* FIXED SIDEBAR TOGGLE BUTTON (Z-50 to float above everything) */}
+      <button 
+          onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)} 
+          className={`fixed top-4 z-50 bg-[#0F172A] border border-white/10 rounded-full p-2 text-slate-400 hover:text-white shadow-xl transition-all duration-300 ${isRightSidebarOpen ? 'right-[20.5rem]' : 'right-4'}`}
+      >
+          {isRightSidebarOpen ? <ChevronRight className="w-4 h-4"/> : <ChevronLeft className="w-4 h-4"/>}
+      </button>
+
       {/* LEFT SIDEBAR */}
       <aside className={`${isLeftSidebarOpen ? 'w-64' : 'w-12'} transition-all bg-[#0F172A] border-r border-white/10 flex flex-col shrink-0 relative`}>
         <button onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)} className="absolute -right-3 top-6 bg-[#0F172A] border border-white/10 rounded-full p-1 text-slate-400 hover:text-white z-10">
@@ -460,6 +468,25 @@ CONSTRAINTS:
                       )}
                   </div>
               </div>
+
+              {/* EXPORT SECTION */}
+              {phase === 'graphics' && script && (
+                  <div className="space-y-4 pt-4 border-t border-white/5 animate-fade-in">
+                      <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                          <DownloadIcon className="w-3 h-3" /> Export Actions
+                      </h3>
+                      <div className="grid grid-cols-1 gap-2">
+                          <button onClick={() => handleExport('slides')} disabled={isExporting} className="bg-white/5 hover:bg-white/10 text-slate-200 px-4 py-2.5 rounded-xl text-xs border border-white/5 flex items-center gap-2 transition disabled:opacity-50">
+                              <PresentationIcon className="w-3.5 h-3.5 text-yellow-500" />
+                              {isExporting ? "Exporting..." : "Google Slides Deck"}
+                          </button>
+                          <button onClick={() => handleExport('assets')} disabled={isExporting} className="bg-white/5 hover:bg-white/10 text-slate-200 px-4 py-2.5 rounded-xl text-xs border border-white/5 flex items-center gap-2 transition disabled:opacity-50">
+                              <FileUpIcon className="w-3.5 h-3.5 text-red-400" />
+                              {isExporting ? "Zipping..." : "Download PDF & Assets"}
+                          </button>
+                      </div>
+                  </div>
+              )}
 
               <div className="mt-auto bg-gradient-to-br from-blue-600/10 to-purple-600/10 p-4 rounded-2xl border border-blue-500/20 space-y-2">
                   <div className="text-[10px] font-bold text-blue-400 uppercase">Credits</div>
