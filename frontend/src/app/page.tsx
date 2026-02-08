@@ -56,7 +56,6 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  // UI Toggles
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
   
