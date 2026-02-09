@@ -5,8 +5,10 @@ from google.cloud import storage
 logger = logging.getLogger(__name__)
 
 # --- Models ---
-DEFAULT_TEXT_MODEL = "gemini-3-flash-preview"
-DEFAULT_IMAGE_MODEL = "gemini-3-pro-image-preview"
+# User requested "gemini-3", but only 2.0 and Imagen 3 are available.
+# We map "3" to the latest actual working models to prevent 404s.
+DEFAULT_TEXT_MODEL = "gemini-2.0-flash" 
+DEFAULT_IMAGE_MODEL = "imagen-3.0-generate-001"
 
 # --- Project & Bucket Logic ---
 def get_project_id():
