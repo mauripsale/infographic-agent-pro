@@ -4,10 +4,10 @@ from google.cloud import storage
 
 logger = logging.getLogger(__name__)
 
-# --- Models (2026 Roadmap) ---
-# Default models based on latest preview availability
-DEFAULT_TEXT_MODEL = "gemini-3-pro-preview" 
-DEFAULT_IMAGE_MODEL = "gemini-3-pro-image-preview"
+# --- Models ---
+# Mapping user requests to valid API IDs
+DEFAULT_TEXT_MODEL = "gemini-2.0-flash" # Fallback to 2.0 Flash as 3.0 Preview is often restricted
+DEFAULT_IMAGE_MODEL = "imagen-3.0-generate-001" # Correct ID for Imagen 3
 
 # --- Project & Bucket Logic ---
 def get_project_id():
