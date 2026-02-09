@@ -4,16 +4,16 @@ from google.adk.tools.agent_tool import AgentTool
 import os
 from tools.image_gen import ImageGenerationTool
 
-def create_refiner_agent(api_key: str = None, model: str = "gemini-2.0-flash"):
+def create_refiner_agent(api_key: str = None, model: str = "gemini-3-flash-preview"):
     if api_key: os.environ["GOOGLE_API_KEY"] = api_key
     return LlmAgent(name="ContentRefiner", model=model, instruction="...")
 
-def create_image_artist_agent(api_key: str, img_tool, user_id, project_id, logo_url, model: str = "gemini-2.0-flash"):
+def create_image_artist_agent(api_key: str, img_tool, user_id, project_id, logo_url, model: str = "gemini-3-flash-preview"):
     if api_key: os.environ["GOOGLE_API_KEY"] = api_key
     # ... (rest of implementation)
     return LlmAgent(name="ImageArtist", model=model, ...)
 
-def create_infographic_agent(api_key: str = None, model: str = "gemini-2.0-flash"):
+def create_infographic_agent(api_key: str = None, model: str = "gemini-3-flash-preview"):
     if api_key:
         os.environ["GOOGLE_API_KEY"] = api_key
     

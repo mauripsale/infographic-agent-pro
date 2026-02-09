@@ -65,7 +65,7 @@ export default function App() {
   const [detailLevel, setDetailLevel] = useState(3); // 1-5
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [language, setLanguage] = useState("English"); // English UI default
-  const [selectedModel, setSelectedModel] = useState("gemini-3.0-flash");
+  const [selectedModel, setSelectedModel] = useState("gemini-3-flash-preview");
   
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const isResettingRef = useRef(false);
@@ -410,8 +410,8 @@ CONSTRAINTS:
                          <div className="px-3 py-1.5 bg-black/40 rounded-full flex items-center gap-2 border border-white/5">
                              <MonitorIcon className="w-3.5 h-3.5 text-slate-400" />
                              <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)} className="bg-transparent text-xs text-slate-300 outline-none cursor-pointer">
-                                 <option value="gemini-3.0-flash">Gemini 3.0</option>
-                                 <option value="gemini-2.5-flash">Gemini 2.5</option>
+                                 <option value="gemini-3-flash-preview">Gemini 3.0</option>
+                                 <option value="gemini-1.5-flash">Gemini 2.5</option>
                              </select>
                          </div>
                     </div>

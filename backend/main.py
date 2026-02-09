@@ -37,7 +37,7 @@ try:
     from context import model_context
 except ImportError:
     from contextvars import ContextVar
-    model_context = ContextVar("model_context", default="gemini-2.5-flash-image")
+    model_context = ContextVar("model_context", default="gemini-3-flash-preview")
 
 from agents.infographic_agent.agent import create_refiner_agent, create_image_artist_agent
 from agents.infographic_agent.team import create_infographic_team
@@ -211,7 +211,7 @@ async def get_api_key(request: Request, user_id: str = Depends(get_user_id)) -> 
 class ModelSelectionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.method == "OPTIONS": return await call_next(request)
-        token = model_context.set(request.headers.get("X-GenAI-Model", "gemini-2.5-flash-image"))
+        token = model_context.set(request.headers.get("X-GenAI-Model", "gemini-3-flash-preview"))
         try: return await call_next(request)
         finally: model_context.reset(token)
 
@@ -280,7 +280,9 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
 
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "🧠 Planning content..."}]}}) + "\n"
                 
-                agent = create_infographic_team(api_key=api_key)
+                # Pass the correct model from context
+                requested_model = model_context.get()
+                agent = create_infographic_team(api_key=api_key, model=requested_model)
                 runner = Runner(agent=agent, app_name="infographic-pro", session_service=session_service)
                 
                 # CLEANER INPUT: We rely on ADK's native history instead of manual injection
@@ -357,15 +359,15 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                             if not prompt_text:
                                 prompt_text = f"Infographic about {slide.get('title', 'Data')}, professional style, vector illustration, high resolution"
 
-                            img_url = await asyncio.to_thread(
-                                img_tool.generate_and_save, 
-                                prompt_text, 
-                                aspect_ratio=ar, 
-                                user_id=user_id, 
-                                project_id=project_id, 
-                                logo_url=logo_url
-                            )
-                            logger.info(f"✅ Slide {sid} done: {img_url}")
+                                                    img_url = await asyncio.to_thread(
+                                                        img_tool.generate_and_save, 
+                                                        prompt_text, 
+                                                        aspect_ratio=ar, 
+                                                        user_id=user_id, 
+                                                        project_id=project_id, 
+                                                        logo_url=logo_url,
+                                                        model="gemini-3-pro-image-preview"
+                                                    )                            logger.info(f"✅ Slide {sid} done: {img_url}")
                             return {"sid": sid, "url": img_url, "title": slide.get('title', 'Slide')}
                         except Exception as e:
                             logger.error(f"❌ Failed processing slide {sid}: {e}")
@@ -427,8 +429,7 @@ async def export_slides_endpoint(request: Request, user_id: str = Depends(get_us
         
         if not script: raise HTTPException(400, "Missing script")
         
-        slides_tool = GoogleSlidesTool()
-        # TODO: Handle Auth properly in future. Assuming Server-to-Server or existing creds for MVP
+        slides_tool = GoogleSlidesTool(access_token=None) # Allow ADC
         presentation_id = slides_tool.create_presentation(script.get("slides", []), f"Project {project_id}")
         
         return {"url": f"https://docs.google.com/presentation/d/{presentation_id}"}
@@ -445,7 +446,7 @@ async def export_assets(request: Request, user_id: str = Depends(get_user_id)):
         
         if not script: raise HTTPException(400, "Missing script")
         
-        export_tool = ExportTool(bucket_name=gcs_bucket)
+        export_tool = ExportTool(artifact_service=artifact_service)
         
         # Parallel export generation
         pdf_url, zip_url = await asyncio.gather(

@@ -1,6 +1,6 @@
 from .agent import create_infographic_agent
 
-def create_infographic_team(api_key: str = None, model: str = "gemini-2.0-flash"):
+def create_infographic_team(api_key: str = None, model: str = "gemini-3-flash-preview"):
     """
     Creates the infographic agent team.
     Delegates to the robust InfographicDirector defined in agent.py.
