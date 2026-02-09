@@ -2,25 +2,23 @@
 active: true
 iteration: 1
 max_iterations: 0
-completion_promise: "IMAGE_MODEL_FIXED"
-started_at: "2026-02-09T19:53:09Z"
+completion_promise: "USER_IDS_RESTORED"
+started_at: "2026-02-09T21:55:28Z"
 ---
 
-Fix Model 404 Error
+Restore User Specified Model IDs
 Obiettivo:
-1.  **Analizzare l'errore 404:**
-    - L'errore è chiaro: .
-    - Questo significa che il nome del modello che l'utente mi ha imposto () **non esiste** o non è ancora disponibile pubblicamente nelle API .
-    - Devo trovare il nome corretto per il modello di generazione immagini più recente disponibile (probabilmente  o simile).
+1.  **Ripristinare Frontend:**
+    - Modificare  per usare ESATTAMENTE gli ID forniti dall'utente nei  delle select.
+    - Testo: , , , .
+    - Immagini: , .
 
-2.  **Verificare Modelli Disponibili:**
-    - Usare uno script veloce per interrogare l'API  e vedere cosa è *realmente* disponibile con la mia chiave API.
+2.  **Ripristinare Backend:**
+    - Modificare  per usare  e  come default.
 
-3.  **Aggiornare :**
-    - Cambiare  con un ID valido e funzionante.
-    - Se l'utente insiste su , spiegargli che l'API lo rifiuta e tornare a  (che è Imagen 3) come default sicuro.
+3.  **Verifica:**
+    - Assicurarsi che non ci siano altri mapping nascosti. Se l'API restituisce 404 con questi ID, sarà un problema di allowlist/accesso della chiave API, ma il codice DEVE usare questi ID come richiesto.
 
 Piano d'Azione:
-1.  Creare ed eseguire  per vedere gli ID reali.
-2.  Aggiornare  con l'ID corretto.
-3.  Aggiornare anche il frontend se necessario (dropdown).
+1.  Aggiornare .
+2.  Aggiornare .

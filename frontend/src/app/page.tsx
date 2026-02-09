@@ -407,8 +407,8 @@ CONSTRAINTS:
                          <div className="px-3 py-1.5 bg-black/40 rounded-full flex items-center gap-2">
                              <ImageIcon className="w-3.5 h-3.5 text-slate-400" />
                              <select value={selectedImageModel} onChange={e => setSelectedImageModel(e.target.value)} className="bg-transparent text-[10px] text-slate-300 outline-none">
-                                 <option value="imagen-3.0-generate-001">G3 Image</option>
-                                 <option value="image-2.0">G2 Image</option>
+                                 <option value="gemini-3-pro-image-preview">G3 Image</option>
+                                 <option value="gemini-2.5-flash-image">G2.5 Image</option>
                              </select>
                          </div>
                     </div>
