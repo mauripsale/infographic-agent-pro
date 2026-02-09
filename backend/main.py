@@ -108,6 +108,7 @@ async def get_api_key(request: Request, user_id: str = Depends(get_user_id)) -> 
 class ModelSelectionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.method == "OPTIONS": return await call_next(request)
+        # Text model extraction
         token = model_context.set(request.headers.get("X-GenAI-Model", DEFAULT_TEXT_MODEL))
         try: return await call_next(request)
         finally: model_context.reset(token)
@@ -140,7 +141,11 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
         phase = data.get("phase", "script")
         project_id = data.get("project_id") or uuid.uuid4().hex
         
-        logger.info(f"📥 AGENT STREAM REQUEST | Phase: {phase} | Project: {project_id}")
+        # EXTRACT REQUESTED MODELS
+        requested_text_model = request.headers.get("X-GenAI-Model", DEFAULT_TEXT_MODEL)
+        requested_img_model = request.headers.get("X-GenAI-Image-Model", DEFAULT_IMAGE_MODEL)
+        
+        logger.info(f"📥 AGENT STREAM REQUEST | Phase: {phase} | Models: T={requested_text_model} I={requested_img_model}")
         
         surface_id = "infographic_workspace"
         session_id = f"{user_id}_{project_id}"
@@ -165,8 +170,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
 
                 yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "🧠 Planning content..."}]}}) + "\n"
                 
-                requested_model = model_context.get()
-                agent = create_infographic_team(api_key=api_key, model=requested_model)
+                agent = create_infographic_team(api_key=api_key, model=requested_text_model)
                 runner = Runner(agent=agent, app_name="infographic-pro", session_service=session_service)
                 user_query = data.get("query", "")
 
@@ -227,7 +231,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                                 user_id=user_id, 
                                 project_id=project_id, 
                                 logo_url=logo_url,
-                                model=DEFAULT_IMAGE_MODEL
+                                model=requested_img_model # USE USER SELECTED IMAGE MODEL
                             )
                             logger.info(f"✅ Slide {sid} done: {img_url}")
                             return {"sid": sid, "url": img_url, "title": slide.get('title', 'Slide')}

@@ -9,7 +9,7 @@ import {
   EditIcon, KeyIcon, HistoryIcon, PlusIcon, MinusIcon,
   TrashIcon, MagicWandIcon, DownloadIcon, GoogleIcon,
   PresentationIcon, PaletteIcon, CheckIcon, LayoutIcon,
-  ChevronDown, GlobeIcon, AlertCircleIcon
+  ChevronDown, GlobeIcon, AlertCircleIcon, ImageIcon
 } from "@/components/Icons";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
@@ -66,8 +66,9 @@ export default function App() {
   const [customStyle, setCustomStyle] = useState("");
   const [detailLevel, setDetailLevel] = useState(3); // 1-5
   const [aspectRatio, setAspectRatio] = useState("16:9");
-  const [language, setLanguage] = useState("English"); // English UI default
-  const [selectedModel, setSelectedModel] = useState("gemini-2.0-flash");
+  const [language, setLanguage] = useState("English"); 
+  const [selectedModel, setSelectedModel] = useState("gemini-3-pro-preview");
+  const [selectedImageModel, setSelectedImageModel] = useState("gemini-3-pro-image-preview");
   
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const isResettingRef = useRef(false);
@@ -107,10 +108,8 @@ export default function App() {
     } else {
         setPhase("review");
     }
-    // Restore surface state with status components
     const comps: Record<string, A2UIComponent> = {};
     if (project.status === 'completed') comps['status'] = { id: 'status', component: 'Text', text: 'Project Completed' };
-    
     setSurfaceState({ components: comps, dataModel: { script: project.script } });
   }, []);
 
@@ -169,8 +168,6 @@ export default function App() {
     abortControllerRef.current = abortController;
     setIsStreaming(true);
     setAgentLog([]);
-    
-    // Clear status
     setSurfaceState(prev => {
         const next = {...prev};
         delete next.components['status'];
@@ -200,8 +197,6 @@ CONSTRAINTS:
         body.phase = "script";
     } else if (targetPhase === "graphics") {
         if (!currentScript) { 
-            console.error("❌ Error: No script provided");
-            setAgentLog(["Error: No script found."]);
             setIsStreaming(false); 
             return; 
         }
@@ -216,7 +211,8 @@ CONSTRAINTS:
             headers: { 
                 "Content-Type": "application/json", 
                 "Authorization": `Bearer ${token}`,
-                "X-GenAI-Model": selectedModel 
+                "X-GenAI-Model": selectedModel,
+                "X-GenAI-Image-Model": selectedImageModel
             },
             body: JSON.stringify(body),
             signal: abortController.signal
@@ -241,12 +237,11 @@ CONSTRAINTS:
     } catch (e) {
         if ((e as Error).name !== 'AbortError') {
             console.error("Stream failed:", e);
-            setAgentLog(["Connection Error: " + (e as Error).message]);
         }
     } finally {
         setIsStreaming(false);
     }
-  }, [query, numSlides, style, customStyle, detailLevel, aspectRatio, language, currentProjectId, getToken, selectedModel]);
+  }, [query, numSlides, style, customStyle, detailLevel, aspectRatio, language, currentProjectId, getToken, selectedModel, selectedImageModel]);
   
   if (authLoading) return <div className="h-screen w-screen bg-[#030712] flex items-center justify-center text-slate-400">Authenticating...</div>
   if (!user) {
@@ -257,14 +252,12 @@ CONSTRAINTS:
     );
   }
 
-  // Get status text from surface components
   const statusComponent = surfaceState.components['status'];
   const statusText = statusComponent?.text;
 
   return (
     <div className="h-screen w-screen bg-[#030712] text-slate-200 flex overflow-hidden font-sans relative">
       
-      {/* FIXED SIDEBAR TOGGLE BUTTON */}
       <button 
           onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)} 
           className={`fixed top-4 z-50 bg-[#0F172A] border border-white/10 rounded-full p-2 text-slate-400 hover:text-white shadow-xl transition-all duration-300 ${isRightSidebarOpen ? 'right-[20.5rem]' : 'right-4'}`}
@@ -272,7 +265,6 @@ CONSTRAINTS:
           {isRightSidebarOpen ? <ChevronRight className="w-4 h-4"/> : <ChevronLeft className="w-4 h-4"/>}
       </button>
 
-      {/* LEFT SIDEBAR */}
       <aside className={`${isLeftSidebarOpen ? 'w-64' : 'w-12'} transition-all bg-[#0F172A] border-r border-white/10 flex flex-col shrink-0 relative z-20`}>
         <button onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)} className="absolute -right-3 top-6 bg-[#0F172A] border border-white/10 rounded-full p-1 text-slate-400 hover:text-white z-30 shadow-md">
             {isLeftSidebarOpen ? <ChevronLeft className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>}
@@ -310,10 +302,7 @@ CONSTRAINTS:
         </div>
       </aside>
 
-      {/* MAIN WORKSPACE */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-slate-950">
-        
-        {/* AGENT LOGS (Top Bar) */}
         {agentLog.length > 0 && (
             <div className="p-2 bg-black/40 border-b border-white/5 font-mono text-[10px] text-green-500 flex items-center gap-2 overflow-hidden shrink-0">
                 <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0"></div>
@@ -321,7 +310,6 @@ CONSTRAINTS:
             </div>
         )}
 
-        {/* STATUS BAR (Floating) - VISIBLE FEEDBACK */}
         {statusText && (
             <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-blue-600/90 text-white px-4 py-2 rounded-full shadow-lg backdrop-blur-md text-sm font-medium flex items-center gap-2 animate-bounce-in">
                 <SparklesIcon className="w-4 h-4 animate-spin" />
@@ -393,6 +381,7 @@ CONSTRAINTS:
                 )}
             </div>
         </div>
+
         <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent pointer-events-none">
             <div className="max-w-3xl mx-auto bg-[#1E293B]/80 backdrop-blur-2xl border border-white/10 p-4 rounded-3xl shadow-3xl pointer-events-auto flex flex-col gap-4">
                 <textarea value={query} onChange={e => setQuery(e.target.value)} className="bg-transparent border-0 outline-none text-white text-lg placeholder-slate-500 resize-none px-2 min-h-[60px]" placeholder="Enter a topic..." />
@@ -400,17 +389,26 @@ CONSTRAINTS:
                     <div className="flex gap-2">
                          <div className="px-3 py-1.5 bg-black/40 rounded-full flex items-center gap-2">
                              <GlobeIcon className="w-3.5 h-3.5 text-slate-400" />
-                             <select value={language} onChange={e => setLanguage(e.target.value)} className="bg-transparent text-xs text-slate-300 outline-none">
-                                 <option value="Italian">Italiano</option>
-                                 <option value="English">English</option>
-                                 <option value="Spanish">Español</option>
+                             <select value={language} onChange={e => setLanguage(e.target.value)} className="bg-transparent text-[10px] text-slate-300 outline-none">
+                                 <option value="Italian">IT</option>
+                                 <option value="English">EN</option>
+                                 <option value="Spanish">ES</option>
                              </select>
                          </div>
                          <div className="px-3 py-1.5 bg-black/40 rounded-full flex items-center gap-2">
                              <MonitorIcon className="w-3.5 h-3.5 text-slate-400" />
-                             <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)} className="bg-transparent text-xs text-slate-300 outline-none">
-                                 <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                                 <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                             <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)} className="bg-transparent text-[10px] text-slate-300 outline-none">
+                                 <option value="gemini-3-pro-preview">G3 Pro</option>
+                                 <option value="gemini-3-flash-preview">G3 Flash</option>
+                                 <option value="gemini-2.5-pro">G2.5 Pro</option>
+                                 <option value="gemini-2.5-flash-preview-09-2025">G2.5 Flash</option>
+                             </select>
+                         </div>
+                         <div className="px-3 py-1.5 bg-black/40 rounded-full flex items-center gap-2">
+                             <ImageIcon className="w-3.5 h-3.5 text-slate-400" />
+                             <select value={selectedImageModel} onChange={e => setSelectedImageModel(e.target.value)} className="bg-transparent text-[10px] text-slate-300 outline-none">
+                                 <option value="gemini-3-pro-image-preview">G3 Image</option>
+                                 <option value="gemini-2.5-flash-image">G2.5 Image</option>
                              </select>
                          </div>
                     </div>
@@ -424,7 +422,6 @@ CONSTRAINTS:
         </div>
       </main>
 
-      {/* RIGHT SIDEBAR: SETTINGS & EXPORTS */}
       <aside className={`${isRightSidebarOpen ? 'w-80' : 'w-0'} transition-all bg-[#0F172A] border-l border-white/10 flex flex-col shrink-0 relative overflow-hidden`}>
           <div className="p-6 flex flex-col gap-8 h-full overflow-y-auto custom-scrollbar">
               <div className="space-y-4 pt-8">
@@ -451,7 +448,6 @@ CONSTRAINTS:
                   </div>
               </div>
 
-              {/* EXPORT SECTION */}
               {phase === 'graphics' && script && (
                   <div className="space-y-4 pt-4 border-t border-white/5 animate-fade-in">
                       <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2"><DownloadIcon className="w-3 h-3" /> Export</h3>
