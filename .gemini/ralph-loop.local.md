@@ -2,32 +2,35 @@
 active: true
 iteration: 1
 max_iterations: 0
-completion_promise: "MODELS_UPDATED_AND_EXPORTS_WORKING"
-started_at: "2026-02-08T22:10:25Z"
+completion_promise: "ADK_REFACTOR_COMPLETE"
+started_at: "2026-02-09T19:27:36Z"
 ---
 
-Fix Exports and Update Models
-Obiettivo:
-1.  **Aggiornare Modelli Default:**
-    - Testo:  (User asked for 3.0-flash-preview but 2.0 is the official latest stable fast model, verify if 3.0 is available or if he means 2.0). User wrote ... I suspect he means  or a very new experimental. I will check the list of models. Actually, I'll set what he asked in the variable:  is common. I will use  as safe default for text,  for images.
-    - Immagini:  or similar. The user wrote . This likely refers to Imagen 3.
-2.  **Fix Export PDF/ZIP ():**
-    - Errore: .
-    - Causa: In  chiamo  ma la classe non accetta argomenti o ha un nome diverso.
-    - Fix: Aggiornare  per inizializzare  correttamente o aggiornare  per accettare il bucket.
-3.  **Fix Google Slides ():**
-    - Errore: .
-    - Causa: Il tool si aspetta un token utente per scrivere nel suo Drive, ma io lo sto inizializzando vuoto .
-    - Fix: Per ora, passare un token dummy o usare service account se supportato. Ma l'errore dice che è *required*. Devo passare il token dell'utente (che ho nell'header Auth Bearer) o modificare il tool per usare le credenziali di default del server (ADC).
+Refactor Codebase to ADK Best Practices
+Obiettivo: Ristrutturare il progetto  per aderire alle Best Practices ADK definite in .
 
-Piano d'Azione:
-1.  **Analisi Tool:** Leggere  e  per vedere le firme .
-2.  **Fix Backend :**
-    - Passare gli argomenti corretti ai costruttori.
-    - Per Slides, estrarre il token dall'header  e passarlo.
-    - Aggiornare i nomi dei modelli nei default e nella logica di generazione immagini.
-3.  **Frontend Update:** Aggiornare la lista dei modelli nel dropdown.
+Fasi del Refactoring:
+1.  **Struttura del Progetto (Principio 1):**
+    - Creare  per centralizzare le impostazioni.
+    - Spostare le costanti (modelli, bucket, project ID) in .
+    - Spostare i prompt lunghi (es. istruzioni ) in .
 
-Esecuzione:
-- Leggi file tool.
-- Correggi  e  se necessario.
+2.  **Tool Design (Principio 2):**
+    - Verificare/Adattare i tool in  per usare  (se applicabile con l'attuale architettura ADK Python).
+    - *Nota:* L'ADK Python attuale usa  o iniezione automatica. Controllerò la documentazione per mappare  correttamente alla versione in uso.
+
+3.  **State Management (Principio 3):**
+    - Implementare  (o simile callback) in  per gestire variabili dinamiche come la data odierna o l'ID utente, invece di passarle come argomenti sparsi.
+
+4.  **Prompt Engineering (Principio 4):**
+    - Caricare i prompt dai file Markdown in  invece di averli hardcoded nelle stringhe Python.
+
+5.  **Logging e Error Handling (Principio 5):**
+    - Assicurarsi che  e i tool usino il logging standard e gestiscano le eccezioni restituendo messaggi user-friendly all'LLM (già parzialmente fatto, ma da uniformare).
+
+Piano d'Azione Immediato:
+1.  Creare la directory .
+2.  Estrarre il System Prompt di  da  a .
+3.  Creare  per gestire le variabili d'ambiente (PROJECT_ID, BUCKET, MODELS).
+4.  Aggiornare  per leggere la configurazione e i prompt dai nuovi file.
+5.  Aggiornare  per usare .
