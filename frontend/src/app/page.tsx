@@ -55,6 +55,8 @@ export default function App() {
   const [agentLog, setAgentLog] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  
+  // UI Toggles
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
   
@@ -145,9 +147,7 @@ export default function App() {
       const token = await getToken();
       if (!token || !script || !currentProjectId) return;
       setIsExporting(true);
-      
       const endpoint = type === 'slides' ? '/agent/export_slides' : '/agent/export';
-      
       try {
           const res = await fetch(`${BACKEND_URL}${endpoint}`, {
               method: "POST",
@@ -155,11 +155,9 @@ export default function App() {
               body: JSON.stringify({ script, project_id: currentProjectId })
           });
           const data = await res.json();
-          
           if (data.url) window.open(data.url, '_blank');
-          if (data.pdf) window.open(data.pdf, '_blank');
-          if (data.zip) window.open(data.zip, '_blank');
-          
+          if (data.pdf) window.open(`${BACKEND_URL}${data.pdf}`, '_blank');
+          if (data.zip) window.open(`${BACKEND_URL}${data.zip}`, '_blank');
       } catch (e) {
           console.error("Export failed:", e);
           alert("Export failed. Please try again.");
@@ -183,8 +181,6 @@ export default function App() {
     if (targetPhase === "script") {
         setPhase("review");
         setScript(null);
-        
-        // Pass Settings to Backend via Query Augmentation
         const effectiveStyle = style === "Custom" ? customStyle : style;
         const effectiveQuery = `TOPIC: ${query}
         
@@ -198,7 +194,12 @@ CONSTRAINTS:
         body.query = effectiveQuery;
         body.phase = "script";
     } else if (targetPhase === "graphics") {
-        if (!currentScript) { setIsStreaming(false); return; }
+        if (!currentScript) { 
+            console.error("❌ Error: No script provided");
+            setAgentLog(["Error: No script found."]);
+            setIsStreaming(false); 
+            return; 
+        }
         setPhase("graphics");
         body.script = currentScript;
         body.phase = "graphics";
@@ -235,6 +236,7 @@ CONSTRAINTS:
     } catch (e) {
         if ((e as Error).name !== 'AbortError') {
             console.error("Stream failed:", e);
+            setAgentLog(["Connection Error: " + (e as Error).message]);
         }
     } finally {
         setIsStreaming(false);
@@ -251,9 +253,9 @@ CONSTRAINTS:
   }
 
   return (
-    <div className="h-screen w-screen bg-[#030712] text-slate-200 flex overflow-hidden font-sans">
+    <div className="h-screen w-screen bg-[#030712] text-slate-200 flex overflow-hidden font-sans relative">
       
-      {/* FIXED SIDEBAR TOGGLE BUTTON (Z-50 to float above everything) */}
+      {/* FIXED SIDEBAR TOGGLE BUTTON */}
       <button 
           onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)} 
           className={`fixed top-4 z-50 bg-[#0F172A] border border-white/10 rounded-full p-2 text-slate-400 hover:text-white shadow-xl transition-all duration-300 ${isRightSidebarOpen ? 'right-[20.5rem]' : 'right-4'}`}
@@ -262,16 +264,14 @@ CONSTRAINTS:
       </button>
 
       {/* LEFT SIDEBAR */}
-      <aside className={`${isLeftSidebarOpen ? 'w-64' : 'w-12'} transition-all bg-[#0F172A] border-r border-white/10 flex flex-col shrink-0 relative`}>
-        <button onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)} className="absolute -right-3 top-6 bg-[#0F172A] border border-white/10 rounded-full p-1 text-slate-400 hover:text-white z-10">
+      <aside className={`${isLeftSidebarOpen ? 'w-64' : 'w-12'} transition-all bg-[#0F172A] border-r border-white/10 flex flex-col shrink-0 relative z-20`}>
+        <button onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)} className="absolute -right-3 top-6 bg-[#0F172A] border border-white/10 rounded-full p-1 text-slate-400 hover:text-white z-30 shadow-md">
             {isLeftSidebarOpen ? <ChevronLeft className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>}
         </button>
-
         <div className="p-4 flex justify-between items-center h-16 border-b border-white/5">
             {isLeftSidebarOpen && <span className="font-bold tracking-tight">IPSA</span>}
             <button onClick={handleResetSession} className="p-2 hover:bg-white/5 rounded text-slate-400 hover:text-white transition"><PlusIcon className="w-5 h-5"/></button>
         </div>
-        
         {isLeftSidebarOpen && (
             <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
                 {projects.map(p => (
@@ -282,7 +282,6 @@ CONSTRAINTS:
                 ))}
             </div>
         )}
-        
         <div className="p-4 border-t border-white/5 shrink-0 bg-[#0F172A]/60 mt-auto">
              {isLeftSidebarOpen ? (
                  <div className="flex items-center gap-3">
@@ -304,19 +303,14 @@ CONSTRAINTS:
 
       {/* MAIN WORKSPACE */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-slate-950">
-        
-        {/* Top Logs */}
         {agentLog.length > 0 && (
             <div className="p-2 bg-black/40 border-b border-white/5 font-mono text-[10px] text-green-500 flex items-center gap-2 overflow-hidden">
                 <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0"></div>
                 <div className="truncate italic">{agentLog[agentLog.length - 1]}</div>
             </div>
         )}
-
-        {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-8 pb-48 custom-scrollbar">
             <div className="max-w-3xl mx-auto space-y-12">
-                
                 {phase === 'input' && (
                     <div className="text-center py-32 space-y-6">
                         <div className="w-20 h-20 bg-blue-600/10 rounded-3xl flex items-center justify-center mx-auto border border-blue-500/20">
@@ -326,7 +320,6 @@ CONSTRAINTS:
                         <p className="text-slate-400 text-lg max-w-md mx-auto font-light">Describe your topic, and IPSA will design the perfect infographic for you.</p>
                     </div>
                 )}
-
                 {phase === 'review' && script && (
                     <div className="animate-fade-in space-y-6">
                         <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
@@ -336,179 +329,103 @@ CONSTRAINTS:
                         {script.slides.map((s, i) => (
                             <div key={s.id} className="bg-white/5 p-6 rounded-2xl border border-white/10 group transition hover:border-blue-500/30">
                                 <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest block mb-4">Slide {i+1}</span>
-                                <input 
-                                    className="w-full bg-transparent text-xl font-bold text-white mb-3 outline-none border-b border-transparent focus:border-blue-500/50" 
-                                    value={s.title} 
-                                    onChange={e => {
-                                        const n = [...script.slides]; n[i].title = e.target.value; setScript({...script, slides:n});
-                                    }}
-                                />
+                                <input className="w-full bg-transparent text-xl font-bold text-white mb-3 outline-none" value={s.title} onChange={e => {const n=[...script.slides];n[i].title=e.target.value;setScript({...script,slides:n})}} />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                                     <div className="space-y-2">
                                         <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Visual Prompt</label>
-                                        <textarea className="w-full bg-black/20 rounded-xl p-3 text-sm text-slate-300 min-h-[120px] outline-none border border-white/5 focus:border-blue-500/30 resize-none" value={s.image_prompt} onChange={e => {
-                                            const n = [...script.slides]; n[i].image_prompt = e.target.value; setScript({...script, slides:n});
-                                        }} />
+                                        <textarea className="w-full bg-black/20 rounded-xl p-3 text-sm text-slate-300 min-h-[120px] outline-none" value={s.image_prompt} onChange={e => {const n=[...script.slides];n[i].image_prompt=e.target.value;setScript({...script,slides:n})}} />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Speaker Notes</label>
-                                        <textarea className="w-full bg-black/20 rounded-xl p-3 text-sm text-slate-400 min-h-[120px] outline-none border border-white/5 focus:border-blue-500/30 resize-none" value={s.description || ""} onChange={e => {
-                                            const n = [...script.slides]; n[i].description = e.target.value; setScript({...script, slides:n});
-                                        }} />
+                                        <textarea className="w-full bg-black/20 rounded-xl p-3 text-sm text-slate-400 min-h-[120px] outline-none" value={s.description || ""} onChange={e => {const n=[...script.slides];n[i].description=e.target.value;setScript({...script,slides:n})}} />
                                     </div>
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
-
                 {phase === 'graphics' && (
                     <div className="grid grid-cols-1 gap-12 animate-fade-in">
                          {script?.slides.map((s, i) => (
                              <div key={s.id} className="space-y-4">
-                                 <div className="flex justify-between items-center">
-                                     <h3 className="text-lg font-semibold text-slate-200">{i+1}. {s.title}</h3>
+                                 <h3 className="text-lg font-semibold text-slate-200">{i+1}. {s.title}</h3>
+                                 <div className={`bg-slate-900 rounded-3xl overflow-hidden relative border border-white/5 shadow-2xl ${aspectRatio === '16:9' ? 'aspect-video' : 'aspect-square'}`}>
+                                     {s.image_url ? <img src={s.image_url} className="w-full h-full object-cover" /> : <div className="absolute inset-0 flex items-center justify-center animate-pulse">Generating...</div>}
                                  </div>
-                                 <div className={`bg-slate-900 rounded-3xl overflow-hidden relative border border-white/5 shadow-2xl ${aspectRatio === '16:9' ? 'aspect-video' : aspectRatio === '4:3' ? 'aspect-[4/3]' : 'aspect-square'}`}>
-                                     {s.image_url ? (
-                                         <img src={s.image_url} className="w-full h-full object-cover" />
-                                     ) : (
-                                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-                                             <div className="w-12 h-12 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                                             <span className="text-sm text-slate-400 font-light tracking-wide animate-pulse">Generating Graphics...</span>
-                                         </div>
-                                     )}
-                                 </div>
-                                 <p className="text-sm text-slate-500 italic px-2">{s.image_prompt.substring(0, 150)}...</p>
                              </div>
                          ))}
                     </div>
                 )}
             </div>
         </div>
-
-        {/* Floating Input Area */}
         <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent pointer-events-none">
             <div className="max-w-3xl mx-auto bg-[#1E293B]/80 backdrop-blur-2xl border border-white/10 p-4 rounded-3xl shadow-3xl pointer-events-auto flex flex-col gap-4">
-                <textarea 
-                    value={query} 
-                    onChange={e => setQuery(e.target.value)} 
-                    className="bg-transparent border-0 outline-none text-white text-lg placeholder-slate-500 resize-none px-2 min-h-[60px]"
-                    placeholder="Enter a topic or request changes..."
-                />
+                <textarea value={query} onChange={e => setQuery(e.target.value)} className="bg-transparent border-0 outline-none text-white text-lg placeholder-slate-500 resize-none px-2 min-h-[60px]" placeholder="Enter a topic..." />
                 <div className="flex justify-between items-center pt-2 border-t border-white/5">
                     <div className="flex gap-2">
-                         <div className="px-3 py-1.5 bg-black/40 rounded-full flex items-center gap-2 border border-white/5">
+                         <div className="px-3 py-1.5 bg-black/40 rounded-full flex items-center gap-2">
                              <GlobeIcon className="w-3.5 h-3.5 text-slate-400" />
-                             <select value={language} onChange={e => setLanguage(e.target.value)} className="bg-transparent text-xs text-slate-300 outline-none cursor-pointer">
+                             <select value={language} onChange={e => setLanguage(e.target.value)} className="bg-transparent text-xs text-slate-300 outline-none">
                                  <option value="Italian">Italiano</option>
                                  <option value="English">English</option>
                                  <option value="Spanish">Español</option>
-                                 <option value="French">Français</option>
                              </select>
                          </div>
-                         <div className="px-3 py-1.5 bg-black/40 rounded-full flex items-center gap-2 border border-white/5">
+                         <div className="px-3 py-1.5 bg-black/40 rounded-full flex items-center gap-2">
                              <MonitorIcon className="w-3.5 h-3.5 text-slate-400" />
-                             <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)} className="bg-transparent text-xs text-slate-300 outline-none cursor-pointer">
-                                 <option value="gemini-3-flash-preview">Gemini 3.0</option>
-                                 <option value="gemini-1.5-flash">Gemini 2.5</option>
+                             <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)} className="bg-transparent text-xs text-slate-300 outline-none">
+                                 <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
+                                 <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                              </select>
                          </div>
                     </div>
                     {phase === 'review' ? (
-                        <button onClick={() => handleStream('graphics', script!)} disabled={isStreaming} className="bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-2.5 rounded-2xl text-sm font-bold shadow-lg transition-all active:scale-95 disabled:opacity-50">
-                            {isStreaming ? "Generating..." : "Generate Images"}
-                        </button>
+                        <button onClick={() => handleStream('graphics', script!)} disabled={isStreaming} className="bg-emerald-500 text-white px-6 py-2.5 rounded-2xl text-sm font-bold shadow-lg">Generate Images</button>
                     ) : (
-                        <button onClick={() => handleStream('script')} disabled={isStreaming || !query.trim()} className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-2xl text-sm font-bold shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2">
-                            {isStreaming ? <RefreshIcon className="w-4 h-4 animate-spin"/> : <SparklesIcon className="w-4 h-4"/>}
-                            <span>Generate Plan</span>
-                        </button>
+                        <button onClick={() => handleStream('script')} disabled={isStreaming || !query.trim()} className="bg-blue-600 text-white px-6 py-2.5 rounded-2xl text-sm font-bold shadow-lg">Generate Plan</button>
                     )}
                 </div>
             </div>
         </div>
       </main>
 
-      {/* RIGHT SIDEBAR: SETTINGS */}
+      {/* RIGHT SIDEBAR: SETTINGS & EXPORTS */}
       <aside className={`${isRightSidebarOpen ? 'w-80' : 'w-0'} transition-all bg-[#0F172A] border-l border-white/10 flex flex-col shrink-0 relative overflow-hidden`}>
-          
           <div className="p-6 flex flex-col gap-8 h-full overflow-y-auto custom-scrollbar">
               <div className="space-y-4 pt-8">
-                  <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                      <LayoutIcon className="w-3 h-3" /> Project Settings
-                  </h3>
-                  
-                  {/* Slide Count */}
+                  <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2"><LayoutIcon className="w-3 h-3" /> Settings</h3>
                   <div className="space-y-2">
                       <label className="text-xs text-slate-400 font-medium">Slide Count</label>
                       <div className="flex items-center gap-4 bg-black/20 p-1 rounded-xl border border-white/5">
-                          <button onClick={() => setNumSlides(Math.max(1, numSlides-1))} className="p-2 hover:bg-white/5 rounded text-slate-400">-</button>
+                          <button onClick={() => setNumSlides(Math.max(1, numSlides-1))} className="p-2 hover:bg-white/5 rounded">-</button>
                           <span className="flex-1 text-center font-mono font-bold">{numSlides}</span>
-                          <button onClick={() => setNumSlides(Math.min(20, numSlides+1))} className="p-2 hover:bg-white/5 rounded text-slate-400">+</button>
+                          <button onClick={() => setNumSlides(Math.min(20, numSlides+1))} className="p-2 hover:bg-white/5 rounded">+</button>
                       </div>
                   </div>
-
-                  {/* Detail Level Slider */}
                   <div className="space-y-2">
-                      <div className="flex justify-between">
-                          <label className="text-xs text-slate-400 font-medium">Detail Level</label>
-                          <span className="text-xs text-blue-400 font-bold">{detailLevel}/5</span>
-                      </div>
-                      <input 
-                          type="range" min="1" max="5" 
-                          value={detailLevel} onChange={e => setDetailLevel(parseInt(e.target.value))}
-                          className="w-full h-1.5 bg-black/40 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500"
-                      />
+                      <div className="flex justify-between"><label className="text-xs text-slate-400 font-medium">Detail Level</label><span className="text-xs text-blue-400 font-bold">{detailLevel}/5</span></div>
+                      <input type="range" min="1" max="5" value={detailLevel} onChange={e => setDetailLevel(parseInt(e.target.value))} className="w-full h-1.5 bg-black/40 rounded-full appearance-none cursor-pointer" />
                   </div>
-
-                  {/* Format Dropdown */}
                   <div className="space-y-2">
                       <label className="text-xs text-slate-400 font-medium">Format</label>
                       <select value={aspectRatio} onChange={e => setAspectRatio(e.target.value)} className="w-full bg-black/20 border border-white/5 rounded-xl p-2 text-xs text-slate-300 outline-none">
                           <option value="16:9">16:9 Widescreen</option>
                           <option value="4:3">4:3 Standard</option>
                           <option value="1:1">1:1 Square</option>
-                          <option value="9:16">9:16 Vertical</option>
                       </select>
-                  </div>
-
-                  {/* Visual Style */}
-                  <div className="space-y-2">
-                      <label className="text-xs text-slate-400 font-medium">Visual Style</label>
-                      <div className="grid grid-cols-1 gap-2">
-                          {['Modern Minimalist', 'Cyberpunk', 'Hand Drawn', 'Corporate Blue', 'Custom'].map(s => (
-                              <button key={s} onClick={() => setStyle(s)} className={`text-left px-4 py-2.5 rounded-xl text-xs border transition ${style === s ? 'bg-blue-600/20 border-blue-500 text-white' : 'bg-black/20 border-transparent text-slate-400 hover:text-slate-200'}`}>
-                                  {s}
-                              </button>
-                          ))}
-                      </div>
-                      {style === 'Custom' && (
-                          <input 
-                              type="text" 
-                              placeholder="Describe style (e.g. 80s Retro)" 
-                              value={customStyle}
-                              onChange={e => setCustomStyle(e.target.value)}
-                              className="w-full bg-black/20 border border-blue-500/30 rounded-xl p-3 text-xs text-white outline-none mt-2 animate-fade-in"
-                          />
-                      )}
                   </div>
               </div>
 
               {/* EXPORT SECTION */}
               {phase === 'graphics' && script && (
                   <div className="space-y-4 pt-4 border-t border-white/5 animate-fade-in">
-                      <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                          <DownloadIcon className="w-3 h-3" /> Export Actions
-                      </h3>
+                      <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2"><DownloadIcon className="w-3 h-3" /> Export</h3>
                       <div className="grid grid-cols-1 gap-2">
                           <button onClick={() => handleExport('slides')} disabled={isExporting} className="bg-white/5 hover:bg-white/10 text-slate-200 px-4 py-2.5 rounded-xl text-xs border border-white/5 flex items-center gap-2 transition disabled:opacity-50">
-                              <PresentationIcon className="w-3.5 h-3.5 text-yellow-500" />
-                              {isExporting ? "Exporting..." : "Google Slides Deck"}
+                              <PresentationIcon className="w-3.5 h-3.5 text-yellow-500" />{isExporting ? "Exporting..." : "Google Slides"}
                           </button>
                           <button onClick={() => handleExport('assets')} disabled={isExporting} className="bg-white/5 hover:bg-white/10 text-slate-200 px-4 py-2.5 rounded-xl text-xs border border-white/5 flex items-center gap-2 transition disabled:opacity-50">
-                              <FileUpIcon className="w-3.5 h-3.5 text-red-400" />
-                              {isExporting ? "Zipping..." : "Download PDF & Assets"}
+                              <FileUpIcon className="w-3.5 h-3.5 text-red-400" />{isExporting ? "Zipping..." : "PDF & Assets"}
                           </button>
                       </div>
                   </div>
@@ -516,14 +433,10 @@ CONSTRAINTS:
 
               <div className="mt-auto bg-gradient-to-br from-blue-600/10 to-purple-600/10 p-4 rounded-2xl border border-blue-500/20 space-y-2">
                   <div className="text-[10px] font-bold text-blue-400 uppercase">Credits</div>
-                  <p className="text-[10px] text-slate-500 leading-relaxed">
-                      Created by <span className="text-slate-300 font-medium">Maurizio Ipsale</span><br/>
-                      GDE AI/Cloud
-                  </p>
+                  <p className="text-[10px] text-slate-500 leading-relaxed">Created by <span className="text-slate-300 font-medium">Maurizio Ipsale</span><br/>GDE AI/Cloud</p>
               </div>
           </div>
       </aside>
     </div>
   );
 }
-// Force Update Sun Feb  8 21:08:13 CET 2026

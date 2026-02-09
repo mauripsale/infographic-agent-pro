@@ -51,7 +51,7 @@ from services.firestore_session import FirestoreSessionService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-logger.info("🚀 BACKEND STARTING - VERSION: STABLE_EXPORTS_V8")
+logger.info("🚀 BACKEND STARTING - VERSION: STABLE_EXPORTS_V9")
 
 # --- UTILS ---
 def extract_first_json_block(text: str) -> Optional[dict]:
@@ -359,15 +359,16 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                             if not prompt_text:
                                 prompt_text = f"Infographic about {slide.get('title', 'Data')}, professional style, vector illustration, high resolution"
 
-                                                    img_url = await asyncio.to_thread(
-                                                        img_tool.generate_and_save, 
-                                                        prompt_text, 
-                                                        aspect_ratio=ar, 
-                                                        user_id=user_id, 
-                                                        project_id=project_id, 
-                                                        logo_url=logo_url,
-                                                        model="gemini-3-pro-image-preview"
-                                                    )                            logger.info(f"✅ Slide {sid} done: {img_url}")
+                            img_url = await asyncio.to_thread(
+                                img_tool.generate_and_save, 
+                                prompt_text, 
+                                aspect_ratio=ar, 
+                                user_id=user_id, 
+                                project_id=project_id, 
+                                logo_url=logo_url,
+                                model="gemini-3-pro-image-preview"
+                            )
+                            logger.info(f"✅ Slide {sid} done: {img_url}")
                             return {"sid": sid, "url": img_url, "title": slide.get('title', 'Slide')}
                         except Exception as e:
                             logger.error(f"❌ Failed processing slide {sid}: {e}")
@@ -472,4 +473,4 @@ async def get_project_logo(user_id, project_id): return None
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=8080).

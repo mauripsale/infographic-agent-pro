@@ -6,12 +6,21 @@ from tools.image_gen import ImageGenerationTool
 
 def create_refiner_agent(api_key: str = None, model: str = "gemini-3-flash-preview"):
     if api_key: os.environ["GOOGLE_API_KEY"] = api_key
-    return LlmAgent(name="ContentRefiner", model=model, instruction="...")
+    return LlmAgent(
+        name="ContentRefiner", 
+        model=model, 
+        instruction="You are a content refiner. Improve the text for clarity and impact."
+    )
 
 def create_image_artist_agent(api_key: str, img_tool, user_id, project_id, logo_url, model: str = "gemini-3-flash-preview"):
     if api_key: os.environ["GOOGLE_API_KEY"] = api_key
-    # ... (rest of implementation)
-    return LlmAgent(name="ImageArtist", model=model, ...)
+    # This agent is currently not the primary image generator (main.py handles it directly), 
+    # but we keep it valid for potential future use or team orchestration.
+    return LlmAgent(
+        name="ImageArtist", 
+        model=model, 
+        instruction="You are an AI Artist. You generate image prompts."
+    )
 
 def create_infographic_agent(api_key: str = None, model: str = "gemini-3-flash-preview"):
     if api_key:
