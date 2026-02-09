@@ -473,4 +473,4 @@ async def get_project_logo(user_id, project_id): return None
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080).
+    uvicorn.run(app, host="0.0.0.0", port=8080)
