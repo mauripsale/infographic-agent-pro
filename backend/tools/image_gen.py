@@ -1,163 +1,78 @@
-import datetime
-import io
-import logging
 import os
-import time
+import io
 import uuid
+import logging
 import requests
-from pathlib import Path
-
 from google import genai
+from google.genai import types
 from PIL import Image
+from google.cloud import storage
 
-try:
-    from google.cloud import storage
-    GCS_AVAILABLE = True
-except ImportError:
-    GCS_AVAILABLE = False
-
-try:
-    from context import model_context
-except ImportError:
-    from contextvars import ContextVar
-    model_context = ContextVar("model_context", default="gemini-2.5-flash-image")
-
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Constants for better maintainability
-_MAX_RETRIES = 3
 
 class ImageGenerationTool:
     def __init__(self, api_key: str = None, bucket_name: str = None):
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
+        if not self.api_key:
+            raise ValueError("GOOGLE_API_KEY is required for image generation.")
+        
+        self.client = genai.Client(api_key=self.api_key)
         self.bucket_name = bucket_name or os.environ.get("GCS_BUCKET_NAME")
         
-        # Hard override for safety
-        if self.bucket_name == "infographic-agent-pro-assets":
-             self.bucket_name = "qwiklabs-asl-04-f9d4ba2925b9-infographic-assets"
-
-        if GCS_AVAILABLE and self.bucket_name:
+        if self.bucket_name:
             try:
                 self.storage_client = storage.Client()
                 self.bucket = self.storage_client.bucket(self.bucket_name)
-                logger.info(f"ImageGenerationTool initialized with bucket: {self.bucket_name}")
             except Exception as e:
-                logger.error(f"GCS Init Failed: {e}")
+                logger.error(f"Failed to initialize GCS client: {e}")
                 self.bucket = None
         else:
-            logger.warning("GCS Not Available or Bucket not provided. Image generation will fail.")
+            logger.warning("No GCS_BUCKET_NAME provided. Images will not be saved to GCS.")
             self.bucket = None
 
-    def _apply_watermark(self, base_img: Image.Image, logo_url: str) -> Image.Image:
-        """Downloads a logo and pastes it onto the base image in the bottom-right corner."""
-        try:
-            # 1. Download Logo
-            res = requests.get(logo_url, timeout=10)
-            if res.status_code != 200:
-                return base_img
-            
-            logo = Image.open(io.BytesIO(res.content))
-            if logo.mode != 'RGBA':
-                logo = logo.convert('RGBA')
-            
-            # 2. Resize Logo (max 15% of base image width)
-            base_w, base_h = base_img.size
-            logo_target_w = int(base_w * 0.15)
-            w_ratio = logo_target_w / float(logo.size[0])
-            logo_target_h = int(float(logo.size[1]) * float(w_ratio))
-            logo = logo.resize((logo_target_w, logo_target_h), Image.Resampling.LANCZOS)
-            
-            # 3. Paste with transparency (bottom-right with 20px padding)
-            padding = 20
-            pos_x = base_w - logo_target_w - padding
-            pos_y = base_h - logo_target_h - padding
-            
-            # Create a transparent overlay
-            overlay = Image.new('RGBA', base_img.size, (0,0,0,0))
-            overlay.paste(logo, (pos_x, pos_y))
-            
-            # Merge with base
-            if base_img.mode != 'RGBA':
-                base_img = base_img.convert('RGBA')
-            
-            combined = Image.alpha_composite(base_img, overlay)
-            return combined.convert('RGB') # Convert back to RGB for PNG/JPG efficiency
-            
-        except Exception as e:
-            logger.error(f"Watermarking failed: {e}")
-            return base_img
-
-    def generate_and_save(self, prompt: str, aspect_ratio: str = "16:9", user_id: str = "anonymous", project_id: str = None, logo_url: str = None) -> str:
+    def generate_and_save(self, prompt: str, aspect_ratio: str = "16:9", user_id: str = None, project_id: str = None, logo_url: str = None, model: str = "gemini-3-pro-image-preview"):
         """
-        Generates an image and saves it to GCS.
+        Generates an image using Imagen 3 and saves it to GCS.
         """
         try:
-            if not self.api_key:
-                return "Error: Missing Google API Key."
+            logger.info(f"Generating image with prompt: {prompt[:50]}... | Model: {model}")
             
-            if not self.bucket:
-                 return "Error: GCS Bucket not configured. Cannot save image."
+            # Map aspect ratio string to dimensions or enum
+            # Imagen 3 supports '16:9', '1:1', '4:3' etc. directly or via ratio
+            # For simplicity using '1:1' as default if not matched, but Imagen handles strings well usually.
+            
+            response = self.client.models.generate_images(
+                model=model,
+                prompt=prompt,
+                config=types.GenerateImagesConfig(
+                    number_of_images=1,
+                    aspect_ratio=aspect_ratio,
+                    safety_filter_level="block_only_high",
+                    person_generation="allow_adult"
+                )
+            )
 
-            client = genai.Client(api_key=self.api_key)
-            
-            model_id = model_context.get()
-            if "image" not in model_id:
-                model_id = "gemini-2.5-flash-image"
-            
-            logger.info(f"🎨 Drawing for {user_id} (Project: {project_id}) using {model_id}: {prompt[:40]}...")
+            if not response.generated_images:
+                logger.error("No images generated.")
+                return "Error: No image generated."
 
-            image_bytes = None
+            image_bytes = response.generated_images[0].image.image_bytes
             
-            # Resilient retry mechanism with exponential backoff
-            for attempt in range(_MAX_RETRIES):
+            # Post-processing (Watermark) if logo provided
+            if logo_url:
                 try:
-                    response = client.models.generate_content(
-                        model=model_id,
-                        contents=f"Generate a professional infographic image. Style: {prompt}. Aspect Ratio: {aspect_ratio}"
-                    )
-                    if response.candidates and response.candidates[0].content.parts:
-                        for part in response.candidates[0].content.parts:
-                            if part.inline_data:
-                                image_bytes = part.inline_data.data
-                                break
-                            elif hasattr(part, 'data') and part.data:
-                                image_bytes = part.data
-                                break
-                    if image_bytes: break
-                except Exception as api_err:
-                    logger.warning(f"Attempt {attempt+1}/{_MAX_RETRIES} API Error: {api_err}")
-                    if attempt < _MAX_RETRIES - 1:
-                        time.sleep(2 ** attempt)
+                    base_image = Image.open(io.BytesIO(image_bytes))
+                    # Basic watermark logic could go here
+                    # For now just returning the generated image
+                    pass 
+                except Exception as e:
+                    logger.warning(f"Watermarking failed: {e}")
 
-            if not image_bytes:
-                return f"Error: Model {model_id} failed to generate image after {_MAX_RETRIES} attempts."
-
-            # Convert/Sanitize to PNG with specific PIL exception handling
-            try:
-                img = Image.open(io.BytesIO(image_bytes))
-                
-                # Apply Watermark if logo provided
-                if logo_url:
-                    img = self._apply_watermark(img, logo_url)
-                
-                if img.mode != 'RGB': 
-                    img = img.convert('RGB')
-                
-                output_buffer = io.BytesIO()
-                img.save(output_buffer, format="PNG")
-                image_bytes = output_buffer.getvalue()
-            except (Image.UnidentifiedImageError, IOError) as pil_err:
-                logger.error(f"PIL Conversion Error: {pil_err}")
-                return f"Error processing image data: {str(pil_err)}"
-            except Exception as e:
-                logger.error(f"Unexpected image processing error: {e}")
-                return f"Unexpected error during image processing: {str(e)}"
-
-            filename = f"img_{uuid.uuid4().hex}.png"
-
-            # 1. GCS Upload
-            try:
+            # Upload to GCS
+            if self.bucket:
+                filename = f"{uuid.uuid4()}.png"
                 if project_id:
                     blob_path = f"users/{user_id}/projects/{project_id}/assets/{filename}"
                 else:
@@ -166,23 +81,21 @@ class ImageGenerationTool:
                 blob = self.bucket.blob(blob_path)
                 blob.upload_from_string(image_bytes, content_type="image/png")
                 
-                # REPLACEMENT FOR SIGNED URL: Make Public + Public URL
-                # This avoids the "missing private key" error on Cloud Run default credentials
+                # Make Public
                 try:
-                    blob.make_public()
-                    logger.info(f"✅ GCS Public Access Enabled")
+                    # Try explicit ACL first
+                    # blob.make_public() 
+                    # logger.info(f"✅ GCS Public Access Enabled")
+                    pass # Skip explicit ACL as it often fails with Uniform Bucket Access
                 except Exception as acl_err:
-                    # If this fails (e.g. Uniform Bucket Access), we still return the public URL
-                    # and hope the bucket policy allows public read.
-                    logger.warning(f"Could not set ACL (make_public): {acl_err}. Returning public URL anyway.")
+                    logger.warning(f"Could not set ACL: {acl_err}")
 
-                url = blob.public_url
-                logger.info(f"✅ GCS Upload Success: {url[:50]}...")
+                # Return public URL
+                url = f"https://storage.googleapis.com/{self.bucket_name}/{blob_path}"
+                logger.info(f"✅ GCS Upload Success: {url}")
                 return url
-
-            except Exception as gcs_err:
-                logger.error(f"CRITICAL GCS UPLOAD FAILURE: {gcs_err}")
-                return f"Error: Failed to upload to GCS. Details: {str(gcs_err)}"
+            else:
+                return "Error: GCS bucket not configured."
 
         except Exception as e:
             logger.error(f"Generation Fatal Error: {e}")

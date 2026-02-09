@@ -2,35 +2,30 @@
 active: true
 iteration: 1
 max_iterations: 0
-completion_promise: "ADK_REFACTOR_COMPLETE"
-started_at: "2026-02-09T19:27:36Z"
+completion_promise: "IMAGE_GEN_FIXED_AND_UI_IMPROVED"
+started_at: "2026-02-09T19:41:18Z"
 ---
 
-Refactor Codebase to ADK Best Practices
-Obiettivo: Ristrutturare il progetto  per aderire alle Best Practices ADK definite in .
+Fix Image Generation and UI Feedback
+Obiettivo:
+1.  **Fix Errore Generazione Immagini:**
+    - Errore: .
+    - Causa: Ho aggiornato  per passare  a , ma non ho aggiornato la firma del metodo in .
+    - Azione: Aggiornare  per accettare il parametro  (e usarlo!).
 
-Fasi del Refactoring:
-1.  **Struttura del Progetto (Principio 1):**
-    - Creare  per centralizzare le impostazioni.
-    - Spostare le costanti (modelli, bucket, project ID) in .
-    - Spostare i prompt lunghi (es. istruzioni ) in .
+2.  **Migliorare Feedback UI (Scripting):**
+    - Problema: L'utente non vede feedback durante la generazione dello script.
+    - Causa: Probabilmente mancano i messaggi di log intermedi o lo streaming non è abbastanza frequente durante il pensiero dell'agente.
+    - Azione: In , assicurarsi che i log dell'agente () vengano emessi correttamente. Verificare se posso emettere un messaggio di Thinking... esplicito all'inizio.
 
-2.  **Tool Design (Principio 2):**
-    - Verificare/Adattare i tool in  per usare  (se applicabile con l'attuale architettura ADK Python).
-    - *Nota:* L'ADK Python attuale usa  o iniezione automatica. Controllerò la documentazione per mappare  correttamente alla versione in uso.
+3.  **Migliorare Error Handling Frontend:**
+    - Problema: Errori lato server non visibili in UI.
+    - Azione:
+        - In : Catturare le eccezioni nel blocco  e inviare un messaggio JSON speciale (es.  con stato  o un messaggio  di errore esplicito che il frontend riconosce).
+        - In : Gestire i messaggi di errore nello stream e mostrarli all'utente (es. un toast o un messaggio rosso).
 
-3.  **State Management (Principio 3):**
-    - Implementare  (o simile callback) in  per gestire variabili dinamiche come la data odierna o l'ID utente, invece di passarle come argomenti sparsi.
-
-4.  **Prompt Engineering (Principio 4):**
-    - Caricare i prompt dai file Markdown in  invece di averli hardcoded nelle stringhe Python.
-
-5.  **Logging e Error Handling (Principio 5):**
-    - Assicurarsi che  e i tool usino il logging standard e gestiscano le eccezioni restituendo messaggi user-friendly all'LLM (già parzialmente fatto, ma da uniformare).
-
-Piano d'Azione Immediato:
-1.  Creare la directory .
-2.  Estrarre il System Prompt di  da  a .
-3.  Creare  per gestire le variabili d'ambiente (PROJECT_ID, BUCKET, MODELS).
-4.  Aggiornare  per leggere la configurazione e i prompt dai nuovi file.
-5.  Aggiornare  per usare .
+Piano d'Azione:
+1.  Leggere .
+2.  Aggiornare  per accettare .
+3.  Controllare  per il feedback di scripting e aggiungere gestione errori grafica più robusta (inviare evento errore al client).
+4.  Controllare  per vedere come gestisce i log e gli errori.

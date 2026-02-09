@@ -9,7 +9,7 @@ import {
   EditIcon, KeyIcon, HistoryIcon, PlusIcon, MinusIcon,
   TrashIcon, MagicWandIcon, DownloadIcon, GoogleIcon,
   PresentationIcon, PaletteIcon, CheckIcon, LayoutIcon,
-  ChevronDown, GlobeIcon
+  ChevronDown, GlobeIcon, AlertCircleIcon
 } from "@/components/Icons";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
@@ -107,13 +107,10 @@ export default function App() {
     } else {
         setPhase("review");
     }
+    // Restore surface state with status components
     const comps: Record<string, A2UIComponent> = {};
-    project.script?.slides.forEach((s: Slide) => {
-        comps[`card_${s.id}`] = { id: `card_${s.id}`, component: 'Column', status: s.image_url ? "success" : "waiting" };
-        if (s.image_url) {
-            comps[`img_${s.id}`] = { id: `img_${s.id}`, component: 'Image', src: s.image_url };
-        }
-    });
+    if (project.status === 'completed') comps['status'] = { id: 'status', component: 'Text', text: 'Project Completed' };
+    
     setSurfaceState({ components: comps, dataModel: { script: project.script } });
   }, []);
 
@@ -172,6 +169,14 @@ export default function App() {
     abortControllerRef.current = abortController;
     setIsStreaming(true);
     setAgentLog([]);
+    
+    // Clear status
+    setSurfaceState(prev => {
+        const next = {...prev};
+        delete next.components['status'];
+        return next;
+    });
+
     const token = await getToken();
     if (!token) { setIsStreaming(false); return; }
     
@@ -252,6 +257,10 @@ CONSTRAINTS:
     );
   }
 
+  // Get status text from surface components
+  const statusComponent = surfaceState.components['status'];
+  const statusText = statusComponent?.text;
+
   return (
     <div className="h-screen w-screen bg-[#030712] text-slate-200 flex overflow-hidden font-sans relative">
       
@@ -303,12 +312,23 @@ CONSTRAINTS:
 
       {/* MAIN WORKSPACE */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-slate-950">
+        
+        {/* AGENT LOGS (Top Bar) */}
         {agentLog.length > 0 && (
-            <div className="p-2 bg-black/40 border-b border-white/5 font-mono text-[10px] text-green-500 flex items-center gap-2 overflow-hidden">
+            <div className="p-2 bg-black/40 border-b border-white/5 font-mono text-[10px] text-green-500 flex items-center gap-2 overflow-hidden shrink-0">
                 <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0"></div>
                 <div className="truncate italic">{agentLog[agentLog.length - 1]}</div>
             </div>
         )}
+
+        {/* STATUS BAR (Floating) - VISIBLE FEEDBACK */}
+        {statusText && (
+            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-blue-600/90 text-white px-4 py-2 rounded-full shadow-lg backdrop-blur-md text-sm font-medium flex items-center gap-2 animate-bounce-in">
+                <SparklesIcon className="w-4 h-4 animate-spin" />
+                {statusText}
+            </div>
+        )}
+
         <div className="flex-1 overflow-y-auto p-8 pb-48 custom-scrollbar">
             <div className="max-w-3xl mx-auto space-y-12">
                 {phase === 'input' && (
@@ -346,14 +366,29 @@ CONSTRAINTS:
                 )}
                 {phase === 'graphics' && (
                     <div className="grid grid-cols-1 gap-12 animate-fade-in">
-                         {script?.slides.map((s, i) => (
-                             <div key={s.id} className="space-y-4">
-                                 <h3 className="text-lg font-semibold text-slate-200">{i+1}. {s.title}</h3>
-                                 <div className={`bg-slate-900 rounded-3xl overflow-hidden relative border border-white/5 shadow-2xl ${aspectRatio === '16:9' ? 'aspect-video' : 'aspect-square'}`}>
-                                     {s.image_url ? <img src={s.image_url} className="w-full h-full object-cover" /> : <div className="absolute inset-0 flex items-center justify-center animate-pulse">Generating...</div>}
+                         {script?.slides.map((s, i) => {
+                             const isError = s.image_url && (s.image_url.startsWith("Error") || s.image_url.startsWith("⚠️"));
+                             return (
+                                 <div key={s.id} className="space-y-4">
+                                     <h3 className="text-lg font-semibold text-slate-200">{i+1}. {s.title}</h3>
+                                     <div className={`bg-slate-900 rounded-3xl overflow-hidden relative border border-white/5 shadow-2xl ${aspectRatio === '16:9' ? 'aspect-video' : 'aspect-square'}`}>
+                                         {isError ? (
+                                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-900/20 text-red-400 p-4 text-center">
+                                                 <AlertCircleIcon className="w-8 h-8 mb-2" />
+                                                 <span className="text-sm font-mono">{s.image_url}</span>
+                                             </div>
+                                         ) : s.image_url ? (
+                                             <img src={s.image_url} className="w-full h-full object-cover" />
+                                         ) : (
+                                             <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                 <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-2"></div>
+                                                 <span className="text-xs text-slate-500 animate-pulse">Generating...</span>
+                                             </div>
+                                         )}
+                                     </div>
                                  </div>
-                             </div>
-                         ))}
+                             );
+                         })}
                     </div>
                 )}
             </div>
