@@ -2,23 +2,23 @@
 active: true
 iteration: 1
 max_iterations: 0
-completion_promise: "USER_IDS_RESTORED"
-started_at: "2026-02-09T21:55:28Z"
+completion_promise: "IMAGEN_PURGED_FOREVER"
+started_at: "2026-02-12T21:02:06Z"
 ---
 
-Restore User Specified Model IDs
-Obiettivo:
-1.  **Ripristinare Frontend:**
-    - Modificare  per usare ESATTAMENTE gli ID forniti dall'utente nei  delle select.
-    - Testo: , , , .
-    - Immagini: , .
+Purge All Traces of Imagen and Force User IDs
+Obiettivo: Eliminare ogni traccia residua di  e assicurare che  sia usato ovunque.
 
-2.  **Ripristinare Backend:**
-    - Modificare  per usare  e  come default.
-
-3.  **Verifica:**
-    - Assicurarsi che non ci siano altri mapping nascosti. Se l'API restituisce 404 con questi ID, sarà un problema di allowlist/accesso della chiave API, ma il codice DEVE usare questi ID come richiesto.
+Analisi:
+1.  Ho modificato  e .
+2.  Tuttavia,  potrebbe avere un valore di default nel metodo  o  che sta ancora usando il vecchio ID se il parametro non viene passato correttamente.
+3.  Anche  potrebbe avere logica che fa fallback se l'header manca.
 
 Piano d'Azione:
-1.  Aggiornare .
-2.  Aggiornare .
+1.  **Grep Totale:** Cercare  in TUTTA la cartella  e  per trovare il colpevole.
+2.  **Fix Spietato:** Sostituire qualsiasi occorrenza trovata con i valori corretti dalla memoria ().
+3.  **Deploy e Verifica:** Pushare la correzione.
+
+Esecuzione:
+- Grep ricorsivo.
+- Replace.

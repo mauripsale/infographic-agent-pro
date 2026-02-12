@@ -68,7 +68,7 @@ export default function App() {
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [language, setLanguage] = useState("English"); 
   const [selectedModel, setSelectedModel] = useState("gemini-3-pro-preview");
-  const [selectedImageModel, setSelectedImageModel] = useState("imagen-3.0-generate-001");
+  const [selectedImageModel, setSelectedImageModel] = useState("gemini-3-pro-image-preview");
   
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const isResettingRef = useRef(false);
