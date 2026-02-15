@@ -3,6 +3,7 @@ import logging
 import json
 import asyncio
 import uuid
+import datetime
 from typing import Optional
 from pathlib import Path
 
@@ -43,6 +44,18 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 logger.info(f"🚀 BACKEND STARTING - Project: {PROJECT_ID} | Bucket: {GCS_BUCKET_NAME}")
+
+# --- TRAFFIC LOGGER ---
+def log_traffic(direction: str, content: dict):
+    """Logs traffic to STDOUT for Cloud Logging."""
+    entry = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "tag": "TRAFFIC_DEBUG", # Etichetta per filtrare facilmente i log
+        "direction": direction, # "IN" (Request) or "OUT" (Response Chunk)
+        "content": content
+    }
+    # Su Cloud Run, print() finisce direttamente in Cloud Logging
+    print(json.dumps(entry))
 
 # --- UTILS ---
 def extract_first_json_block(text: str) -> Optional[dict]:
@@ -138,6 +151,18 @@ async def get_project(project_id: str, user_id: str = Depends(get_user_id)):
 async def agent_stream(request: Request, user_id: str = Depends(get_user_id), api_key: str = Depends(get_api_key)):
     try:
         data = await request.json()
+        
+        # [LOGGING] Log Incoming Request
+        log_traffic("IN", {
+            "phase": data.get("phase"),
+            "query": data.get("query"),
+            "project_id": data.get("project_id"),
+            "models": {
+                "text": request.headers.get("X-GenAI-Model"),
+                "image": request.headers.get("X-GenAI-Image-Model")
+            }
+        })
+
         phase = data.get("phase", "script")
         project_id = data.get("project_id") or uuid.uuid4().hex
         
@@ -151,7 +176,15 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
         session_id = f"{user_id}_{project_id}"
 
         async def event_generator():
-            yield json.dumps({"createSurface": {"surfaceId": surface_id, "catalogId": "https://a2ui.dev/specification/0.9/standard_catalog_definition.json"}}) + "\n"
+            # Helper per inviare e loggare
+            async def yield_and_log(msg_str):
+                try:
+                    log_traffic("OUT", json.loads(msg_str))
+                except:
+                    pass
+                return msg_str + "\n"
+
+            yield await yield_and_log(json.dumps({"createSurface": {"surfaceId": surface_id, "catalogId": "https://a2ui.dev/specification/0.9/standard_catalog_definition.json"}}))
 
             session = None
             try: session = await session_service.get_session(app_name="infographic-pro", user_id=user_id, session_id=session_id)
@@ -168,7 +201,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 session.state["current_phase"] = "planning"
                 await session_service.update_session_state(app_name="infographic-pro", user_id=user_id, session_id=session_id, state=session.state)
 
-                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "🧠 Planning content..."}]}}) + "\n"
+                yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "🧠 Planning content..."}]}}))
                 
                 agent = create_infographic_team(api_key=api_key, model=requested_text_model)
                 runner = Runner(agent=agent, app_name="infographic-pro", session_service=session_service)
@@ -181,7 +214,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                         for part in event.content.parts:
                             if part.text:
                                 agent_output += part.text
-                                yield json.dumps({"log": part.text[:100] + "..."}) + "\n"
+                                yield await yield_and_log(json.dumps({"log": part.text[:100] + "..."}))
 
                 script_data = extract_first_json_block(agent_output)
                 if script_data:
@@ -193,10 +226,10 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     session.state["script"] = script_data
                     session.state["current_phase"] = "script_ready"
                     await session_service.update_session_state(app_name="infographic-pro", user_id=user_id, session_id=session_id, state=session.state)
-                    yield json.dumps({"updateDataModel": {"surfaceId": surface_id, "path": "/", "op": "replace", "value": {"script": script_data, "project_id": project_id}}}) + "\n"
+                    yield await yield_and_log(json.dumps({"updateDataModel": {"surfaceId": surface_id, "path": "/", "op": "replace", "value": {"script": script_data, "project_id": project_id}}}))
                 else:
                     logger.error(f"Failed to parse JSON. Output was: {agent_output[:500]}...")
-                    yield json.dumps({"log": "Error: Agent failed to produce valid plan."}) + "\n"
+                    yield await yield_and_log(json.dumps({"log": "Error: Agent failed to produce valid plan."}))
 
             elif phase == "graphics":
                 logger.info("🎨 ENTERING GRAPHICS PHASE BLOCK")
@@ -204,7 +237,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 slides = script.get("slides", [])
                 
                 if not slides:
-                    yield json.dumps({"log": "Error: No script found. Please run the planning phase first."}) + "\n"
+                    yield await yield_and_log(json.dumps({"log": "Error: No script found. Please run the planning phase first."}))
                     return
 
                 ar = script.get("global_settings", {}).get("aspect_ratio", "16:9")
@@ -252,10 +285,10 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                         batch_updates[sid] = img_url
                         for s in script["slides"]:
                             if s["id"] == sid: s["image_url"] = img_url
-                        yield json.dumps({"updateDataModel": {"value": {"script": script}}}) + "\n"
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"}, {"id": f"t_{sid}", "component": "Text", "text": result["title"]}, {"id": f"i_{sid}", "component": "Image", "src": img_url}]}}) + "\n"
+                        yield await yield_and_log(json.dumps({"updateDataModel": {"value": {"script": script}}}))
+                        yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"}, {"id": f"t_{sid}", "component": "Text", "text": result["title"]}, {"id": f"i_{sid}", "component": "Image", "src": img_url}]}}))
                     else:
-                        yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}}) + "\n"
+                        yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}}))
 
                 if db and project_id and batch_updates:
                     for s in script.get("slides", []):
@@ -265,7 +298,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     session.state["current_phase"] = "completed"
                     await session_service.update_session_state(app_name="infographic-pro", user_id=user_id, session_id=session_id, state=session.state)
                 
-                yield json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✨ All images ready!"}]}}) + "\n"
+                yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✨ All images ready!"}]}}))
 
         return StreamingResponse(event_generator(), media_type="application/x-ndjson")
     except Exception as e:

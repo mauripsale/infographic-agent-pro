@@ -4,6 +4,40 @@ A2UI is an open-source protocol and library ecosystem for agent-generated user i
 
 The protocol separates UI structure from application state through a clean data binding model. Agents stream JSON messages over any transport (A2A Protocol, Server-Sent Events, WebSockets), enabling progressive rendering and dynamic updates. The core philosophy prioritizes security (no code execution), LLM-friendliness (flat component lists with ID references), and framework-agnostic portability (one JSON payload works everywhere). A2UI is particularly valuable for multi-agent systems where remote agents need to present interfaces without direct DOM access, dynamic data collection forms, adaptive workflows, and conversational AI applications that benefit from rich UI beyond text.
 
+## Core Protocol Implementation
+
+This section details the fundamental mechanics of the A2UI protocol. A compliant renderer must implement these systems to successfully parse the server stream, manage state, and handle user interactions.
+
+### Message Processing & State Management
+- **JSONL Stream Parsing**: Implement a parser that can read a streaming response line by line, decoding each line as a distinct JSON object.
+- **Message Dispatcher**: Create a dispatcher to identify the message type (`beginRendering`, `surfaceUpdate`, `dataModelUpdate`, `deleteSurface`) and route it to the correct handler.
+- **Surface Management**:
+  - Implement a data structure to manage multiple UI surfaces, each keyed by its `surfaceId`.
+  - Handle `surfaceUpdate`: Add or update components in the specified surface's component buffer.
+  - Handle `deleteSurface`: Remove the specified surface and all its associated data and components.
+- **Component Buffering (Adjacency List)**:
+  - For each surface, maintain a component buffer (e.g., a `Map<String, Component>`) to store all component definitions by their `id`.
+  - Be able to reconstruct the UI tree at render time by resolving `id` references in container components (`children.explicitList`, `child`, `contentChild`, etc.).
+- **Data Model Store**:
+  - For each surface, maintain a separate data model store (e.g., a JSON object or a `Map<String, any>`)
+  - Handle `dataModelUpdate`: Update the data model at the specified `path`. The `contents` will be in an adjacency list format (e.g., `[{ "key": "name", "valueString": "Bob" }]`).
+
+### Rendering Logic
+- **Progressive Rendering Control**:
+  - Buffer all incoming `surfaceUpdate` and `dataModelUpdate` messages without rendering immediately.
+  - Handle `beginRendering`: This message acts as the explicit signal to perform the initial render of a surface and set the root component ID.
+    - Start rendering from the specified `root` component ID.
+    - If a `catalogId` is provided, ensure the corresponding component catalog is used (defaulting to the standard catalog if omitted).
+    - Apply any global `styles` (e.g., `font`, `primaryColor`) provided in this message.
+- **Data Binding Resolution**:
+  - Implement a resolver for `BoundValue` objects found in component properties.
+  - If only a `literal*` value is present (`literalString`, `literalNumber`, etc.), use it directly.
+  - If only a `path` is present, resolve it against the surface's data model.
+  - If both `path` and `literal*` are present, first update the data model at `path` with the literal value, then bind the component property to that `path`.
+- **Dynamic List Rendering**:
+  - For containers with a `children.template`, iterate over the data list found at `template.dataBinding` (which resolves to a list in the data model).
+  - For each item in the data list, render the component specified by `template.componentId`, making the item's data available for relative data binding within the template.
+
 ## Creating A2UI Messages from Agents
 
 ### Python: Generate A2UI JSON with LLM
@@ -56,316 +90,7 @@ for message in parsed_json:
     yield json.dumps(message) + "\n"  # JSONL format
 ```
 
-### Python: Create A2UI Extension Part for A2A Protocol
-
-Create A2A protocol parts that contain A2UI data with proper metadata tagging.
-
-```python
-from a2a.types import Part, DataPart
-
-A2UI_EXTENSION_URI = "https://a2ui.org/a2a-extension/a2ui/v0.8"
-A2UI_MIME_TYPE = "application/json+a2ui"
-
-def create_a2ui_part(a2ui_data: dict) -> Part:
-    """Creates an A2A Part containing A2UI data."""
-    return Part(
-        root=DataPart(
-            data=a2ui_data,
-            metadata={"mimeType": A2UI_MIME_TYPE}
-        )
-    )
-
-def is_a2ui_part(part: Part) -> bool:
-    """Checks if an A2A Part contains A2UI data."""
-    return (
-        isinstance(part.root, DataPart) and
-        part.root.metadata and
-        part.root.metadata.get("mimeType") == A2UI_MIME_TYPE
-    )
-
-# Usage example
-a2ui_message = {
-    "createSurface": {
-        "surfaceId": "user_profile",
-        "catalogId": "https://a2ui.dev/specification/0.9/standard_catalog_definition.json"
-    }
-}
-
-part = create_a2ui_part(a2ui_message)
-if is_a2ui_part(part):
-    print("Valid A2UI part created")
-# Output: Valid A2UI part created
-```
-
-### Java: Create and Check A2UI Data Parts
-
-Handle A2UI data within Java-based A2A agents.
-
-```java
-import io.a2a.spec.DataPart;
-import io.a2a.spec.Part;
-import org.a2ui.A2uiExtension;
-import java.util.HashMap;
-import java.util.Map;
-
-public class A2UIExample {
-    public static void main(String[] args) {
-        // Create A2UI data
-        Map<String, Object> createSurfaceData = new HashMap<>();
-        Map<String, Object> surfaceConfig = new HashMap<>();
-        surfaceConfig.put("surfaceId", "booking_form");
-        surfaceConfig.put("catalogId", "https://a2ui.dev/specification/0.9/standard_catalog_definition.json");
-        createSurfaceData.put("createSurface", surfaceConfig);
-
-        // Create A2UI part
-        DataPart a2uiPart = A2uiExtension.createA2uiDataPart(createSurfaceData);
-
-        // Check if part is A2UI
-        Part genericPart = (Part) a2uiPart;
-        boolean isA2ui = A2uiExtension.isA2uiPart(genericPart);
-        System.out.println("Is A2UI part: " + isA2ui);
-        // Output: Is A2UI part: true
-
-        // Extract A2UI data
-        A2uiExtension.getA2uiDataPart(genericPart).ifPresent(dataPart -> {
-            Map<String, Object> data = dataPart.getData();
-            System.out.println("Surface ID: " +
-                ((Map) data.get("createSurface")).get("surfaceId"));
-        });
-        // Output: Surface ID: booking_form
-    }
-}
-```
-
-## A2UI Protocol Messages
-
-### createSurface Message
-
-Initialize a new UI surface with a specific component catalog.
-
-```json
-{
-  "createSurface": {
-    "surfaceId": "user_profile_card",
-    "catalogId": "https://a2ui.dev/specification/0.9/standard_catalog_definition.json"
-  }
-}
-```
-
-### updateComponents Message with Adjacency List
-
-Define UI components as a flat list with ID references forming the tree structure.
-
-```json
-{
-  "updateComponents": {
-    "surfaceId": "contact_form_1",
-    "components": [
-      {
-        "id": "root",
-        "component": "Column",
-        "children": ["first_name_label", "first_name_field", "submit_button"]
-      },
-      {
-        "id": "first_name_label",
-        "component": "Text",
-        "text": "First Name"
-      },
-      {
-        "id": "first_name_field",
-        "component": "TextField",
-        "label": "First Name",
-        "text": {"path": "/contact/firstName"},
-        "usageHint": "shortText"
-      },
-      {
-        "id": "submit_button",
-        "component": "Button",
-        "child": "submit_button_label",
-        "action": {
-          "name": "submitContactForm",
-          "context": {
-            "firstName": {"path": "/contact/firstName"}
-          }
-        }
-      },
-      {
-        "id": "submit_button_label",
-        "component": "Text",
-        "text": "Submit"
-      }
-    ]
-  }
-}
-```
-
-### updateDataModel Message with Data Binding
-
-Update application state that components bind to using JSON Pointer paths.
-
-```json
-{
-  "updateDataModel": {
-    "surfaceId": "contact_form_1",
-    "path": "/contact",
-    "op": "replace",
-    "value": {
-      "firstName": "John",
-      "lastName": "Doe",
-      "email": "john.doe@example.com"
-    }
-  }
-}
-```
-
-### deleteSurface Message
-
-Remove a surface and all its components from the UI.
-
-```json
-{
-  "deleteSurface": {
-    "surfaceId": "user_profile_card"
-  }
-}
-```
-
-## Component Catalog Examples
-
-### Dynamic List with Template Binding
-
-Create a list that generates child components from a data array.
-
-```json
-{
-  "updateComponents": {
-    "surfaceId": "restaurant_list",
-    "components": [
-      {
-        "id": "root",
-        "component": "Column",
-        "children": ["title", "restaurant_list"]
-      },
-      {
-        "id": "title",
-        "component": "Text",
-        "text": "Top Restaurants",
-        "usageHint": "h1"
-      },
-      {
-        "id": "restaurant_list",
-        "component": "List",
-        "children": {
-          "path": "/restaurants",
-          "componentId": "restaurant_card_template"
-        }
-      },
-      {
-        "id": "restaurant_card_template",
-        "component": "Card",
-        "child": "card_content"
-      },
-      {
-        "id": "card_content",
-        "component": "Column",
-        "children": ["name_text", "rating_text"]
-      },
-      {
-        "id": "name_text",
-        "component": "Text",
-        "text": {"path": "name"},
-        "usageHint": "h3"
-      },
-      {
-        "id": "rating_text",
-        "component": "Text",
-        "text": {"path": "rating"}
-      }
-    ]
-  }
-}
-```
-
-### Button with Action and Context
-
-Define interactive buttons that send actions with resolved data context.
-
-```json
-{
-  "updateComponents": {
-    "surfaceId": "booking_form",
-    "components": [
-      {
-        "id": "submit_button",
-        "component": "Button",
-        "child": "button_label",
-        "action": {
-          "name": "submit_booking",
-          "context": {
-            "restaurantName": {"path": "/booking/restaurantName"},
-            "partySize": {"path": "/booking/partySize"},
-            "reservationTime": {"path": "/booking/reservationTime"}
-          }
-        }
-      },
-      {
-        "id": "button_label",
-        "component": "Text",
-        "text": "Submit Reservation"
-      }
-    ]
-  }
-}
-```
-
-### Two-Way Data Binding with Input Fields
-
-Create form inputs that update the local data model reactively.
-
-```json
-{
-  "updateComponents": {
-    "surfaceId": "booking_form",
-    "components": [
-      {
-        "id": "party_size_field",
-        "component": "TextField",
-        "label": "Party Size",
-        "text": {"path": "/booking/partySize"},
-        "type": "number"
-      },
-      {
-        "id": "datetime_field",
-        "component": "DateTimeInput",
-        "label": "Date & Time",
-        "value": {"path": "/booking/reservationTime"},
-        "enableDate": true,
-        "enableTime": true
-      },
-      {
-        "id": "dietary_field",
-        "component": "TextField",
-        "label": "Dietary Requirements",
-        "text": {"path": "/booking/dietary"},
-        "usageHint": "longText"
-      }
-    ]
-  }
-}
-```
-
-### Complete Stream Example with Progressive Rendering
-
-Demonstrate the full message flow from surface creation to deletion.
-
-```jsonl
-{"createSurface":{"surfaceId":"contact_form_1","catalogId":"https://a2ui.dev/specification/0.9/standard_catalog_definition.json"}}
-{"updateComponents":{"surfaceId":"contact_form_1","components":[{"id":"root","component":"Column","children":["first_name_label","first_name_field","last_name_label","last_name_field","submit_button"]},{"id":"first_name_label","component":"Text","text":"First Name"},{"id":"first_name_field","component":"TextField","label":"First Name","text":{"path":"/contact/firstName"},"usageHint":"shortText"},{"id":"last_name_label","component":"Text","text":"Last Name"},{"id":"last_name_field","component":"TextField","label":"Last Name","text":{"path":"/contact/lastName"},"usageHint":"shortText"},{"id":"submit_button","component":"Button","child":"submit_button_label","action":{"name":"submitContactForm"}},{"id":"submit_button_label","component":"Text","text":"Submit"}]}}
-{"updateDataModel":{"surfaceId":"contact_form_1","path":"/contact","op":"replace","value":{"firstName":"John","lastName":"Doe","email":"john.doe@example.com"}}}
-{"deleteSurface":{"surfaceId":"contact_form_1"}}
-```
-
-## Client-Side Rendering
+## Client-Side Integration
 
 ### Angular: Render A2UI Components
 
@@ -413,147 +138,47 @@ export class Button extends DynamicComponent<Types.ButtonNode> {
 }
 ```
 
-### TypeScript: Identify A2UI Parts in A2A Messages
+### Web (Lit): Install and Configure
 
-Detect and resolve A2UI data parts within A2A protocol messages.
-
-```typescript
-import { Part } from '@a2a-js/sdk';
-
-export const A2UI_DATA_PART_RESOLVER = (part: Part): string | null => {
-  // Check if the part is a data part containing A2UI messages
-  if (
-    part.kind === 'data' &&
-    part.data &&
-    typeof part.data === 'object' &&
-    ('createSurface' in part.data ||
-     'updateComponents' in part.data ||
-     'updateDataModel' in part.data ||
-     'deleteSurface' in part.data)
-  ) {
-    return 'a2ui_data_part';
-  }
-  return null;
-};
-
-// Usage in A2A message processing
-function processA2AMessage(parts: Part[]): void {
-  parts.forEach(part => {
-    const partType = A2UI_DATA_PART_RESOLVER(part);
-    if (partType === 'a2ui_data_part') {
-      console.log('A2UI message detected, rendering UI...');
-      // Pass to A2UI message processor
-      messageProcessor.process(part.data);
-    }
-  });
-}
-```
-
-### Curl: Test A2UI Endpoint
-
-Send A2UI messages to test agent endpoints using standard HTTP tools.
+Installs the necessary npm packages for A2UI web client using Lit and demonstrates how to connect to an agent, stream responses, and process messages using MessageProcessor.
 
 ```bash
-# Test createSurface message
-curl -X POST http://localhost:8000/agent/stream \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "Show me a contact form",
-    "session_id": "test-session-123"
-  }'
-
-# Expected response (JSONL stream):
-# {"createSurface":{"surfaceId":"contact_form","catalogId":"https://a2ui.dev/specification/0.9/standard_catalog_definition.json"}}
-# {"updateComponents":{"surfaceId":"contact_form","components":[...]}}
-# {"updateDataModel":{"surfaceId":"contact_form","path":"/","contents":[...]}}
-
-# Send user action back to agent
-curl -X POST http://localhost:8000/agent/action \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "submitContactForm",
-    "surfaceId": "contact_form",
-    "sourceComponentId": "submit_button",
-    "timestamp": "2025-12-17T12:00:00Z",
-    "context": {
-      "firstName": "John",
-      "lastName": "Doe",
-      "email": "john.doe@example.com"
-    }
-  }'
+npm install @a2ui/web-lib lit @lit-labs/signals
 ```
 
-## Data Binding and Scope Resolution
+```typescript
+import { MessageProcessor } from '@a2ui/web-lib';
+import { html, LitElement } from 'lit';
 
-### Absolute and Relative Path Resolution
+class A2UIApp extends LitElement {
+  private messageProcessor = new MessageProcessor();
 
-Use JSON Pointers for data binding with scope-aware path resolution.
+  async connectToAgent(agentUrl: string) {
+    const response = await fetch(agentUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'Find restaurants near me' })
+    });
 
-```json
-{
-  "updateDataModel": {
-    "surfaceId": "employee_list",
-    "path": "/",
-    "op": "replace",
-    "value": {
-      "company": "Acme Corp",
-      "employees": [
-        {"name": "Alice", "role": "Engineer"},
-        {"name": "Bob", "role": "Designer"}
-      ]
-    }
-  }
-}
-```
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
 
-```json
-{
-  "updateComponents": {
-    "surfaceId": "employee_list",
-    "components": [
-      {
-        "id": "employee_list",
-        "component": "List",
-        "children": {
-          "path": "/employees",
-          "componentId": "employee_card_template"
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const lines = decoder.decode(value).split('\n');
+      for (const line of lines) {
+        if (line.trim()) {
+          const message = JSON.parse(line);
+          this.messageProcessor.processMessage(message);
         }
-      },
-      {
-        "id": "employee_card_template",
-        "component": "Column",
-        "children": ["name_text", "company_text"]
-      },
-      {
-        "id": "name_text",
-        "component": "Text",
-        "text": {"path": "name"}
-      },
-      {
-        "id": "company_text",
-        "component": "Text",
-        "text": {"path": "/company"}
       }
-    ]
+    }
+  }
+
+  render() {
+    return html`<a2ui-surface surfaceId="main"></a2ui-surface>`;
   }
 }
 ```
-
-### Validation Error Format
-
-Send standardized validation errors back to LLM for self-correction.
-
-```json
-{
-  "error": {
-    "code": "VALIDATION_FAILED",
-    "surfaceId": "user_profile_card",
-    "path": "/components/0/text",
-    "message": "Expected stringOrPath, got integer"
-  }
-}
-```
-
-A2UI serves as a bridge between AI agent capabilities and rich user interface requirements across any platform. The protocol's primary use cases include dynamic data collection where agents generate bespoke forms based on conversation context, remote sub-agent UIs where specialized agents return interface payloads to orchestrator agents, and adaptive workflows where enterprise agents create approval dashboards or visualizations on the fly. Integration patterns typically involve agents generating A2UI via LLM structured output or prompt engineering, streaming messages over transports like A2A Protocol or Server-Sent Events, and client renderers mapping abstract components to native framework widgets.
-
-The separation between UI structure (components), application state (data model), and rendering (client-side mapping) enables powerful patterns: agents can update data without resending UI structure, progressive rendering allows streaming UIs as they're generated, and two-way binding lets form inputs update local state reactively before server submission. The flat adjacency list model for components is particularly LLM-friendly, allowing models to generate components in any order and easily make incremental updates. Security is enforced through the catalog system where clients only render pre-approved component types, preventing arbitrary code execution while maintaining UI expressiveness comparable to native applications.
