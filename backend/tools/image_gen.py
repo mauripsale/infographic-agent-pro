@@ -34,38 +34,64 @@ class ImageGenerationTool:
 
     def generate_and_save(self, prompt: str, aspect_ratio: str = "16:9", user_id: str = None, project_id: str = None, logo_url: str = None, model: str = "gemini-3-pro-image-preview"):
         """
-        Generates an image using Imagen 3 and saves it to GCS.
+        Generates an image using Nano Banana (Gemini Image models) and saves it to GCS.
         """
         try:
             logger.info(f"Generating image with prompt: {prompt[:50]}... | Model: {model}")
             
-            # Map aspect ratio string to dimensions or enum
-            # Imagen 3 supports '16:9', '1:1', '4:3' etc. directly or via ratio
-            # For simplicity using '1:1' as default if not matched, but Imagen handles strings well usually.
-            
-            response = self.client.models.generate_images(
-                model=model,
-                prompt=prompt,
-                config=types.GenerateImagesConfig(
-                    number_of_images=1,
-                    aspect_ratio=aspect_ratio,
-                    safety_filter_level="block_only_high",
-                    person_generation="allow_adult"
+            # Nano Banana uses generate_content, NOT generate_images
+            try:
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["IMAGE"],
+                        # Map simple aspect ratios to supported enum strings if needed, 
+                        # but "16:9" is standard.
+                        image_config=types.ImageConfig(
+                            aspect_ratio=aspect_ratio,
+                            image_size="2K" # Default to high quality
+                        ),
+                        safety_settings=[
+                            types.SafetySetting(
+                                category="HARM_CATEGORY_DANGEROUS_CONTENT",
+                                threshold="BLOCK_ONLY_HIGH"
+                            )
+                        ]
+                    )
                 )
-            )
+            except Exception as e:
+                if "404" in str(e) or "NOT_FOUND" in str(e):
+                    logger.warning(f"⚠️ Model '{model}' not found. Falling back to 'gemini-2.5-flash-image'...")
+                    response = self.client.models.generate_content(
+                        model="gemini-2.5-flash-image",
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            response_modalities=["IMAGE"],
+                            image_config=types.ImageConfig(
+                                aspect_ratio=aspect_ratio
+                            )
+                        )
+                    )
+                else:
+                    raise e
 
-            if not response.generated_images:
-                logger.error("No images generated.")
+            # Extract image from response parts
+            image_bytes = None
+            if response.parts:
+                for part in response.parts:
+                    if part.inline_data:
+                        image_bytes = part.inline_data.data
+                        break
+            
+            if not image_bytes:
+                logger.error("No image data found in response.")
                 return "Error: No image generated."
-
-            image_bytes = response.generated_images[0].image.image_bytes
             
             # Post-processing (Watermark) if logo provided
             if logo_url:
                 try:
-                    base_image = Image.open(io.BytesIO(image_bytes))
-                    # Basic watermark logic could go here
-                    # For now just returning the generated image
+                    # Basic watermark logic placeholder
                     pass 
                 except Exception as e:
                     logger.warning(f"Watermarking failed: {e}")
@@ -81,15 +107,6 @@ class ImageGenerationTool:
                 blob = self.bucket.blob(blob_path)
                 blob.upload_from_string(image_bytes, content_type="image/png")
                 
-                # Make Public
-                try:
-                    # Try explicit ACL first
-                    # blob.make_public() 
-                    # logger.info(f"✅ GCS Public Access Enabled")
-                    pass # Skip explicit ACL as it often fails with Uniform Bucket Access
-                except Exception as acl_err:
-                    logger.warning(f"Could not set ACL: {acl_err}")
-
                 # Return public URL
                 url = f"https://storage.googleapis.com/{self.bucket_name}/{blob_path}"
                 logger.info(f"✅ GCS Upload Success: {url}")

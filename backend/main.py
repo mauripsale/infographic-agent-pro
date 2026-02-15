@@ -275,6 +275,9 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 tasks = [process_single_slide(slide) for slide in slides]
                 logger.info(f"Queued {len(tasks)} image generation tasks...")
                 
+                success_count = 0
+                error_count = 0
+                
                 for future in asyncio.as_completed(tasks):
                     if await request.is_disconnected(): break
                     result = await future
@@ -282,12 +285,14 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     sid = result["sid"]
                     img_url = result["url"]
                     if "http" in img_url:
+                        success_count += 1
                         batch_updates[sid] = img_url
                         for s in script["slides"]:
                             if s["id"] == sid: s["image_url"] = img_url
                         yield await yield_and_log(json.dumps({"updateDataModel": {"value": {"script": script}}}))
                         yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"}, {"id": f"t_{sid}", "component": "Text", "text": result["title"]}, {"id": f"i_{sid}", "component": "Image", "src": img_url}]}}))
                     else:
+                        error_count += 1
                         yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}}))
 
                 if db and project_id and batch_updates:
@@ -298,7 +303,14 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     session.state["current_phase"] = "completed"
                     await session_service.update_session_state(app_name="infographic-pro", user_id=user_id, session_id=session_id, state=session.state)
                 
-                yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✨ All images ready!"}]}}))
+                final_msg = "✨ All images ready!"
+                if error_count > 0:
+                    if success_count == 0:
+                        final_msg = "❌ Generation failed. Please try again."
+                    else:
+                        final_msg = f"⚠️ Finished with {error_count} errors."
+                
+                yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": final_msg}]}}))
 
         return StreamingResponse(event_generator(), media_type="application/x-ndjson")
     except Exception as e:
