@@ -2,42 +2,31 @@ import os
 import io
 import uuid
 import logging
-import datetime  # Added for Signed URL expiration
-from datetime import timedelta # Added for Signed URL expiration
-import requests
+import datetime
 from google import genai
 from google.genai import types
 from PIL import Image
-from google.cloud import storage
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ImageGenerationTool:
-    def __init__(self, api_key: str = None, bucket_name: str = None):
+    def __init__(self, api_key: str = None, storage_tool = None):
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         if not self.api_key:
             raise ValueError("GOOGLE_API_KEY is required for image generation.")
         
         self.client = genai.Client(api_key=self.api_key)
-        self.bucket_name = bucket_name or os.environ.get("GCS_BUCKET_NAME")
+        self.storage_tool = storage_tool
         
-        if self.bucket_name:
-            try:
-                self.storage_client = storage.Client()
-                self.bucket = self.storage_client.bucket(self.bucket_name)
-            except Exception as e:
-                logger.error(f"Failed to initialize GCS client: {e}")
-                self.bucket = None
-        else:
-            logger.warning("No GCS_BUCKET_NAME provided. Images will not be saved to GCS.")
-            self.bucket = None
+        if not self.storage_tool:
+            logger.warning("No StorageTool provided. Images will not be saved.")
 
-    def generate_and_save(self, prompt: str, aspect_ratio: str = "16:9", user_id: str = None, project_id: str = None, logo_url: str = None, model: str = "gemini-3-pro-image-preview"):
+    def generate_and_save(self, prompt: str, aspect_ratio: str = "16:9", user_id: str = None, project_id: str = None, logo_url: str = None, model: str = "gemini-3-pro-image-preview") -> dict:
         """
-        Generates an image using Nano Banana (Gemini Image models) and saves it to GCS.
-        Returns a Signed URL valid for 7 days.
+        Generates an image using Nano Banana (Gemini Image models) and saves it via ADK Artifact Service (StorageTool).
+        Returns a dict: {"url": str, "path": str} or {"error": str}.
         """
         try:
             logger.info(f"Generating image with prompt: {prompt[:50]}... | Model: {model}")
@@ -87,7 +76,7 @@ class ImageGenerationTool:
             
             if not image_bytes:
                 logger.error("No image data found in response.")
-                return "Error: No image generated."
+                return {"error": "No image generated."}
             
             # Post-processing (Watermark) placeholder
             if logo_url:
@@ -96,33 +85,26 @@ class ImageGenerationTool:
                 except Exception as e:
                     logger.warning(f"Watermarking failed: {e}")
 
-            # Upload to GCS
-            if self.bucket:
+            # Upload via StorageTool (ADK Artifact Abstraction)
+            if self.storage_tool:
                 filename = f"{uuid.uuid4()}.png"
-                if project_id:
-                    blob_path = f"users/{user_id}/projects/{project_id}/assets/{filename}"
-                else:
-                    blob_path = f"users/{user_id}/generated/{filename}"
-                    
-                blob = self.bucket.blob(blob_path)
-                blob.upload_from_string(image_bytes, content_type="image/png")
                 
-                # Generate Signed URL (Valid for 7 days)
-                try:
-                    url = blob.generate_signed_url(
-                        version="v4",
-                        expiration=datetime.timedelta(days=7),
-                        method="GET"
-                    )
-                    logger.info(f"✅ GCS Signed URL Generated: {url[:50]}...")
-                    return url
-                except Exception as sign_err:
-                    logger.error(f"Failed to generate signed URL: {sign_err}")
-                    # Fallback to public URL format (might still be 403, but better than crashing)
-                    return f"https://storage.googleapis.com/{self.bucket_name}/{blob_path}"
+                # Use StorageTool logic for path
+                if project_id and user_id:
+                    remote_path = self.storage_tool.get_project_asset_path(user_id, project_id, filename)
+                elif user_id:
+                    remote_path = f"users/{user_id}/generated/{filename}"
+                else:
+                    remote_path = f"public/generated/{filename}"
+                
+                # Upload and get Signed URL
+                url = self.storage_tool.upload_bytes(image_bytes, remote_path, content_type="image/png")
+                
+                logger.info(f"✅ Upload Success via ADK: {url[:50]}...")
+                return {"url": url, "path": remote_path}
             else:
-                return "Error: GCS bucket not configured."
+                return {"error": "StorageTool not configured."}
 
         except Exception as e:
             logger.error(f"Generation Fatal Error: {e}")
-            return f"Error: {str(e)}"
+            return {"error": str(e)}

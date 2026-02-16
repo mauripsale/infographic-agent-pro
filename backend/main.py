@@ -242,7 +242,9 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
 
                 ar = script.get("global_settings", {}).get("aspect_ratio", "16:9")
                 logo_url = await get_project_logo(user_id, project_id) if db else None
-                img_tool = ImageGenerationTool(api_key=api_key, bucket_name=GCS_BUCKET_NAME)
+                
+                # ADK Native: Use storage_tool instead of raw bucket
+                img_tool = ImageGenerationTool(api_key=api_key, storage_tool=storage_tool)
                 
                 batch_updates = {}
                 sem = asyncio.Semaphore(2)
@@ -257,17 +259,30 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                             if not prompt_text:
                                 prompt_text = f"Infographic about {slide.get('title', 'Data')}, professional style, vector illustration, high resolution"
 
-                            img_url = await asyncio.to_thread(
+                            # Result is now a dict: {"url": str, "path": str} or {"error": str}
+                            result_data = await asyncio.to_thread(
                                 img_tool.generate_and_save, 
                                 prompt_text, 
                                 aspect_ratio=ar, 
                                 user_id=user_id, 
                                 project_id=project_id, 
                                 logo_url=logo_url,
-                                model=requested_img_model # USE USER SELECTED IMAGE MODEL
+                                model=requested_img_model
                             )
+                            
+                            if "error" in result_data:
+                                raise Exception(result_data["error"])
+
+                            img_url = result_data["url"]
+                            img_path = result_data.get("path")
+                            
                             logger.info(f"✅ Slide {sid} done: {img_url}")
-                            return {"sid": sid, "url": img_url, "title": slide.get('title', 'Slide')}
+                            return {
+                                "sid": sid, 
+                                "url": img_url, 
+                                "path": img_path,
+                                "title": slide.get('title', 'Slide')
+                            }
                         except Exception as e:
                             logger.error(f"❌ Failed processing slide {sid}: {e}")
                             return {"sid": sid, "url": f"Error: {str(e)}", "title": slide.get('title', 'Slide')}
@@ -286,9 +301,13 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     img_url = result["url"]
                     if "http" in img_url:
                         success_count += 1
-                        batch_updates[sid] = img_url
+                        # Save result for batch update
+                        batch_updates[sid] = result
                         for s in script["slides"]:
-                            if s["id"] == sid: s["image_url"] = img_url
+                            if s["id"] == sid: 
+                                s["image_url"] = img_url
+                                if "path" in result: s["image_path"] = result["path"]
+                        
                         yield await yield_and_log(json.dumps({"updateDataModel": {"value": {"script": script}}}))
                         yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"}, {"id": f"t_{sid}", "component": "Text", "text": result["title"]}, {"id": f"i_{sid}", "component": "Image", "src": img_url}]}}))
                     else:
@@ -297,7 +316,11 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
 
                 if db and project_id and batch_updates:
                     for s in script.get("slides", []):
-                        if s['id'] in batch_updates: s['image_url'] = batch_updates[s['id']]
+                        if s['id'] in batch_updates: 
+                            s['image_url'] = batch_updates[s['id']]['url']
+                            if 'path' in batch_updates[s['id']]:
+                                s['image_path'] = batch_updates[s['id']]['path']
+                    
                     db.collection("users").document(user_id).collection("projects").document(project_id).update({"script": script, "status": "completed"})
                     session.state["script"] = script
                     session.state["current_phase"] = "completed"
@@ -356,6 +379,37 @@ async def regenerate_slide(request: Request): return {}
 
 @app.post("/agent/upload")
 async def upload_document(request: Request): return {}
+
+@app.post("/agent/refresh_assets")
+async def refresh_assets(request: Request, user_id: str = Depends(get_user_id)):
+    """Refreshes Signed URLs for expired assets."""
+    try:
+        data = await request.json()
+        project_id = data.get("project_id")
+        script = data.get("script")
+        
+        if not script or "slides" not in script:
+            return JSONResponse(status_code=400, content={"error": "Invalid script data"})
+
+        refreshed_count = 0
+        for slide in script["slides"]:
+            # If we have the storage path, we can regenerate the signed URL
+            if "image_path" in slide and slide["image_path"]:
+                new_url = storage_tool.get_signed_url(slide["image_path"], expiration_hours=168) # 7 days
+                if new_url:
+                    slide["image_url"] = new_url
+                    refreshed_count += 1
+        
+        logger.info(f"♻️ Refreshed {refreshed_count} assets for project {project_id}")
+        
+        # Update DB if project_id exists
+        if db and project_id:
+             db.collection("users").document(user_id).collection("projects").document(project_id).update({"script": script})
+
+        return {"script": script}
+    except Exception as e:
+        logger.error(f"Asset Refresh Error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 async def get_project_logo(user_id, project_id): return None
 
