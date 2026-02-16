@@ -88,3 +88,49 @@ The ADK includes a rich set of pre-built tools:
 ### Utility Tools
 - **long_running_tool**: Handle long-running operations.
 - **transfer_to_agent_tool**: Transfer execution to another agent.
+
+## Integration: Google Cloud Trace
+
+Cloud Trace helps you monitor and debug ADK agents by providing comprehensive tracing capabilities built on OpenTelemetry.
+
+### Installation
+
+```bash
+pip install google-cloud-aiplatform[adk,agent_engines]
+# For custom runners:
+pip install opentelemetry-exporter-cloud-trace opentelemetry-sdk
+```
+
+### Deployment Setup
+
+#### Cloud Run (ADK CLI)
+Use the `--trace_to_cloud` flag:
+```bash
+adk deploy cloud_run \
+    --project=$GOOGLE_CLOUD_PROJECT \
+    --region=$GOOGLE_CLOUD_LOCATION \
+    --trace_to_cloud \
+    $AGENT_PATH
+```
+
+#### Customized Agent Runner (Python)
+Configure OpenTelemetry to export traces:
+
+```python
+from opentelemetry import trace
+from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
+from opentelemetry.sdk.trace import TracerProvider, export
+
+# Setup Trace Provider
+provider = TracerProvider()
+processor = export.BatchSpanProcessor(
+    CloudTraceSpanExporter(project_id="YOUR_PROJECT_ID")
+)
+provider.add_span_processor(processor)
+trace.set_tracer_provider(provider)
+
+# ... Initialize Runner and Agent normally ...
+```
+
+### Inspecting Traces
+Navigate to the **Trace Explorer** in the Google Cloud Console (`console.cloud.google.com`) to view trace data, categorized by span names like `invocation`, `agent_run`, and `call_llm`.

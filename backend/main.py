@@ -20,8 +20,30 @@ import firebase_admin
 from firebase_admin import auth as firebase_auth, firestore
 from google.cloud import storage
 
+# --- OPENTELEMETRY TRACING ---
+try:
+    from opentelemetry import trace
+    from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+except ImportError:
+    trace = None
+
 # --- CONFIGURATION IMPORT ---
 from config.settings import PROJECT_ID, GCS_BUCKET_NAME, DEFAULT_TEXT_MODEL, DEFAULT_IMAGE_MODEL
+
+# Configure Tracing
+if trace:
+    try:
+        trace.set_tracer_provider(TracerProvider())
+        cloud_trace_exporter = CloudTraceSpanExporter(project_id=PROJECT_ID)
+        trace.get_tracer_provider().add_span_processor(
+            BatchSpanProcessor(cloud_trace_exporter)
+        )
+        logging.info(f"✅ Cloud Trace enabled for project: {PROJECT_ID}")
+    except Exception as e:
+        logging.warning(f"⚠️ Failed to initialize Cloud Trace: {e}")
 
 # ADK Core
 from google.adk.runners import Runner
@@ -100,6 +122,10 @@ db = firestore.client() if firebase_admin._apps else None
 session_service = FirestoreSessionService(db) if db else InMemorySessionService()
 
 app = FastAPI()
+
+# Instrument FastAPI for Cloud Trace
+if trace:
+    FastAPIInstrumentor.instrument_app(app)
 
 # --- HELPERS ---
 async def get_user_id(request: Request):

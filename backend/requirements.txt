@@ -499,3 +499,4 @@ websockets==15.0.1
     #   google-genai
 zipp==3.23.0
     # via importlib-metadata
+opentelemetry-instrumentation-fastapi==0.51b0
