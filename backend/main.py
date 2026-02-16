@@ -4,6 +4,7 @@ import json
 import asyncio
 import uuid
 import datetime
+from datetime import timedelta
 from typing import Optional
 from pathlib import Path
 
@@ -37,7 +38,6 @@ from tools.image_gen import ImageGenerationTool
 from tools.export_tool import ExportTool
 from tools.security_tool import security_service
 from tools.slides_tool import GoogleSlidesTool
-from tools.storage_tool import StorageTool
 from services.firestore_session import FirestoreSessionService
 
 logging.basicConfig(level=logging.INFO)
@@ -90,7 +90,6 @@ def enrich_script_with_prompts(script_data: dict) -> dict:
 
 # --- SERVICES ---
 artifact_service = GcsArtifactService(bucket_name=GCS_BUCKET_NAME)
-storage_tool = StorageTool(artifact_service)
 
 try:
     firebase_admin.initialize_app()
@@ -243,8 +242,8 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 ar = script.get("global_settings", {}).get("aspect_ratio", "16:9")
                 logo_url = await get_project_logo(user_id, project_id) if db else None
                 
-                # ADK Native: Use storage_tool instead of raw bucket
-                img_tool = ImageGenerationTool(api_key=api_key, storage_tool=storage_tool)
+                # ADK Native: Use artifact_service directly
+                img_tool = ImageGenerationTool(api_key=api_key, artifact_service=artifact_service)
                 
                 batch_updates = {}
                 sem = asyncio.Semaphore(2)
@@ -395,10 +394,17 @@ async def refresh_assets(request: Request, user_id: str = Depends(get_user_id)):
         for slide in script["slides"]:
             # If we have the storage path, we can regenerate the signed URL
             if "image_path" in slide and slide["image_path"]:
-                new_url = storage_tool.get_signed_url(slide["image_path"], expiration_hours=168) # 7 days
-                if new_url:
+                try:
+                    blob = artifact_service.bucket.blob(slide["image_path"])
+                    new_url = blob.generate_signed_url(
+                        version="v4",
+                        expiration=timedelta(days=7),
+                        method="GET",
+                    )
                     slide["image_url"] = new_url
                     refreshed_count += 1
+                except Exception as e:
+                    logger.warning(f"Failed to refresh URL for {slide['image_path']}: {e}")
         
         logger.info(f"♻️ Refreshed {refreshed_count} assets for project {project_id}")
         

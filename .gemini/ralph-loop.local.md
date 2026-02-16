@@ -2,23 +2,8 @@
 active: true
 iteration: 1
 max_iterations: 0
-completion_promise: "IMAGEN_PURGED_FOREVER"
-started_at: "2026-02-12T21:02:06Z"
+completion_promise: "REFACTORING COMPLETE"
+started_at: "2026-02-16T13:48:06Z"
 ---
 
-Purge All Traces of Imagen and Force User IDs
-Obiettivo: Eliminare ogni traccia residua di  e assicurare che  sia usato ovunque.
-
-Analisi:
-1.  Ho modificato  e .
-2.  Tuttavia,  potrebbe avere un valore di default nel metodo  o  che sta ancora usando il vecchio ID se il parametro non viene passato correttamente.
-3.  Anche  potrebbe avere logica che fa fallback se l'header manca.
-
-Piano d'Azione:
-1.  **Grep Totale:** Cercare  in TUTTA la cartella  e  per trovare il colpevole.
-2.  **Fix Spietato:** Sostituire qualsiasi occorrenza trovata con i valori corretti dalla memoria ().
-3.  **Deploy e Verifica:** Pushare la correzione.
-
-Esecuzione:
-- Grep ricorsivo.
-- Replace.
+Obiettivo: Refactoring del backend per rimuovere StorageTool e usare GcsArtifactService nativo. Contesto: main.py e image_gen.py usano un wrapper intermedio. Vogliamo usare direttamente l'oggetto .bucket del servizio ADK. Task Sequenziali: - Modifica backend/tools/image_gen.py: Init accetta artifact_service invece di storage_tool; Usa self.artifact_service.bucket.blob(remote_path) per upload e signed url; Costruisci i path users/{uid}/... internamente. - Modifica backend/main.py: Rimuovi import/init di StorageTool; Passa artifact_service a ImageGenerationTool; Aggiorna /agent/refresh_assets per usare artifact_service.bucket.blob(...).generate_signed_url(...). - Pulizia: Elimina backend/tools/storage_tool.py. - Verifica: Controlla import orfani.

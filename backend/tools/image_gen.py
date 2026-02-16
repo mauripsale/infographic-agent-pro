@@ -12,20 +12,20 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ImageGenerationTool:
-    def __init__(self, api_key: str = None, storage_tool = None):
+    def __init__(self, api_key: str = None, artifact_service = None):
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         if not self.api_key:
             raise ValueError("GOOGLE_API_KEY is required for image generation.")
         
         self.client = genai.Client(api_key=self.api_key)
-        self.storage_tool = storage_tool
+        self.artifact_service = artifact_service
         
-        if not self.storage_tool:
-            logger.warning("No StorageTool provided. Images will not be saved.")
+        if not self.artifact_service:
+            logger.warning("No ArtifactService provided. Images will not be saved.")
 
     def generate_and_save(self, prompt: str, aspect_ratio: str = "16:9", user_id: str = None, project_id: str = None, logo_url: str = None, model: str = "gemini-3-pro-image-preview") -> dict:
         """
-        Generates an image using Nano Banana (Gemini Image models) and saves it via ADK Artifact Service (StorageTool).
+        Generates an image using Nano Banana (Gemini Image models) and saves it via ADK Artifact Service.
         Returns a dict: {"url": str, "path": str} or {"error": str}.
         """
         try:
@@ -85,25 +85,32 @@ class ImageGenerationTool:
                 except Exception as e:
                     logger.warning(f"Watermarking failed: {e}")
 
-            # Upload via StorageTool (ADK Artifact Abstraction)
-            if self.storage_tool:
+            # Upload via ArtifactService (ADK Native)
+            if self.artifact_service:
                 filename = f"{uuid.uuid4()}.png"
                 
-                # Use StorageTool logic for path
+                # Construct path
                 if project_id and user_id:
-                    remote_path = self.storage_tool.get_project_asset_path(user_id, project_id, filename)
+                    remote_path = f"users/{user_id}/projects/{project_id}/assets/{filename}"
                 elif user_id:
                     remote_path = f"users/{user_id}/generated/{filename}"
                 else:
                     remote_path = f"public/generated/{filename}"
                 
                 # Upload and get Signed URL
-                url = self.storage_tool.upload_bytes(image_bytes, remote_path, content_type="image/png")
+                blob = self.artifact_service.bucket.blob(remote_path)
+                blob.upload_from_string(image_bytes, content_type="image/png")
+                
+                url = blob.generate_signed_url(
+                    version="v4",
+                    expiration=datetime.timedelta(days=7),
+                    method="GET"
+                )
                 
                 logger.info(f"✅ Upload Success via ADK: {url[:50]}...")
                 return {"url": url, "path": remote_path}
             else:
-                return {"error": "StorageTool not configured."}
+                return {"error": "ArtifactService not configured."}
 
         except Exception as e:
             logger.error(f"Generation Fatal Error: {e}")
