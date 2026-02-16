@@ -119,7 +119,15 @@ export default function App() {
     try {
       const res = await fetch(`${BACKEND_URL}/user/projects/${pid}`, { headers: { "Authorization": `Bearer ${token}` }});
       if (res.ok) {
-        if (!isResettingRef.current) restoreProjectState(await res.json());
+        // RACE CONDITION FIX:
+        // Prima di ripristinare lo stato, controlliamo se questo progetto è ancora
+        // quello desiderato (cioè se è ancora salvato nel localStorage).
+        // Se l'utente ha cliccato "+ New Project" mentre caricavamo, il localStorage sarà vuoto
+        // o diverso, e noi ignoreremo questa risposta vecchia.
+        const currentStoredId = localStorage.getItem("lastProjectId");
+        if (currentStoredId === pid) {
+            restoreProjectState(await res.json());
+        }
       } else {
         localStorage.removeItem("lastProjectId");
       }
