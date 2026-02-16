@@ -2,6 +2,8 @@ import os
 import io
 import uuid
 import logging
+import datetime  # Added for Signed URL expiration
+from datetime import timedelta # Added for Signed URL expiration
 import requests
 from google import genai
 from google.genai import types
@@ -35,6 +37,7 @@ class ImageGenerationTool:
     def generate_and_save(self, prompt: str, aspect_ratio: str = "16:9", user_id: str = None, project_id: str = None, logo_url: str = None, model: str = "gemini-3-pro-image-preview"):
         """
         Generates an image using Nano Banana (Gemini Image models) and saves it to GCS.
+        Returns a Signed URL valid for 7 days.
         """
         try:
             logger.info(f"Generating image with prompt: {prompt[:50]}... | Model: {model}")
@@ -46,8 +49,6 @@ class ImageGenerationTool:
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         response_modalities=["IMAGE"],
-                        # Map simple aspect ratios to supported enum strings if needed, 
-                        # but "16:9" is standard.
                         image_config=types.ImageConfig(
                             aspect_ratio=aspect_ratio,
                             image_size="2K" # Default to high quality
@@ -88,10 +89,9 @@ class ImageGenerationTool:
                 logger.error("No image data found in response.")
                 return "Error: No image generated."
             
-            # Post-processing (Watermark) if logo provided
+            # Post-processing (Watermark) placeholder
             if logo_url:
                 try:
-                    # Basic watermark logic placeholder
                     pass 
                 except Exception as e:
                     logger.warning(f"Watermarking failed: {e}")
@@ -107,10 +107,19 @@ class ImageGenerationTool:
                 blob = self.bucket.blob(blob_path)
                 blob.upload_from_string(image_bytes, content_type="image/png")
                 
-                # Return public URL
-                url = f"https://storage.googleapis.com/{self.bucket_name}/{blob_path}"
-                logger.info(f"✅ GCS Upload Success: {url}")
-                return url
+                # Generate Signed URL (Valid for 7 days)
+                try:
+                    url = blob.generate_signed_url(
+                        version="v4",
+                        expiration=datetime.timedelta(days=7),
+                        method="GET"
+                    )
+                    logger.info(f"✅ GCS Signed URL Generated: {url[:50]}...")
+                    return url
+                except Exception as sign_err:
+                    logger.error(f"Failed to generate signed URL: {sign_err}")
+                    # Fallback to public URL format (might still be 403, but better than crashing)
+                    return f"https://storage.googleapis.com/{self.bucket_name}/{blob_path}"
             else:
                 return "Error: GCS bucket not configured."
 
