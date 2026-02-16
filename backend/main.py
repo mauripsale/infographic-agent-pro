@@ -8,6 +8,8 @@ from datetime import timedelta
 from typing import Optional
 from pathlib import Path
 
+import google.auth
+from google.auth.transport import requests as google_requests
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -390,17 +392,37 @@ async def refresh_assets(request: Request, user_id: str = Depends(get_user_id)):
         if not script or "slides" not in script:
             return JSONResponse(status_code=400, content={"error": "Invalid script data"})
 
+        # Prepare credentials once for the batch
+        credentials, _ = google.auth.default()
+        if not credentials.valid:
+            request_adapter = google_requests.Request()
+            credentials.refresh(request_adapter)
+        
+        service_account_email = getattr(credentials, "service_account_email", None)
+
         refreshed_count = 0
         for slide in script["slides"]:
             # If we have the storage path, we can regenerate the signed URL
             if "image_path" in slide and slide["image_path"]:
                 try:
                     blob = artifact_service.bucket.blob(slide["image_path"])
-                    new_url = blob.generate_signed_url(
-                        version="v4",
-                        expiration=timedelta(days=7),
-                        method="GET",
-                    )
+                    
+                    if service_account_email:
+                        new_url = blob.generate_signed_url(
+                            version="v4",
+                            expiration=timedelta(days=7),
+                            method="GET",
+                            service_account_email=service_account_email,
+                            access_token=credentials.token
+                        )
+                    else:
+                        # Fallback for local dev
+                        new_url = blob.generate_signed_url(
+                            version="v4",
+                            expiration=timedelta(days=7),
+                            method="GET",
+                        )
+                        
                     slide["image_url"] = new_url
                     refreshed_count += 1
                 except Exception as e:

@@ -3,6 +3,10 @@ import io
 import uuid
 import logging
 import datetime
+from datetime import timedelta
+import requests
+import google.auth
+from google.auth.transport import requests as google_requests
 from google import genai
 from google.genai import types
 from PIL import Image
@@ -101,14 +105,41 @@ class ImageGenerationTool:
                 blob = self.artifact_service.bucket.blob(remote_path)
                 blob.upload_from_string(image_bytes, content_type="image/png")
                 
-                url = blob.generate_signed_url(
-                    version="v4",
-                    expiration=datetime.timedelta(days=7),
-                    method="GET"
-                )
-                
-                logger.info(f"✅ Upload Success via ADK: {url[:50]}...")
-                return {"url": url, "path": remote_path}
+                try:
+                    # Cloud Run Signing Logic: Use IAM API if private key is missing
+                    credentials, _ = google.auth.default()
+                    
+                    # Refresh credentials to ensure we have a token
+                    if not credentials.valid:
+                        request = google_requests.Request()
+                        credentials.refresh(request)
+                    
+                    # If we have a service account email (typical in Cloud Run), use it
+                    service_account_email = getattr(credentials, "service_account_email", None)
+                    
+                    if service_account_email:
+                        logger.info(f"Signing URL using Service Account: {service_account_email}")
+                        url = blob.generate_signed_url(
+                            version="v4",
+                            expiration=datetime.timedelta(days=7),
+                            method="GET",
+                            service_account_email=service_account_email,
+                            access_token=credentials.token
+                        )
+                    else:
+                        # Fallback for local dev with key file
+                        url = blob.generate_signed_url(
+                            version="v4",
+                            expiration=datetime.timedelta(days=7),
+                            method="GET"
+                        )
+                    
+                    logger.info(f"✅ Upload Success via ADK: {url[:50]}...")
+                    return {"url": url, "path": remote_path}
+                    
+                except Exception as sign_err:
+                    logger.error(f"❌ Failed to sign URL. Ensure Service Account has 'Token Creator' role. Error: {sign_err}")
+                    return {"error": f"Signing Error: {str(sign_err)}"}
             else:
                 return {"error": "ArtifactService not configured."}
 
