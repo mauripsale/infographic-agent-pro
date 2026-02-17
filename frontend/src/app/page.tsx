@@ -11,6 +11,8 @@ import {
   PresentationIcon, PaletteIcon, CheckIcon, LayoutIcon,
   ChevronDown, GlobeIcon, AlertCircleIcon, ImageIcon
 } from "@/components/Icons";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth, googleProvider } from "@/lib/firebase";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
 
@@ -146,11 +148,6 @@ export default function App() {
       }
     }
   }, [user, fetchProjects, loadProject]);
-
-import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase";
-
-// ... inside App component ...
 
   const handleExport = async (type: 'slides' | 'assets') => {
       const token = await getToken();

@@ -1,0 +1,62 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'cloudbuild.yaml'
+      - '.github/workflows/backend-ci.yaml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'cloudbuild.yaml'
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      
+      - name: Lint with flake8
+        run: |
+          pip install flake8
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings
+          flake8 backend/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+  deploy-backend:
+      runs-on: ubuntu-latest
+      needs: test-and-lint
+      if: github.ref == 'refs/heads/main'
+      permissions:
+        id-token: write # Required for Workload Identity Federation
+        contents: read
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v2
+
+        - name: Google Auth
+          uses: 'google-github-actions/auth@v1'
+          with:
+            workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
+            service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
+        
+        - name: Set up Cloud SDK
+          uses: 'google-github-actions/setup-gcloud@v1'
+
+        - name: Submit Build & Deploy (Kaniko Optimized)
+          run: |
+            gcloud builds submit --config cloudbuild.yaml .
