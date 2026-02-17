@@ -254,6 +254,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     session.state["current_phase"] = "script_ready"
                     await session_service.update_session_state(app_name="infographic-pro", user_id=user_id, session_id=session_id, state=session.state)
                     yield await yield_and_log(json.dumps({"updateDataModel": {"surfaceId": surface_id, "path": "/", "op": "replace", "value": {"script": script_data, "project_id": project_id}}}))
+                    yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": "✅ Script Ready for Review"}]}}))
                 else:
                     logger.error(f"Failed to parse JSON. Output was: {agent_output[:500]}...")
                     yield await yield_and_log(json.dumps({"log": "Error: Agent failed to produce valid plan."}))
@@ -266,6 +267,8 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 if not slides:
                     yield await yield_and_log(json.dumps({"log": "Error: No script found. Please run the planning phase first."}))
                     return
+
+                yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": "status", "component": "Text", "text": f"🎨 Starting generation (0/{len(slides)})..."}]}}))
 
                 ar = script.get("global_settings", {}).get("aspect_ratio", "16:9")
                 logo_url = await get_project_logo(user_id, project_id) if db else None
@@ -319,6 +322,7 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                 
                 success_count = 0
                 error_count = 0
+                total_slides = len(slides)
                 
                 for future in asyncio.as_completed(tasks):
                     if await request.is_disconnected(): break
@@ -326,6 +330,9 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                     if not result: continue
                     sid = result["sid"]
                     img_url = result["url"]
+                    
+                    progress_msg = f"🎨 Generating {success_count + error_count + 1}/{total_slides}..."
+                    
                     if "http" in img_url:
                         success_count += 1
                         # Save result for batch update
@@ -336,10 +343,10 @@ async def agent_stream(request: Request, user_id: str = Depends(get_user_id), ap
                                 if "path" in result: s["image_path"] = result["path"]
                         
                         yield await yield_and_log(json.dumps({"updateDataModel": {"value": {"script": script}}}))
-                        yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"}, {"id": f"t_{sid}", "component": "Text", "text": result["title"]}, {"id": f"i_{sid}", "component": "Image", "src": img_url}]}}))
+                        yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Column", "children": [f"t_{sid}", f"i_{sid}"], "status": "success"}, {"id": f"t_{sid}", "component": "Text", "text": result["title"]}, {"id": f"i_{sid}", "component": "Image", "src": img_url}, {"id": "status", "component": "Text", "text": progress_msg}]}}))
                     else:
                         error_count += 1
-                        yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}]}}))
+                        yield await yield_and_log(json.dumps({"updateComponents": {"surfaceId": surface_id, "components": [{"id": f"card_{sid}", "component": "Text", "text": f"⚠️ {img_url}", "status": "error"}, {"id": "status", "component": "Text", "text": progress_msg}]}}))
 
                 if db and project_id and batch_updates:
                     for s in script.get("slides", []):
@@ -373,8 +380,14 @@ async def export_slides_endpoint(request: Request, user_id: str = Depends(get_us
         data = await request.json()
         script = data.get("script")
         project_id = data.get("project_id")
+        
+        # Extract OAuth token from header (sent by frontend after popup)
+        oauth_token = request.headers.get("X-Google-OAuth-Token")
+        
         if not script: raise HTTPException(400, "Missing script")
-        slides_tool = GoogleSlidesTool(access_token=None)
+        if not oauth_token: raise HTTPException(401, "Missing Google OAuth Token for Slides export")
+
+        slides_tool = GoogleSlidesTool(access_token=oauth_token)
         presentation_id = slides_tool.create_presentation(script.get("slides", []), f"Project {project_id}")
         return {"url": f"https://docs.google.com/presentation/d/{presentation_id}"}
     except Exception as e:

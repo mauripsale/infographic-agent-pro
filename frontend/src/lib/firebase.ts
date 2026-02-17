@@ -15,4 +15,8 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
+// Add scopes for Google Slides export
+googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
+googleProvider.addScope('https://www.googleapis.com/auth/presentations');
+
 export { auth, googleProvider };

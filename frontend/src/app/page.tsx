@@ -147,24 +147,55 @@ export default function App() {
     }
   }, [user, fetchProjects, loadProject]);
 
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth, googleProvider } from "@/lib/firebase";
+
+// ... inside App component ...
+
   const handleExport = async (type: 'slides' | 'assets') => {
       const token = await getToken();
       if (!token || !script || !currentProjectId) return;
       setIsExporting(true);
+      
       const endpoint = type === 'slides' ? '/agent/export_slides' : '/agent/export';
+      const headers: Record<string, string> = { 
+          "Content-Type": "application/json", 
+          "Authorization": `Bearer ${token}` 
+      };
+
       try {
+          // For Slides, we need a fresh OAuth Access Token with Drive permissions
+          if (type === 'slides') {
+              try {
+                  const result = await signInWithPopup(auth, googleProvider);
+                  const credential = GoogleAuthProvider.credentialFromResult(result);
+                  const oauthToken = credential?.accessToken;
+                  if (oauthToken) {
+                      headers["X-Google-OAuth-Token"] = oauthToken;
+                  }
+              } catch (authErr) {
+                  console.error("Slides Auth Failed:", authErr);
+                  alert("Authorization for Google Slides failed.");
+                  setIsExporting(false);
+                  return;
+              }
+          }
+
           const res = await fetch(`${BACKEND_URL}${endpoint}`, {
               method: "POST",
-              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+              headers: headers,
               body: JSON.stringify({ script, project_id: currentProjectId })
           });
+          
+          if (!res.ok) throw new Error(await res.text());
+          
           const data = await res.json();
           if (data.url) window.open(data.url, '_blank');
           if (data.pdf) window.open(`${BACKEND_URL}${data.pdf}`, '_blank');
           if (data.zip) window.open(`${BACKEND_URL}${data.zip}`, '_blank');
       } catch (e) {
           console.error("Export failed:", e);
-          alert("Export failed. Please try again.");
+          alert("Export failed. Please check permissions or try again.");
       } finally {
           setIsExporting(false);
       }
@@ -319,8 +350,18 @@ CONSTRAINTS:
         )}
 
         {statusText && (
-            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-blue-600/90 text-white px-4 py-2 rounded-full shadow-lg backdrop-blur-md text-sm font-medium flex items-center gap-2 animate-bounce-in">
-                <SparklesIcon className="w-4 h-4 animate-spin" />
+            <div className={`absolute top-16 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full shadow-lg backdrop-blur-md text-sm font-medium flex items-center gap-2 animate-bounce-in transition-all duration-300 ${
+                statusText.includes("Error") || statusText.includes("fail") ? "bg-red-600/90 text-white" :
+                statusText.includes("Ready") || statusText.includes("ready") ? "bg-emerald-600/90 text-white" :
+                "bg-blue-600/90 text-white"
+            }`}>
+                {statusText.includes("Planning") || statusText.includes("Generating") || statusText.includes("...") ? (
+                    <SparklesIcon className="w-4 h-4 animate-spin" />
+                ) : statusText.includes("Error") || statusText.includes("fail") ? (
+                    <AlertCircleIcon className="w-4 h-4" />
+                ) : (
+                    <CheckIcon className="w-4 h-4" />
+                )}
                 {statusText}
             </div>
         )}
