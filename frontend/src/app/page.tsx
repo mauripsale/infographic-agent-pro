@@ -210,11 +210,16 @@ export default function App() {
     abortControllerRef.current = abortController;
     setIsStreaming(true);
     setAgentLog([]);
-    setSurfaceState(prev => {
-        const next = {...prev};
-        delete next.components['status'];
-        return next;
-    });
+
+    // OPTIMISTIC UI UPDATE: Give immediate feedback before the fetch starts
+    const initialStatus = targetPhase === "script" ? "🧠 Initializing Planning..." : "🎨 Preparing Image Generation...";
+    setSurfaceState(prev => ({
+        ...prev,
+        components: {
+            ...prev.components,
+            'status': { id: 'status', component: 'Text', text: initialStatus }
+        }
+    }));
 
     const token = await getToken();
     if (!token) { setIsStreaming(false); return; }
