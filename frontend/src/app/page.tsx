@@ -142,12 +142,9 @@ export default function App() {
   useEffect(() => {
     if (user) {
       fetchProjects();
-      const lastPid = localStorage.getItem("lastProjectId");
-      if (lastPid && !isResettingRef.current) {
-        loadProject(lastPid);
-      }
+      // Auto-resume removed for better UX (start fresh by default)
     }
-  }, [user, fetchProjects, loadProject]);
+  }, [user, fetchProjects]);
 
   const handleExport = async (type: 'slides' | 'assets') => {
       const token = await getToken();
@@ -164,11 +161,20 @@ export default function App() {
           // For Slides, we need a fresh OAuth Access Token with Drive permissions
           if (type === 'slides') {
               try {
+                  console.log("Requesting Google Slides permission...");
+                  // Force re-auth to get a fresh OAuth Access Token
                   const result = await signInWithPopup(auth, googleProvider);
                   const credential = GoogleAuthProvider.credentialFromResult(result);
                   const oauthToken = credential?.accessToken;
+                  
                   if (oauthToken) {
+                      console.log("OAuth Token received successfully.");
                       headers["X-Google-OAuth-Token"] = oauthToken;
+                  } else {
+                      console.error("No OAuth Access Token found in credential.");
+                      alert("Failed to get Google Drive permissions. Please try again.");
+                      setIsExporting(false);
+                      return;
                   }
               } catch (authErr) {
                   console.error("Slides Auth Failed:", authErr);
